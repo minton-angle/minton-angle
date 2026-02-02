@@ -1,6 +1,18 @@
+# Web Framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# AI & Computer Vision
 opencv-python
 mediapipe
 numpy
+
+# Data Analysis
 pandas
 matplotlib
 fastdtw
+scipy
+
+# Utilities
+python-dotenv
