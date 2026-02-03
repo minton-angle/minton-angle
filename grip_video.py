@@ -96,6 +96,24 @@ while cap.isOpened():
             # (1-1) 랜드마크 인덱스(0~20) 표시
             draw_landmark_indices(image, hand_landmarks, w, h)
 
+            # (2-0) 핵심 포인트(4, 8) 먼저 체크
+            lm4 = hand_landmarks.landmark[4]   # thumb tip
+            lm8 = hand_landmarks.landmark[8]   # index tip
+
+            def in_frame(lm, margin=0.02):
+                return (margin <= lm.x <= 1.0 - margin) and (margin <= lm.y <= 1.0 - margin)
+
+            has_4 = in_frame(lm4)
+            has_8 = in_frame(lm8)
+
+            # (4, 8)번 강조 표시
+            if has_4:
+                x4, y4 = int(lm4.x * w), int(lm4.y * h)
+                cv2.circle(image, (x4, y4), 14, (0, 255, 255), 2)
+            if has_8:
+                x8, y8 = int(lm8.x * w), int(lm8.y * h)
+                cv2.circle(image, (x8, y8), 14, (0, 255, 255), 2)
+
             # (2) 좌표 추출
             thumb = [hand_landmarks.landmark[4].x * w, hand_landmarks.landmark[4].y * h]
             wrist = [hand_landmarks.landmark[0].x * w, hand_landmarks.landmark[0].y * h]
