@@ -2,6 +2,8 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import time
+import os
+import json
 
 def draw_landmark_indices(image, hand_landmarks, w, h, color=(255, 255, 0)):
     """Draw landmark indices (0~20) on the frame for debugging/visualization."""
@@ -37,6 +39,38 @@ def calculate_angle(a, b, c):
     return angle
 
 
+def load_guideline(path: str):
+    if not os.path.exists(path):
+        return None
+    with open(path, 'r') as f:
+        return json.load(f)
+
+
+def calculate_angle_3d(a, b, c):
+    """Return angle ABC in degrees using 3D points (a, b, c)."""
+    a = np.array(a, dtype=np.float32)
+    b = np.array(b, dtype=np.float32)
+    c = np.array(c, dtype=np.float32)
+
+    ba = a - b
+    bc = c - b
+
+    ba_norm = np.linalg.norm(ba)
+    bc_norm = np.linalg.norm(bc)
+    if ba_norm == 0 or bc_norm == 0:
+        return None
+
+    cosang = np.dot(ba, bc) / (ba_norm * bc_norm)
+    cosang = np.clip(cosang, -1.0, 1.0)
+    return float(np.degrees(np.arccos(cosang)))
+
+
+def in_range(val, lo, hi):
+    if val is None:
+        return False
+    return (lo <= val <= hi)
+
+
 
 # 1. MediaPipe 설정
 mp_hands = mp.solutions.hands
@@ -56,6 +90,14 @@ cap = cv2.VideoCapture(0)
 
 # FPS 계산 변수
 prev_time = 0
+
+GUIDELINE_PATH = os.path.join('output_data', 'grip_guideline.json')
+guideline = load_guideline(GUIDELINE_PATH)
+
+if guideline is None:
+    print(f"⚠️ Guideline not found: {GUIDELINE_PATH} (run grip_extract_vector.py first)")
+else:
+    print(f"✅ Guideline loaded: {GUIDELINE_PATH} (n_samples={guideline.get('n_samples')})")
 
 print("🏸 Grip Correction System Started... (Exit: q)")
 
@@ -114,34 +156,82 @@ while cap.isOpened():
                 x8, y8 = int(lm8.x * w), int(lm8.y * h)
                 cv2.circle(image, (x8, y8), 14, (0, 255, 255), 2)
 
-            # (2) 좌표 추출
-            thumb = [hand_landmarks.landmark[4].x * w, hand_landmarks.landmark[4].y * h]
-            wrist = [hand_landmarks.landmark[0].x * w, hand_landmarks.landmark[0].y * h]
-            index = [hand_landmarks.landmark[8].x * w, hand_landmarks.landmark[8].y * h]
+            # (2) 3D 좌표 추출 (가능하면 world landmark 사용)
+            # results.multi_hand_world_landmarks가 있으면 그걸 우선 사용
+            if results.multi_hand_world_landmarks:
+                world_lms = results.multi_hand_world_landmarks[0].landmark
+                coords3d = {i: [lm.x, lm.y, lm.z] for i, lm in enumerate(world_lms)}
 
-            # (3) 각도 계산
-            angle = calculate_angle(thumb, wrist, index)
-            
-            # (4) 그립 판독 로직
-            grip_status = "Check Grip"
-            color = (0, 0, 255) # 빨강
-
-            if 20 < angle < 60:
-                grip_status = "Nice V-Grip!"
-                color = (0, 255, 0) # 초록
-            elif angle <= 20:
-                grip_status = "Too Tight"
+                a_thumb_ip = calculate_angle_3d(coords3d[2], coords3d[3], coords3d[4])
+                a_index_pip = calculate_angle_3d(coords3d[5], coords3d[6], coords3d[7])
+                a_index_dip = calculate_angle_3d(coords3d[6], coords3d[7], coords3d[8])
+                a_v = calculate_angle_3d(coords3d[3], coords3d[0], coords3d[6])
             else:
-                grip_status = "Too Wide"
+                # fallback: 2D pixel 기반 (정확도는 3D보다 떨어질 수 있음)
+                p = {i: [hand_landmarks.landmark[i].x * w, hand_landmarks.landmark[i].y * h] for i in range(21)}
+                a_thumb_ip = calculate_angle(p[2], p[3], p[4])
+                a_index_pip = calculate_angle(p[5], p[6], p[7])
+                a_index_dip = calculate_angle(p[6], p[7], p[8])
+                a_v = calculate_angle(p[3], p[0], p[6])
 
-            # (5) 정보 시각화 (HUD) - 이제 글씨가 똑바로 나옵니다!
-            cv2.putText(image, f"{int(angle)} deg", 
-                        tuple(np.multiply(wrist, [1, 1]).astype(int)), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-            
-            cv2.rectangle(image, (0, 0), (250, 60), (245, 117, 16), -1)
-            cv2.putText(image, grip_status, (20, 40), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            angles_now = {
+                'thumb_ip_234': a_thumb_ip,
+                'index_pip_567': a_index_pip,
+                'index_dip_678': a_index_dip,
+                'v_angle_306': a_v,
+            }
+
+            # (3) 가이드라인 범위 체크
+            ok_map = {}
+            ok_count = 0
+            total = 4
+
+            if guideline and 'ranges' in guideline:
+                for k, v in angles_now.items():
+                    lo = guideline['ranges'][k]['min']
+                    hi = guideline['ranges'][k]['max']
+                    ok = in_range(v, lo, hi)
+                    ok_map[k] = ok
+                    ok_count += 1 if ok else 0
+
+                passed = (ok_count == total)
+                status = 'OK' if passed else 'FAIL'
+                status_color = (0, 255, 0) if passed else (0, 0, 255)
+            else:
+                status = 'NO_GUIDELINE'
+                status_color = (0, 0, 255)
+                for k in angles_now.keys():
+                    ok_map[k] = False
+
+            # (4) HUD 표시
+            cv2.rectangle(image, (0, 0), (420, 150), (20, 20, 20), -1)
+            cv2.putText(image, f"GRIP: {status} ({ok_count}/{total})", (15, 35),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, status_color, 2, cv2.LINE_AA)
+
+            # 각도/범위 표시
+            y0 = 65
+            dy = 20
+            order = [
+                ('v_angle_306', 'V(3-0-6)'),
+                ('thumb_ip_234', 'TH_IP(2-3-4)'),
+                ('index_pip_567', 'IN_PIP(5-6-7)'),
+                ('index_dip_678', 'IN_DIP(6-7-8)'),
+            ]
+
+            for i, (k, label) in enumerate(order):
+                v = angles_now[k]
+                ok = ok_map.get(k, False)
+                c = (0, 255, 0) if ok else (0, 0, 255)
+
+                if guideline and 'ranges' in guideline:
+                    lo = guideline['ranges'][k]['min']
+                    hi = guideline['ranges'][k]['max']
+                    txt = f"{label}: {0 if v is None else int(v)} deg  [{int(lo)}-{int(hi)}]"
+                else:
+                    txt = f"{label}: {0 if v is None else int(v)} deg"
+
+                cv2.putText(image, txt, (15, y0 + i * dy),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, c, 2, cv2.LINE_AA)
 
     # 6. FPS 표시
     curr_time = time.time()
@@ -151,7 +241,7 @@ while cap.isOpened():
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     # [핵심 변경 2] 마지막엔 뒤집지 않고 그대로 출력
-    cv2.imshow('Badminton Grip Coach Pro', image)
+    cv2.imshow('Badminton Grip Coach - Guideline Check', image)
 
     if cv2.waitKey(5) & 0xFF == ord('q'):
         break
