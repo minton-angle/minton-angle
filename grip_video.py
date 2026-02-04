@@ -27,13 +27,18 @@ def main():
     )
 
     prev_time = 0
-    print(f"Hands video demo started: {VIDEO_PATH} (q to quit, r to restart)")
+    paused = False
+    print(f"Hands video demo started: {VIDEO_PATH} (space: pause/resume, s: step, q: quit, r: restart)")
 
     while cap.isOpened():
-        ok, frame = cap.read()
-        if not ok:
-            # 영상 끝 -> 종료
-            break
+        if not paused:
+            ok, frame = cap.read()
+            if not ok:
+                # 영상 끝 -> 종료
+                break
+        else:
+            # 일시정지 상태에서는 이전 frame을 그대로 사용
+            frame = frame
 
         # 영상은 보통 좌우반전(거울) 하지 않는 게 자연스럽습니다.
         # 필요하면 아래 주석 해제:
@@ -84,6 +89,18 @@ def main():
             cv2.LINE_AA,
         )
 
+        if paused:
+            cv2.putText(
+                frame,
+                "PAUSED",
+                (frame.shape[1]//2 - 80, 60),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1.5,
+                (0, 0, 255),
+                3,
+                cv2.LINE_AA,
+            )
+
         cv2.imshow("MediaPipe Hands - Video", frame)
 
         key = cv2.waitKey(5) & 0xFF
@@ -91,6 +108,14 @@ def main():
             break
         if key == ord("r"):
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            paused = False
+        if key == ord(" "):
+            paused = not paused
+        if key == ord("s") and paused:
+            # 일시정지 상태에서 한 프레임씩 전진
+            ok, frame = cap.read()
+            if not ok:
+                break
 
     cap.release()
     hands.close()
