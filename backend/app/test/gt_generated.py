@@ -4,8 +4,8 @@ import csv
 import os
 
 # --- 1. 경로 및 포인트 설정 ---
-VIDEO_PATH = '/Users/minji/Documents/pro_swing_2_GT.mp4'  # 영상 경로 (직접 수정)
-SAVE_PATH = '/Users/minji/Documents/minton-angle/backend/data/standard/pro_swing_2_data.csv' # 저장 경로 (직접 수정)
+VIDEO_PATH = '/Users/minji/Documents/pro_swing_3_GT.mp4'  # 영상 경로 (직접 수정)
+SAVE_PATH = '/Users/minji/Documents/minton-angle/backend/data/standard/pro_swing_3_data.csv' # 저장 경로 (직접 수정)
 
 # 민지가 선택한 19개의 핵심 포인트 (오름차순 정렬)
 SELECTED_INDICES = [0, 11, 12, 13, 14, 15, 16, 17, 18, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
