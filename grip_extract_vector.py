@@ -8,7 +8,7 @@ import time
 # --- 1. 환경 설정 ---
 INPUT_FOLDER = './grip_data' 
 OUTPUT_BASE = './output_data'
-DIRS = ['coords', 'vectors', 'unit_vectors', 'angles', 'visuals'] # angles 항목 추가
+DIRS = ['coords', 'vectors', 'unit_vectors', 'angles', 'visuals']  # outputs
 
 for d in DIRS:
     os.makedirs(os.path.join(OUTPUT_BASE, d), exist_ok=True)
@@ -21,7 +21,7 @@ mp_drawing_styles = mp.solutions.drawing_styles
 hands = mp_hands.Hands(
     static_image_mode=True, 
     max_num_hands=1, 
-    min_detection_confidence=0.5
+    min_detection_confidence=0.1
 )
 HAND_CONNECTIONS = mp_hands.HAND_CONNECTIONS
 
@@ -80,7 +80,12 @@ def calculate_angle(a, b, c):
     return ang
 
 # --- 3. 메인 프로세스 ---
-image_files = [f for f in os.listdir(INPUT_FOLDER) if f.endswith(('.jpg', '.png', '.jpeg'))]
+image_files = [
+    f for f in os.listdir(INPUT_FOLDER)
+    if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
+]
+webp_files = [f for f in image_files if f.lower().endswith('.webp')]
+print(f"Found images: {len(image_files)} (webp: {len(webp_files)})")
 
 # GT 각도 분포(가이드라인) 생성을 위한 누적
 angle_records = []
@@ -318,7 +323,13 @@ for file_name in image_files:
             cv2.LINE_AA,
         )
 
-    base = os.path.splitext(file_name)[0]
-    cv2.imwrite(os.path.join(OUTPUT_BASE, 'visuals', f"{base}_hands_hud.png"), hud_image)
+    # Avoid filename collisions across different extensions by including the original extension
+    base, ext = os.path.splitext(file_name)
+    ext_tag = ext.lower().lstrip('.')  # e.g. '.webp' -> 'webp'
+    safe_base = base.replace('.', '_')
+    cv2.imwrite(
+        os.path.join(OUTPUT_BASE, 'visuals', f"{safe_base}__{ext_tag}_hands_hud.png"),
+        hud_image
+    )
 
 print("\n--- 모든 작업 완료! output_data/visuals 폴더를 확인해 보세요. ---")
