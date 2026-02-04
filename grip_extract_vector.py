@@ -13,6 +13,15 @@ DIRS = ['coords', 'vectors', 'unit_vectors', 'angles', 'visuals']  # outputs
 for d in DIRS:
     os.makedirs(os.path.join(OUTPUT_BASE, d), exist_ok=True)
 
+# --- 초기화: 기존 결과물 삭제 (중복 실행 시 덮어쓰기/혼동 방지) ---
+for d in DIRS:
+    dir_path = os.path.join(OUTPUT_BASE, d)
+    for f in os.listdir(dir_path):
+        fp = os.path.join(dir_path, f)
+        if os.path.isfile(fp):
+            os.remove(fp)
+print("🧹 기존 output_data 결과물 모두 삭제 완료")
+
 # MediaPipe 초기화 (시각화 도구 포함)
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
