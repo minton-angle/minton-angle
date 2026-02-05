@@ -1,64 +1,76 @@
 import cv2
 import mediapipe as mp
-import sys
-import time
+import numpy as np
 
-print(">>> [1/5] 라이브러리 로딩 중...")
+class PoseEngine:
+    def __init__(self):
+        self.mp_pose = mp.solutions.pose
+        self.pose = self.mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=1,  # 0보다 1이 조금 더 정확합니다 (배드민턴은 정교해야 하니까요!)
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+        self.mp_drawing = mp.solutions.drawing_utils
 
-# 1. MediaPipe Pose 모델 설정
-try:
-    mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose(
-        static_image_mode=False,
-        model_complexity=0,      # 가장 가벼운 0단계로 수정했습니다!
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5
-    )
-    mp_drawing = mp.solutions.drawing_utils
-    print(">>> [2/5] AI 모델 생성 성공!")
-except Exception as e:
-    print(f">>> [에러] AI 모델 생성 실패: {e}")
-    sys.exit()
+    def calculate_angle(self, a, b, c):
+        """세 점(a, b, c)을 받아 b를 정점으로 하는 각도를 계산 (degree)"""
+        a = np.array(a) # 첫 번째 점 (예: 어깨)
+        b = np.array(b) # 두 번째 점 (예: 팔꿈치)
+        c = np.array(c) # 세 번째 점 (예: 손목)
 
-# 2. 웹캠 연결 시도
-print(">>> [3/5] 카메라 연결 시도 중...")
-cap = cv2.VideoCapture(0)
-
-if not cap.isOpened():
-    print(">>> [에러] 0번 카메라를 열 수 없습니다.")
-    sys.exit()
-
-print(">>> [4/5] 카메라 연결 성공! 프레임을 읽기 시작합니다.")
-
-while cap.isOpened():
-    success, frame = cap.read()
-    if not success:
-        print(">>> [알림] 프레임을 읽지 못해 대기 중...")
-        continue
-
-    # RGB 변환
-    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    
-    # 분석 수행
-    start_time = time.time()
-    results = pose.process(image)
-    end_time = time.time()
-
-    # 3. 화면 표시
-    if results.pose_landmarks:
-        # 화면에 뼈대 그리기
-        mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+        # 벡터 계산
+        radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
+        angle = np.abs(radians * 180.0 / np.pi)
         
-        # 분석 속도를 화면에 표시 (정상 작동 확인용)
-        fps = 1.0 / (end_time - start_time)
-        cv2.putText(frame, f"AI FPS: {int(fps)}", (10, 30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        if angle > 180.0:
+            angle = 360 - angle
+        return angle
 
-    cv2.imshow('MintonAngle Debug Mode', frame)
+    def process_frame(self, frame):
+        """프레임 하나를 받아 관절 좌표와 계산된 각도를 반환"""
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = self.pose.process(image_rgb)
+        
+        analysis_result = {
+            "landmarks": None,
+            "elbow_angle": 0,
+            "wrist_coord": None
+        }
 
-    if cv2.waitKey(5) & 0xFF == 27:
-        break
+        if results.pose_landmarks:
+            analysis_result["landmarks"] = results.pose_landmarks
+            landmarks = results.pose_landmarks.landmark
 
-print(">>> [5/5] 프로그램 종료 중...")
-cap.release()
-cv2.destroyAllWindows()
+            # 배드민턴 핵심 관절: 오른쪽 어깨(12), 팔꿈치(14), 손목(16)
+            shoulder = [landmarks[12].x, landmarks[12].y]
+            elbow = [landmarks[14].x, landmarks[14].y]
+            wrist = [landmarks[16].x, landmarks[16].y]
+
+            # 팔꿈치 각도 계산
+            analysis_result["elbow_angle"] = self.calculate_angle(shoulder, elbow, wrist)
+            analysis_result["wrist_coord"] = wrist
+
+        return analysis_result, results
+
+# 사용 예시 (테스트용)
+if __name__ == "__main__":
+    engine = PoseEngine()
+    cap = cv2.VideoCapture(0)
+    
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret: break
+        
+        result, raw_results = engine.process_frame(frame)
+        
+        if result["landmarks"]:
+            # 뼈대 그리기
+            engine.mp_drawing.draw_landmarks(frame, result["landmarks"], engine.mp_pose.POSE_CONNECTIONS)
+            # 각도 표시
+            cv2.putText(frame, f"Angle: {int(result['elbow_angle'])}", 
+                        (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+        cv2.imshow('MintonAngle Core Test', frame)
+        if cv2.waitKey(5) & 0xFF == 27: break
+    cap.release()
