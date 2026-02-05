@@ -59,11 +59,11 @@ def analyze_badminton_swing(video_path):
     highest_wrist_frame = min(valid_frames, key=lambda x: x['wrist'][1])
     highest_idx = highest_wrist_frame['idx']
 
-    # 1. IMPACT (기존 유지)
+    # 1. IMPACT
     impact_candidates = [f for f in valid_frames if f['idx'] >= highest_idx and f['wrist'][1] <= f['elbow'][1]]
     i_idx = min(impact_candidates, key=lambda x: abs(x['snap_angle'] - 160.5))['idx'] if impact_candidates else highest_idx
 
-    # 2. READY (기존 유지)
+    # 2. READY
     temp_ready_candidates = []
     for i in range(1, highest_idx):
         if 'wrist' in frames[i] and 'wrist' in frames[i-1]:
@@ -71,7 +71,7 @@ def analyze_badminton_swing(video_path):
             temp_ready_candidates.append((i, movement))
     r_idx = min(temp_ready_candidates, key=lambda x: x[1])[0] if temp_ready_candidates else 0
 
-    # 3. BACKSWING (기존 유지)
+    # 3. BACKSWING
     bs_candidates = []
     for f in valid_frames:
         if r_idx < f['idx'] <= highest_idx:
