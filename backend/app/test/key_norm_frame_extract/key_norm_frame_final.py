@@ -118,8 +118,8 @@ def analyze_swing_keyframes(input_csv_path, output_csv_path=None, output_img_dir
 
     # --- 실행부 ---
 if __name__ == "__main__":
-    INPUT_CSV = "/Users/minji/Documents/GT4_normalized_fixed.csv"
-    RESULT_CSV = "/Users/minji/Documents/minton-angle/backend/data/standard/final_gt_frames/GT4.csv"
-    IMAGE_DIR = "/Users/minji/Documents/minton-angle/backend/data/standard/final_gt_frames/GT4"
+    INPUT_CSV = "/Users/minji/Documents/minton-angle_resources/roh_normalized_fixed.csv"
+    RESULT_CSV = "/Users/minji/Documents/minton-angle/backend/data/standard/final_gt_frames/roh.csv"
+    IMAGE_DIR = "/Users/minji/Documents/minton-angle/backend/data/standard/final_gt_frames/roh"
 
     analyze_swing_keyframes(INPUT_CSV, RESULT_CSV, IMAGE_DIR)
