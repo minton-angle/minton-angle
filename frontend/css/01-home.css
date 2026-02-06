@@ -1,0 +1,92 @@
+/* 기본 스타일 초기화 */
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+    background-color: #f5f5f7;
+    color: #1d1d1f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    /* 배경 이미지 경로 수정: assets 폴더 안으로 */
+    background-image: url('../assets/images/background.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    position: relative; 
+}
+
+header, .user-section, .btn-section, .btn-grib, .btn-pose {
+    margin-left: 20px;
+    margin-right: 20px;
+}
+
+.user-section {
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 15px;
+    padding: 30px 20px;
+    color: black;
+    text-align: center;
+    margin-bottom: 30px;
+    margin-top: 100px;
+}
+
+.btn-section {
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 15px;
+    padding: 20px 20px 80px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: black;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.btn-section2 {
+    width: 100%;
+    color: black;
+    font-size: 30px;
+    text-align: left;
+    margin-bottom: 30px;
+}
+
+.navbar-section {
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 15px;
+    width: 100%;
+    height: 70px;
+    max-width: 430px;
+}
+
+
+.btn-grib, .btn-pose {
+    display: block;
+    padding: 60px;
+    background-color: #007aff;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 15px;
+    font-weight: 600;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    align-self: stretch;
+}
+
+.btn-grib { margin-top: 20px; margin-bottom: 15px; }
+.btn-grib:active, .btn-pose:active { opacity: 0.8; }
