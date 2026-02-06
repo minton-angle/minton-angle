@@ -23,3 +23,7 @@ models/*.pkl
 # 운영체제 임시 파일
 .DS_Store
 Thumbs.db
+
+# Test 폴더 (test_db_connection.py만 제외하고 모두 무시)
+test/*
+!test/test_db_connection.py
