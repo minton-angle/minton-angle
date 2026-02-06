@@ -1,0 +1,166 @@
+/* 1. 헤더 영역 */
+.header {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    background-color: #fff;
+    position: sticky;
+    top: 25px;
+    z-index: 10;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    z-index: 11;
+}
+
+.back-btn img {
+    width: 24px; /* 뒤로가기 화살표 크기 */
+    height: auto;
+}
+
+.header-title {
+    position: absolute; /* 타이틀을 완전 중앙에 배치 */
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #025B36;
+    pointer-events: none; /* 클릭 방해 금지 */
+}
+
+/* 2. 메인 콘텐츠 */
+.main-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #025B36;
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 8px;
+}
+
+.sub-desc {
+    font-size: 14px;
+    color: #444;
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+/* 3. 이미지 및 카메라 박스 */
+.image-pair {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 30px;
+}
+
+.img-box, .camera-box {
+    flex: 1;
+    aspect-ratio: 1 / 1;
+    border-radius: 20px;
+    overflow: hidden;
+    background-color: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #eee;
+}
+
+.img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.camera-icon-wrapper {
+    width: 17.946px; /* 카메라 아이콘 크기 */
+    height: 17.946px;
+    aspect-ratio: 1/1;
+    margin-bottom: 8px;
+}
+
+.camera-box span {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+}
+
+/* 4. 주의사항 및 카드 */
+.warning-msg {
+    text-align: center;
+    color: #ff4d4d;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 25px;
+    margin-top: 23px;
+    margin-bottom: 15px;
+}
+
+.warning-msg span {
+    text-decoration: underline;
+}
+
+.info-card {
+    border-radius: 30px;
+    border: 1px solid rgba(28, 89, 63, 0.30);
+    background: rgba(217, 217, 217, 0.00);
+    padding: 20px;
+    margin-bottom: 30px;
+
+}
+
+.info-card-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #003B23;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.info-list {
+    list-style: none;
+}
+
+.info-list li {
+    font-size: 15px;
+    color:#494949;
+    font-weight: 500;
+    line-height: 25px;
+    display: flex;
+    gap: 8px;
+}
+
+.info-list li span {
+    font-weight: 700;
+    color: #0d6e44;
+    flex-shrink: 0;
+}
+
+/* 5. 하단 버튼 */
+.bottom-action {
+    padding: 16px 20px 34px 20px;
+    background-color: #fff;
+}
+
+.next-btn {
+    width: 100%;
+    background-color: #025B36;
+    color: #fff;
+    border: none;
+    padding: 18px;
+    border-radius: 50px;
+    font-weight: normal;
+    font-size: 22px; /* 디자인에 맞춰 살짝 조정 */
+    cursor: pointer;
+}
+
+.next-btn:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
