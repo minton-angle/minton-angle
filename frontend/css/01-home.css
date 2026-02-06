@@ -1,57 +1,126 @@
 /* 1. 배경 이미지 설정 (scroll-container에 적용) */
 .home-bg {
-    background-image: url('../assets/images/background.png');
-    background-size: cover;
+    background-image: url('../assets/images/background2.png');
+    background-size: 100%;
     background-repeat: no-repeat;
     background-position: center;
+    padding-bottom: 100px;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.logo-box {
+    background-image: url('../assets/images/logo.png');
+    width: 150px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left center;
+    margin-top: 20px;
 }
 
 /* 2. 유저 섹션 스타일 */
 .user-section {
-    background-color: rgba(255, 255, 255, 0.6); /* 가독성을 위해 불투명도 조절 */
-    /*backdrop-filter: blur(10px);*/ /* 배경을 살짝 흐리게 해서 고급스럽게 */
-    border-radius: 20px;
-    padding: 30px 20px;
+    background-color: rgba(255, 255, 255, 0.45); /* 가독성을 위해 불투명도 조절 */
+    backdrop-filter: blur(2px);
+    border-radius: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    display: flex;
+    flex-direction: row;
+    gap: 2px;
+    padding: 15px 30px;
     color: #1d1d1f;
-    text-align: center;
-    margin-top: 100px; /* 상단 여백 조절 */
+    margin-top: 10px; /* 상단 여백 조절 */
     margin-bottom: 20px;
+    align-items: flex-start; 
 }
 
-.user-section h2 {
-    font-size: 22px;
-    font-weight: 700;
+.profile-upload-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-image-container {
+    background-image: url('../assets/images/profile.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+    border: 1px solid #fff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-left: 10px;
+}
+
+.user-name {
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1;
+    color: #1d1d1f;
+    margin: 0;
+    margin-top: 10px;
+    margin-bottom: 7px;
+}
+
+.user-welcome {
+    font-size: 20px;
+    font-weight: 300;
+    line-height: 1;
+    color: #1d1d1f;
+    margin: 0;
+    margin-top: 10px;
 }
 
 /* 3. 모드 선택 섹션 */
 .btn-section {
-    background-color: rgba(255, 255, 255, 0.6);
-    /*backdrop-filter: blur(10px);*/
-    border-radius: 20px;
+    background-color: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 40px;
     padding: 30px 20px;
-    margin-bottom: 100px; /* 네비바에 가려지지 않게 하단 여백 */
+    margin-bottom: 80px; /* 네비바에 가려지지 않게 하단 여백 */
 }
 
 .selectmode-section {
     width: 100%;
-    color: #1d1d1f;
+    color: #1a4b2f;
     font-size: 26px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 1.4;
     text-align: left;
     margin-bottom: 25px;
 }
 
 /* 4. 버튼 스타일 */
-.btn-grib, .btn-pose {
+.btn-grib {
+    background-image: url("../assets/images/grip.png");
+    background-position: 90% 90%;
+    background-size: 80%;
     width: 100%;
-    padding: 40px; /* 너무 과한 패딩 수정 */
-    background-color: #007aff;
-    color: white;
-    text-align: center;
+    padding: 25px;
     border-radius: 15px;
-    font-weight: 600;
-    font-size: 18px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
+}
+
+.btn-pose {
+    background-image: url("../assets/images/swing.png");
+    background-position: 0 10%;
+    background-size: 80%;
+    width: 100%;
+    padding: 10px;
+    border-radius: 15px;
     margin-bottom: 15px;
     box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
 }
@@ -61,6 +130,33 @@
     opacity: 0.9;
 }
 
+.btn-content {
+    color: #1d4a0a;
+    padding: 20px;
+    font-size: 18px;
+    font-weight: 400;
+    text-align: left;
+}
+
+.btn-content.hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-content2 {
+    color: #1d4a0a;
+    padding: 50px 10px 20px 20px;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: 400;
+    text-align: right;
+}
+
+.btn-content.hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
 /* 5. 네비게이션 바 (하단 고정용) */
 .navbar-section {
     position: absolute;
@@ -68,11 +164,10 @@
     left: 0;
     width: 100%;
     height: 85px;
-    background-color: rgba(255, 255, 255, 0.95);
-    border-top: 1px solid #e0e0e0;
-    display: flex;
-    justify-content: space-around;
+    background-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
     align-items: center;
-    padding-bottom: 0; /* 아이폰 하단 바 영역 확보 */
     z-index: 10;
+    border-radius: 40px;
 }
