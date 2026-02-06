@@ -1,92 +1,78 @@
-/* 기본 스타일 초기화 */
-*{
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-body {
-    background-color: #f5f5f7;
-    color: #1d1d1f;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100vh;
-}
-
-.container {
-    width: 100%;
-    max-width: 430px;
-    min-height: 100vh;
-    box-shadow: 0 0 20px rgba(0,0,0,0.05);
-    /* 배경 이미지 경로 수정: assets 폴더 안으로 */
+/* 1. 배경 이미지 설정 (scroll-container에 적용) */
+.home-bg {
     background-image: url('../assets/images/background.png');
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
-    position: relative; 
 }
 
-header, .user-section, .btn-section, .btn-grib, .btn-pose {
-    margin-left: 20px;
-    margin-right: 20px;
-}
-
+/* 2. 유저 섹션 스타일 */
 .user-section {
-    background-color: rgba(255, 255, 255, 0.7);
-    border-radius: 15px;
+    background-color: rgba(255, 255, 255, 0.6); /* 가독성을 위해 불투명도 조절 */
+    /*backdrop-filter: blur(10px);*/ /* 배경을 살짝 흐리게 해서 고급스럽게 */
+    border-radius: 20px;
     padding: 30px 20px;
-    color: black;
+    color: #1d1d1f;
     text-align: center;
-    margin-bottom: 30px;
-    margin-top: 100px;
+    margin-top: 100px; /* 상단 여백 조절 */
+    margin-bottom: 20px;
 }
 
+.user-section h2 {
+    font-size: 22px;
+    font-weight: 700;
+}
+
+/* 3. 모드 선택 섹션 */
 .btn-section {
-    background-color: rgba(255, 255, 255, 0.7);
-    border-radius: 15px;
-    padding: 20px 20px 80px 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    color: black;
-    text-align: center;
-    margin-bottom: 30px;
+    background-color: rgba(255, 255, 255, 0.6);
+    /*backdrop-filter: blur(10px);*/
+    border-radius: 20px;
+    padding: 30px 20px;
+    margin-bottom: 100px; /* 네비바에 가려지지 않게 하단 여백 */
 }
 
-.btn-section2 {
+.selectmode-section {
     width: 100%;
-    color: black;
-    font-size: 30px;
+    color: #1d1d1f;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.4;
     text-align: left;
-    margin-bottom: 30px;
+    margin-bottom: 25px;
 }
 
-.navbar-section {
-    background-color: rgba(255, 255, 255, 0.7);
-    border-radius: 15px;
-    width: 100%;
-    height: 70px;
-    max-width: 430px;
-}
-
-
+/* 4. 버튼 스타일 */
 .btn-grib, .btn-pose {
-    display: block;
-    padding: 60px;
+    width: 100%;
+    padding: 40px; /* 너무 과한 패딩 수정 */
     background-color: #007aff;
     color: white;
     text-align: center;
-    text-decoration: none;
     border-radius: 15px;
     font-weight: 600;
-    font-size: 16px;
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    align-self: stretch;
+    font-size: 18px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
 }
 
-.btn-grib { margin-top: 20px; margin-bottom: 15px; }
-.btn-grib:active, .btn-pose:active { opacity: 0.8; }
+.btn-grib:active, .btn-pose:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+
+/* 5. 네비게이션 바 (하단 고정용) */
+.navbar-section {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 85px;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: 0; /* 아이폰 하단 바 영역 확보 */
+    z-index: 10;
+}
