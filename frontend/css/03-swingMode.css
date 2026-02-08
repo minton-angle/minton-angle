@@ -29,57 +29,21 @@
     border: 1px solid rgba(255, 255, 255, 0.5);
     display: flex;
     flex-direction: row;
-    gap: 2px;
-    padding: 15px 30px;
+    gap: 10px;
+    padding: 30px 30px;
     color: #1d1d1f;
-    margin-top: 10px; /* 상단 여백 조절 */
-    margin-bottom: 20px;
-    align-items: flex-start; 
-}
-
-.profile-upload-area {
-    display: flex;
-    flex-direction: column;
+    margin-top: 15px; /* 상단 여백 조절 */
+    margin-bottom: 30px;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
 }
 
-.user-image-container {
-    background-image: url('../assets/images/profile.png');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    width: 75px;
-    height: 75px;
-    border-radius: 50%;
-    border: 1px solid #fff;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-.user-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-left: 10px;
-}
-
-.user-name {
-    font-size: 28px;
-    font-weight: 500;
-    line-height: 1;
-    color: #1d1d1f;
-    margin: 0;
-    margin-top: 10px;
-    margin-bottom: 7px;
-}
-
-.user-welcome {
-    font-size: 20px;
+.user-text {
+    font-size: 23px;
     font-weight: 300;
     line-height: 1;
-    color: #1d1d1f;
+    color: #003e02;
     margin: 0;
-    margin-top: 10px;
 }
 
 /* 3. 모드 선택 섹션 */
@@ -103,10 +67,11 @@
 }
 
 /* 4. 버튼 스타일 */
-.btn-grib {
-    background-image: url("../assets/images/grip.png");
-    background-position: 90% 90%;
-    background-size: 80%;
+.btn-live {
+    background-image: url("../assets/images/live.jpg");
+    background-position: 80% 40%;
+    background-size: 120%;
+    background-repeat: no-repeat;
     width: 100%;
     padding: 25px;
     border-radius: 15px;
@@ -114,10 +79,11 @@
     box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
 }
 
-.btn-pose {
-    background-image: url("../assets/images/swing.png");
-    background-position: 0 10%;
-    background-size: 80%;
+.btn-upload {
+    background-image: url("../assets/images/upload.png");
+    background-repeat: no-repeat;
+    background-position: 100% 25%;
+    background-size: 130%;
     width: 100%;
     padding: 10px;
     border-radius: 15px;
@@ -125,17 +91,17 @@
     box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
 }
 
-.btn-grib:active, .btn-pose:active {
+.btn-live:active, .btn-upload:active {
     transform: scale(0.98);
     opacity: 0.9;
 }
 
 .btn-content {
-    color: #1d4a0a;
-    padding: 20px;
+    color: #ffffff;
+    padding: 10px 20px 25px 20px;
     font-size: 18px;
     font-weight: 400;
-    text-align: left;
+    text-align: right;
 }
 
 .btn-content.hover {
@@ -144,8 +110,8 @@
 }
 
 .btn-content2 {
-    color: #1d4a0a;
-    padding: 50px 10px 20px 20px;
+    color: #ffffff;
+    padding: 25px 30px 35px 15px;
     border-radius: 20px;
     font-size: 18px;
     font-weight: 400;
