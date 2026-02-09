@@ -23,3 +23,13 @@ models/*.pkl
 # 운영체제 임시 파일
 .DS_Store
 Thumbs.db
+
+# 모든 PNG 이미지 파일 무시
+*.png
+
+# Test 폴더 설정
+test/*
+
+# 특정 파일만 예외적으로 추적 (느낌표 사용)
+!test/extract_gt_baseline.py
+!test/test_db_connection.py
