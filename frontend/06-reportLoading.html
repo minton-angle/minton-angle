@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 분석 리포트 생성 중</title>
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/06-reportLoading.css">
+</head>
+<body>
+    <div class="app-wrapper loading-bg">
+        <main class="loading-container">
+            <div class="spinner-box">
+                <div class="circle-spinner"></div>
+            </div>
+            
+            <div class="loading-text-group">
+                <h1 class="loading-title">AI 리포트 생성중...</h1>
+                <p class="loading-sub">잠시만 기다려주세요</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 3초 뒤에 자동으로 리포트 상세 페이지로 이동
+        setTimeout(() => {
+            window.location.href = '07-reportDetail.html';
+        }, 3000);
+    </script>
+</body>
+</html>
