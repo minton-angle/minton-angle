@@ -14,7 +14,7 @@ import base64
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.db.database import get_db  # DB 세션
+from app.db.data import get_db  # DB 세션
 from app.models.postModels import Post  # POST 모델
 from app.models.fileModels import File  # FILE 모델
 from app.models.analysisModels import Analysis  # ANALYSIS 모델
