@@ -5,7 +5,7 @@ import json
 import os
 
 # --- 설정 ---
-GT_FILE = "grip_gt.json" # 1단계에서 만든 파일
+GT_FILE = "grip_gt_range.json" # 1단계에서 만든 파일
 THRESHOLD = 15.0         # 허용 오차 범위 (도)
 CAM_ID = 0               # 웹캠 번호
 
@@ -45,7 +45,7 @@ class RealTimeCoach:
         # 현재 각도 계산
         # 1. V-Shape
         curr_v = self.calculate_angle(
-            self.get_vector(lm[0], lm[1]), self.get_vector(lm[0], lm[5]))
+            self.get_vector(lm[0], lm[2]), self.get_vector(lm[0], lm[5]))
         
         # 2. Thumb
         curr_thumb = self.calculate_angle(

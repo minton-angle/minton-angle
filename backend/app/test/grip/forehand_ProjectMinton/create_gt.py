@@ -6,14 +6,14 @@ import json
 from pathlib import Path
 
 # --- 설정 ---
-GT_FOLDER = "./check_for_good_grip/my_grip_images"      # 정답 이미지가 있는 폴더
+GT_FOLDER = r"C:\Users\User\like_cool_lion\pratice_Minton\check_for_good_grip\good_grip_images"     # 정답 이미지가 있는 폴더
 OUTPUT_FILE = "grip_gt.json"   # 저장할 정답 데이터 파일
 
 class GripFeatureExtractor:
     def __init__(self):
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(
-            static_image_mode=True, max_num_hands=1, min_detection_confidence=0.5)
+            static_image_mode=True, max_num_hands=1, min_detection_confidence=0.1)
 
     def get_vector(self, p1, p2):
         return np.array([p2.x - p1.x, p2.y - p1.y, p2.z - p1.z])
@@ -33,13 +33,15 @@ class GripFeatureExtractor:
         if img is None: return None
         
         results = self.hands.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        if not results.multi_hand_world_landmarks: return None
+        if not results.multi_hand_world_landmarks: 
+            print(f"⚠️ [손 인식 실패] {os.path.basename(image_path)} -> 손이 잘렸거나, 너무 흐리거나, 배경이 복잡함")
+            return None
         
         lm = results.multi_hand_world_landmarks[0].landmark
         
         # 1. V-Shape (엄지-검지 벌림) : Wrist(0) 기준
         angle_v = self.calculate_angle(
-            self.get_vector(lm[0], lm[1]), # Wrist -> Thumb CMC
+            self.get_vector(lm[0], lm[2]), # Wrist -> Thumb CMC
             self.get_vector(lm[0], lm[5])  # Wrist -> Index MCP
         )
 
@@ -63,7 +65,9 @@ def main():
     
     # 폴더가 없으면 생성
     os.makedirs(GT_FOLDER, exist_ok=True)
-    images = list(Path(GT_FOLDER).glob("*.[jJ][pP][gG]")) + list(Path(GT_FOLDER).glob("*.[pP][nN][gG]"))
+    images = list(Path(GT_FOLDER).glob("*.[jJ][pP][gG]")) + \
+         list(Path(GT_FOLDER).glob("*.[pP][nN][gG]")) + \
+         list(Path(GT_FOLDER).glob("*.[wW][eE][bB][pP]"))
     
     if not images:
         print(f"[{GT_FOLDER}] 폴더에 이미지가 없습니다. 올바른 그립 사진을 넣어주세요.")

@@ -5,7 +5,8 @@ import os
 import json
 
 # --- 1. 환경 설정 ---
-INPUT_FOLDER = './my_grip_images' 
+#INPUT_FOLDER = './my_grip_images' 
+INPUT_FOLDER = r"C:\Users\User\like_cool_lion\pratice_Minton\check_for_good_grip\good_grip_images"
 OUTPUT_BASE = './output_data'
 DIRS = ['coords', 'vectors', 'unit_vectors', 'visuals']
 
@@ -20,7 +21,7 @@ mp_drawing_styles = mp.solutions.drawing_styles
 hands = mp_hands.Hands(
     static_image_mode=True, 
     max_num_hands=1, 
-    min_detection_confidence=0.5
+    min_detection_confidence=0.1
 )
 HAND_CONNECTIONS = mp_hands.HAND_CONNECTIONS
 
@@ -34,7 +35,7 @@ def get_unit_vector(v):
     return v / norm if norm > 0 else v
 
 # --- 3. 메인 프로세스 ---
-image_files = [f for f in os.listdir(INPUT_FOLDER) if f.endswith(('.jpg', '.png', '.jpeg'))]
+image_files = [f for f in os.listdir(INPUT_FOLDER) if f.endswith(('.jpg', '.png', '.jpeg', 'webp'))]
 
 for file_name in image_files:
     img_path = os.path.join(INPUT_FOLDER, file_name)
