@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>기본 스윙 가이드</title>
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/04-swingGuide.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <header class="header">
+            <button class="back-btn" onclick="history.back()">
+                <img src="assets/images/arrow_back.png" alt="뒤로가기">
+            </button>
+            <h1 class="header-title">기본 스윙 가이드</h1>
+        </header>
+
+        <div class="scroll-container">
+            <main class="swing-content">
+                <div class="guide-section">
+                    <h2 class="main-title">가이드를 먼저 시청 후, 자세를 익혀보세요!</h2>
+                    
+                    <div class="video-container">
+                        <video id="guideVideo" poster="assets/images/video_thumbnail.png" controls>
+                            <source src="assets/guide_video.mp4" type="video/mp4">
+                            브라우저가 비디오 태그를 지원하지 않습니다.
+                        </video>
+                    </div>
+
+                    <div class="info-container">
+                        <div class="info-card">
+                            <h3 class="info-card-title">🏸 기본 스윙 가이드 : 3가지 핵심 동작</h3>
+                            <ul class="info-list">
+                                <li>
+                                    <span>1.</span> 
+                                    <p><strong>준비 단계 :</strong> 양발을 어깨 너비로 벌리고, 왼손은 셔틀콕을 향해 팔꿈치는 뒤로 당겨주세요</p>
+                                </li>
+                                <li>
+                                    <span>2.</span> 
+                                    <p><strong>타격 단계 :</strong> 가장 높은 곳에서 셔틀콕을 맞춘다는 느낌으로 팔을 머리 위로 쭉 뻗어 휘두르세요.</p>
+                                </li>
+                                <li>
+                                    <span>3.</span> 
+                                    <p><strong>마무리 :</strong> 타격 후 멈추지 말고 라켓이 골반 방향으로 내려오도록 스윙을 끝내주세요.</p>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <footer class="bottom-action">
+            <button class="next-btn" onclick="location.href='05-swingAnalyze.html'">연습하기</button>
+        </footer>
+    </div>
+</body>
+</html>

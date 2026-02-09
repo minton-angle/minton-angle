@@ -1,0 +1,192 @@
+/* 1. 배경 이미지 설정 (scroll-container에 적용) */
+.home-bg {
+    background-image: url('../assets/images/background2.png');
+    background-size: 100%;
+    background-repeat: no-repeat;
+    background-position: center;
+    padding-bottom: 100px;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.logo-box {
+    background-image: url('../assets/images/logo2.png');
+    width: 150px;
+    height: 100px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left center;
+    margin-top: 20px;
+}
+
+/* 2. 유저 섹션 스타일 */
+.user-section {
+    background-color: rgba(255, 255, 255, 0.6); /* 가독성을 위해 불투명도 조절 */
+    backdrop-filter: blur(2px);
+    border-radius: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    padding: 30px 30px;
+    color: #1d1d1f;
+    margin-top: 15px; /* 상단 여백 조절 */
+    margin-bottom: 30px;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-text {
+    font-size: 23px;
+    font-weight: 300;
+    line-height: 1;
+    color: #003e02;
+    margin: 0;
+}
+
+/* 3. 모드 선택 섹션 */
+.btn-section {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 40px;
+    padding: 30px 20px;
+    margin-bottom: 80px; /* 네비바에 가려지지 않게 하단 여백 */
+}
+
+.selectmode-section {
+    width: 100%;
+    color: #1a4b2f;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1.4;
+    text-align: left;
+    margin-bottom: 25px;
+}
+
+/* 4. 버튼 스타일 */
+.btn-live {
+    background-image: url("../assets/images/live.jpg");
+    background-position: 80% 40%;
+    background-size: 120%;
+    background-repeat: no-repeat;
+    width: 100%;
+    padding: 25px;
+    border-radius: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
+}
+
+.btn-upload {
+    background-image: url("../assets/images/upload.png");
+    background-repeat: no-repeat;
+    background-position: 100% 25%;
+    background-size: 130%;
+    width: 100%;
+    padding: 10px;
+    border-radius: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
+}
+
+.btn-live:active, .btn-upload:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+
+.btn-content {
+    color: #ffffff;
+    padding: 10px 20px 25px 20px;
+    font-size: 18px;
+    font-weight: 400;
+    text-align: right;
+}
+
+.btn-content.hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-content2 {
+    color: #ffffff;
+    padding: 25px 30px 35px 15px;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: 400;
+    text-align: right;
+}
+
+.btn-content.hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* 5. 네비게이션 바 (하단 고정용) */
+.navbar-section {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 85px;
+    background-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    align-items: center;
+    z-index: 10;
+    border-radius: 40px;
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 12px;
+}
+
+.nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.nav-btn {
+    width: 45px;
+    height: 45px;
+    background-color: transparent;
+    border: none;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.nav-btn:active {
+    transform: scale(0.9);
+}
+
+.nav-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: white;
+    padding-top: 8px;
+}
+
+.nav-home {
+    background-image: url('../assets/images/home.png');
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+}
+
+.nav-gym {
+    background-image: url('../assets/images/gym.png');
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+}
+
+.nav-history {
+    background-image: url('../assets/images/history.png');
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+}
+
+.nav-settings {
+    background-image: url('../assets/images/settings.png');
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+}
