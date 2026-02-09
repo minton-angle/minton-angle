@@ -1,3 +1,4 @@
+# 키 프레임 추출 알고리즘
 import pandas as pd
 import numpy as np
 import os
@@ -65,7 +66,6 @@ def analyze_swing_keyframes(input_csv_path, output_csv_path=None, output_img_dir
     if not os.path.exists(input_csv_path): return None
     df = pd.read_csv(input_csv_path)
     
-    # 분석에 필요한 핵심 컬럼
     cols = {'nose': ('nose_x', 'nose_y'), 'shld': ('right_shoulder_x', 'right_shoulder_y'),
             'elb': ('right_elbow_x', 'right_elbow_y'), 'wri': ('right_wrist_x', 'right_wrist_y'),
             'hand': ('right_pinky_x', 'right_pinky_y')}
@@ -74,11 +74,20 @@ def analyze_swing_keyframes(input_csv_path, output_csv_path=None, output_img_dir
         r[cols['wri'][0]], r[cols['wri'][1]], r[cols['hand'][0]], r[cols['hand'][1]]), axis=1)
     df['wrist_move'] = np.sqrt(df[cols['wri'][0]].diff()**2 + df[cols['wri'][1]].diff()**2).fillna(1.0)
 
-    # 1. 기준점: 손목 최고점 (최우선 제약 사항)
+    # 1. 기준점: 손목 최고점
     highest_idx = df[cols['wri'][1]].idxmin()
 
-    # 2. READY: 최고점 이전 중 정지 상태
-    r_idx = df.iloc[:highest_idx]['wrist_move'].idxmin() if highest_idx > 0 else 0
+    # 2. READY: 최고점 이전 중 [팔꿈치가 어깨보다 뒤에 있음] + [정지 상태]
+    # '뒤'의 기준: x좌표가 어깨보다 작음 (오른손잡이가 오른쪽을 보고 서 있을 때 기준)
+    ready_range = df.iloc[:highest_idx].copy()
+    ready_cands = ready_range[ready_range[cols['elb'][0]] < ready_range[cols['shld'][0]]]
+
+    if not ready_cands.empty:
+        # 조건에 맞는 프레임 중 움직임이 가장 적은 순간 선택
+        r_idx = ready_cands['wrist_move'].idxmin()
+    else:
+        # 조건에 맞는 프레임이 없다면 단순히 최고점 이전 중 움직임 최소 지점 선택
+        r_idx = ready_range['wrist_move'].idxmin() if highest_idx > 0 else 0
 
     # 3. IMPACT: 반드시 최고점(highest_idx) 이후에서만 추출
     after_highest_df = df.iloc[highest_idx:].copy()
@@ -90,13 +99,39 @@ def analyze_swing_keyframes(input_csv_path, output_csv_path=None, output_img_dir
     else:
         i_idx = highest_idx
 
-    # 4. BACKSWING: Ready와 최고점 사이
+    # 4. BACKSWING: Ready와 최고점(highest_idx) 사이에서 추출
     bs_range = df.iloc[r_idx:highest_idx+1].copy()
-    bs_cands = bs_range[(bs_range[cols['wri'][0]] < bs_range[cols['nose'][0]]) & 
-                        (bs_range[cols['elb'][1]] < bs_range[cols['shld'][1]] + 0.05)].copy()
-    b_idx = bs_cands.apply(lambda r: abs(r[cols['wri'][0]] - r[cols['elb'][0]]), axis=1).idxmin() if not bs_cands.empty else bs_range.apply(lambda r: abs(r[cols['wri'][0]] - r[cols['elb'][0]]), axis=1).idxmin()
+    
+    # [수정 로직] 사용자 요청 조건 반영
+    # 1. 팔꿈치 X < 코 X (뒤쪽)
+    # 2. 손목 X < 코 X (뒤쪽)
+    # 3. 팔꿈치 Y < 코 Y (위쪽 - 좌표값이 작아야 위임)
+    bs_cands = bs_range[
+        (bs_range[cols['elb'][0]] < bs_range[cols['nose'][0]]) & 
+        (bs_range[cols['wri'][0]] < bs_range[cols['nose'][0]]) & 
+        (bs_range[cols['elb'][1]] < bs_range[cols['nose'][1]])
+    ].copy()
+    
+    if not bs_cands.empty:
+        # 조건을 만족하는 후보군 중 팔꿈치가 가장 높게 올라간 순간(Y 최소값)을 정점으로 판단
+        b_idx = bs_cands[cols['elb'][1]].idxmin()
+    else:
+        # 만약 엄격한 조건을 만족하는 프레임이 없다면 (코보다 높이 안 올라갔을 경우)
+        # 차선책으로 팔꿈치가 어깨보다 위에 있는 프레임 중 팔꿈치가 가장 높은 순간 선택
+        fallback_cands = bs_range[bs_range[cols['elb'][1]] < bs_range[cols['shld'][1]]].copy()
+        if not fallback_cands.empty:
+            b_idx = fallback_cands[cols['elb'][1]].idxmin()
+        else:
+            # 아예 후보가 없으면 Ready와 최고점의 중간 프레임 선택
+            b_idx = int((r_idx + highest_idx) / 2)
 
-    result = {'ready': int(r_idx), 'backswing': int(b_idx), 'impact': int(i_idx)}
+    result = {
+        'ready': int(r_idx),
+        'backswing': int(b_idx),
+        'impact': int(i_idx)
+    }
+
+    # ... (이하 동일)
     print(f"분석 및 시각화 완료: {result}")
 
     if output_csv_path: pd.DataFrame([result]).to_csv(output_csv_path, index=False)
@@ -105,8 +140,8 @@ def analyze_swing_keyframes(input_csv_path, output_csv_path=None, output_img_dir
 
     # --- 실행부 ---
 if __name__ == "__main__":
-    INPUT_CSV = "/Users/minji/Documents/GT4_normalized_fixed.csv"
-    RESULT_CSV = "/Users/minji/Documents/minton-angle/backend/data/standard/GT4_norm_keyframes_8.csv"
-    IMAGE_DIR = "/Users/minji/Documents/minton-angle/backend/data/standard/GT4_norm_visualized_frames_8"
+    INPUT_CSV = "/Users/minji/Documents/minton-angle_resources/wooil_normalized_fixed.csv"
+    RESULT_CSV = "/Users/minji/Documents/minton-angle/backend/data/standard/final_gt_frames/wooil.csv"
+    IMAGE_DIR = "/Users/minji/Documents/minton-angle/backend/data/standard/final_gt_frames/wooil"
 
     analyze_swing_keyframes(INPUT_CSV, RESULT_CSV, IMAGE_DIR)
