@@ -24,6 +24,12 @@ models/*.pkl
 .DS_Store
 Thumbs.db
 
-# Test 폴더 (test_db_connection.py만 제외하고 모두 무시)
+# 모든 PNG 이미지 파일 무시
+*.png
+
+# Test 폴더 설정
 test/*
-¡test_db_connection.py
+
+# 특정 파일만 예외적으로 추적 (느낌표 사용)
+!test/extract_gt_baseline.py
+!test/test_db_connection.py
