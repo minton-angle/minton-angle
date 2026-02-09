@@ -1,0 +1,94 @@
+/* 1. 기본 초기화 및 터치 설정 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Pretendard 웹폰트 불러오기 (눈누) */
+@font-face {
+  font-family: 'Pretendard-Regular';
+  src: url('https://fastly.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+}
+
+html, body {
+  overflow: hidden; /* PC 브라우저 자체 스크롤 방지 */
+  font-family: 'Pretendard-Regular', -apple-system, sans-serif;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  background-color: #f0f2f5; 
+  display: flex;
+  justify-content: center;
+  align-items: center; /* 어떤 해상도에서도 앱을 정중앙에 배치 */
+  min-height: 100vh;
+}
+
+/* 2. 앱 메인 컨테이너 (비율 고정형) */
+.app-wrapper {
+  /* [핵심 수정] 가로/세로 비율을 9:19.5로 고정 */
+  aspect-ratio: 9 / 19.5; 
+  
+  /* 브라우저 높이에 맞춰 크기가 조절되도록 설정 */
+  height: 92dvh; 
+  width: auto; /* 비율에 맞춰 너비가 자동 계산됨 */
+  
+  max-width: 480px;      /* 너무 커지는 것 방지 */
+  max-height: 900px;     /* 너무 길어지는 것 방지 */
+  
+  background-color: #ffffff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  
+  /* 디자인 디테일 */
+  border-radius: 40px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+/* 3. 내부 스크롤 영역 */
+.scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  
+  /* 스크롤바 숨기기 (모바일 앱 느낌) */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* 4. 실제 모바일 기기 접속 시 (꽉 차게 전환) */
+@media (max-width: 480px) {
+  body {
+    background-color: #ffffff;
+    align-items: flex-start;
+  }
+
+  .app-wrapper {
+    aspect-ratio: auto; /* 고정 비율 해제 */
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* 5. 반응형 요소 설정 */
+img, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+}
