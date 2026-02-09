@@ -1,5 +1,9 @@
+from dotenv import load_dotenv
+load_dotenv() # 환경 변수 로드
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routers.reportRouters import router as report_router
 
 app = FastAPI(title="MINTON-ANGLE FastAPI")
 
@@ -17,4 +21,4 @@ def read_root():
     return {"message": "MINTON-ANGLE 서버가 정상적으로 작동 중입니다"}
 
 # 나중에 여기에 routers를 연결할 예정
-# app.include_router(analysis.router)
+app.include_router(report_router) # LLM 리포트 관련 라우터
