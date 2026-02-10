@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minton Angle - LLM Report</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/08-reportTotal.css">
+</head>
+
+<body>
+  <div class="app-wrapper">
+    <header class="topbar">
+      <div class="topbar__title">종합 AI 피드백 리포트</div>
+    </header>
+
+    <main class="scroll-container">
+      <section class="card card--summary">
+        <div class="summary__left">
+          <h1 id="summaryHeadline" class="summary__headline">조금만 더 해보슝~<br/>!</h1>
+          <div id="summarySub" class="summary__sub">한 줄 요약? 평가?</div>
+        </div>
+
+        <div class="summary__right">
+          <div class="scoreRing" aria-label="점수 70점">
+            <svg class="scoreRing__svg" viewBox="0 0 120 120">
+              <circle class="scoreRing__bg" cx="60" cy="60" r="46"></circle>
+              <circle id="scoreRingFg" class="scoreRing__fg" cx="60" cy="60" r="46" style="stroke-dashoffset: 86.7;"></circle>
+            </svg>
+            <div class="scoreRing__text">
+              <div id="scoreValue" class="scoreRing__num">70</div>
+              <div class="scoreRing__unit">점</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card--charts">
+        <div class="miniGrid">
+          <div class="miniCard">
+            <div class="miniCard__label">THUMB_IP (TIME SERIES)</div>
+            <canvas id="thumbIpSeriesChart"></canvas>
+          </div>
+          <div class="miniCard">
+            <div class="miniCard__label">SEVERITY</div>
+            <canvas id="severityDonutChart"></canvas>
+          </div>
+          <div class="miniCard">
+            <div class="miniCard__label">PATTERN</div>
+            <canvas id="anglesRadarChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>메타</h2>
+        <div id="meta" class="row"></div>
+      </section>
+
+      <section class="card">
+        <h2>관절 오차각도</h2>
+        <div class="row">
+          <table id="anglesTable">
+            <thead>
+              <tr>
+                <th>Joint</th>
+                <th>Error (deg)</th>
+                <th>Severity</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="row actions">
+          <button id="btnGenerate">LLM 리포트 생성</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>LLM 리포트</h2>
+        <pre id="llmReport" class="pre"></pre>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/08-reportTotal.js"></script>
+</body>
+</html>
