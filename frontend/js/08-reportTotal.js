@@ -1,6 +1,43 @@
 // ====== 환경 설정 ======
 const API_BASE = "http://localhost:8000"; // FastAPI 주소
 
+// ====== GT Profile (하드코딩) ======
+// NOTE: 여기 GT는 "정상 허용 범위" 예시입니다. (프로젝트 값에 맞게 조정하세요)
+const GT_PROFILES = {
+  badminton_grip_v1: {
+    KF1: {
+      thumb_ip: { min: 6.0, max: 18.0 },
+      index_mcp: { min: -8.0, max: -2.0 },
+      wrist_flex: { min: 4.0, max: 12.0 },
+    },
+    KF2: {
+      thumb_ip: { min: 8.0, max: 22.5 },
+      index_mcp: { min: -8.0, max: -2.0 },
+      wrist_flex: { min: 5.0, max: 14.0 },
+    },
+    KF3: {
+      thumb_ip: { min: 5.0, max: 17.0 },
+      index_mcp: { min: -9.0, max: -3.0 },
+      wrist_flex: { min: 5.0, max: 13.0 },
+    },
+  },
+};
+
+const ACTIVE_GT_PROFILE = "badminton_grip_v1";
+
+function getGtRange(frameName, joint) {
+  const profile = GT_PROFILES[ACTIVE_GT_PROFILE];
+  const f = profile?.[frameName];
+  const r = f?.[joint];
+  return r ? { min: Number(r.min), max: Number(r.max) } : null;
+}
+
+function inRange(v, min, max) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return false;
+  return n >= min && n <= max;
+}
+
 // ====== 데모: DB에서 가져왔다고 가정하는 JSON ======
 function getMockDBPayload() {
   return {
@@ -181,11 +218,16 @@ function renderTable(angles) {
   Object.entries(angles).forEach(([joint, deg]) => {
     const num = Number(deg);
     const sev = severityOf(num);
+
+    const gt = getGtRange(window.__CURRENT_FRAME__ || "KF2", joint);
+    const pass = gt ? inRange(num, gt.min, gt.max) : null;
+    const sevText = pass === null ? sev : `${sev} (${pass ? "PASS" : "FAIL"})`;
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${joint}</td>
       <td>${Number.isFinite(num) ? num.toFixed(2) : "-"}</td>
-      <td>${sev}</td>
+      <td>${sevText}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -374,9 +416,80 @@ async function generateLLMReport(payload) {
 }
 
 function renderLLMReport(reportObj) {
-  const el = document.getElementById("llmReport");
-  if (!el) return;
-  el.textContent = JSON.stringify(reportObj, null, 2);
+  // raw JSON
+  const rawEl = document.getElementById("llmReport");
+  if (rawEl) rawEl.textContent = JSON.stringify(reportObj, null, 2);
+
+  // top meta
+  const createdAtEl = document.getElementById("llmCreatedAt");
+  const modelEl = document.getElementById("llmModel");
+  if (createdAtEl) createdAtEl.textContent = reportObj?.created_at ?? "-";
+  if (modelEl) modelEl.textContent = reportObj?.model ?? "-";
+
+  // severity badge
+  const sev = String(reportObj?.overall_severity ?? "low").toLowerCase();
+  const badge = document.getElementById("overallSeverity");
+  if (badge) {
+    badge.classList.remove("severityBadge--low", "severityBadge--medium", "severityBadge--high");
+    if (sev === "high") badge.classList.add("severityBadge--high");
+    else if (sev === "medium") badge.classList.add("severityBadge--medium");
+    else badge.classList.add("severityBadge--low");
+    badge.textContent = sev.toUpperCase();
+  }
+
+  // summary -> 상단 요약에도 반영
+  const summaryText = reportObj?.summary ? String(reportObj.summary) : "-";
+  const sumEl = document.getElementById("llmSummary");
+  if (sumEl) sumEl.textContent = summaryText;
+
+  // 상단 헤드라인/서브
+  const headline =
+    sev === "high" ? "주의가 필요합니다" :
+    sev === "medium" ? "개선 여지가 있습니다" :
+    "잘 하고 있습니다";
+  setSummaryText({ headline: `${headline}<br/>(${sev.toUpperCase()})`, sub: summaryText });
+
+  // issues
+  const issuesEl = document.getElementById("llmIssues");
+  if (issuesEl) {
+    const issues = Array.isArray(reportObj?.top_issues) ? reportObj.top_issues : [];
+    if (issues.length === 0) {
+      issuesEl.innerHTML = `<div class="reportSection__body">-</div>`;
+    } else {
+      issuesEl.innerHTML = issues
+        .map((it) => {
+          const joint = it?.joint ?? "-";
+          const deg = it?.error_deg ?? "-";
+          const interp = it?.interpretation ?? "";
+          const why = it?.why_it_matters ?? "";
+          const fixArr = Array.isArray(it?.fix) ? it.fix : [];
+          const chips = fixArr.map((f) => `<span class="chip">${String(f)}</span>`).join("");
+          return `
+            <div class="issueItem">
+              <div class="issueItem__top">
+                <div class="issueItem__joint">${String(joint)}</div>
+                <div class="issueItem__deg">${String(deg)}°</div>
+              </div>
+              ${interp ? `<div class="issueItem__p"><b>해석</b>: ${String(interp)}</div>` : ""}
+              ${why ? `<div class="issueItem__p"><b>영향</b>: ${String(why)}</div>` : ""}
+              ${chips ? `<div class="issueItem__chips">${chips}</div>` : ""}
+            </div>
+          `;
+        })
+        .join("");
+    }
+  }
+
+  // checklist
+  const checklistEl = document.getElementById("llmChecklist");
+  if (checklistEl) {
+    const items = Array.isArray(reportObj?.quick_checklist) ? reportObj.quick_checklist : [];
+    checklistEl.innerHTML = items.map((x) => `<li>${String(x)}</li>`).join("");
+  }
+
+  // notes
+  const notesEl = document.getElementById("llmNotes");
+  if (notesEl) notesEl.textContent = reportObj?.notes ? String(reportObj.notes) : "-";
 }
 
 // ====== 초기 로드: DB에서 JSON 가져왔다고 가정 ======
@@ -397,6 +510,7 @@ async function loadFromDB() {
 
   // 현재 프레임: 마지막 이벤트(KF2 등)
   const currentEvent = pickLastEvent(events);
+  window.__CURRENT_FRAME__ = currentEvent?.name ?? "KF2";
   const snap = currentEvent
     ? pickNearestSample(series, currentEvent.t)
     : pickLastSample(series);
@@ -423,6 +537,7 @@ async function loadFromDB() {
       try {
         const requestPayload = {
           ...payload, // series/events/meta/lang 유지 (서버가 무시해도 무해)
+          gt_profile: ACTIVE_GT_PROFILE, // ✅ GT 프로필 추가 -> 서버가 참고 할수 있게함
           angles, // ✅ 필수
           meta: {
             ...(payload?.meta || {}),
