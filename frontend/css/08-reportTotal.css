@@ -180,3 +180,125 @@ canvas{
   padding: 10px;
   border: 1px solid rgba(255,255,255,.06);
 }
+
+
+/* ===== LLM structured report ===== */
+.reportBox{
+  background:#fff;
+  border-radius: 14px;
+  border: 1px solid rgba(17,24,39,.08);
+  padding: 12px;
+}
+.reportTop{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.reportMeta{
+  display:flex;
+  flex-direction:column;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(17,24,39,.65);
+  text-align:right;
+}
+.reportMeta b{ color: rgba(17,24,39,.8); }
+
+.severityBadge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height: 28px;
+  min-width: 72px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: .6px;
+  border: 1px solid rgba(17,24,39,.08);
+}
+.severityBadge--low{ background: rgba(34,197,94,.12); color:#16a34a; }
+.severityBadge--medium{ background: rgba(245,158,11,.14); color:#b45309; }
+.severityBadge--high{ background: rgba(239,68,68,.14); color:#b91c1c; }
+
+.reportSection{ margin-top: 10px; }
+.reportSection__title{
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(17,24,39,.85);
+  margin-bottom: 6px;
+}
+.reportSection__body{
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(17,24,39,.85);
+  background: rgba(243,244,246,.7);
+  border: 1px solid rgba(17,24,39,.06);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.issuesList{ display:flex; flex-direction:column; gap: 8px; }
+.issueItem{
+  border: 1px solid rgba(17,24,39,.08);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+.issueItem__top{
+  display:flex;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.issueItem__joint{
+  font-weight: 900;
+  font-size: 12px;
+  color: rgba(17,24,39,.9);
+}
+.issueItem__deg{
+  font-weight: 900;
+  font-size: 12px;
+  color: rgba(17,24,39,.65);
+  white-space: nowrap;
+}
+.issueItem__p{
+  font-size: 12px;
+  color: rgba(17,24,39,.8);
+  line-height: 1.45;
+  margin-top: 6px;
+}
+.issueItem__chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.chip{
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(32,201,151,.12);
+  color: rgba(17,24,39,.85);
+  border: 1px solid rgba(32,201,151,.20);
+}
+
+.checkList{
+  list-style: disc;
+  padding-left: 18px;
+  margin: 0;
+  font-size: 12px;
+  color: rgba(17,24,39,.85);
+  line-height: 1.6;
+}
+.rawToggle{ margin-top: 10px; }
+.rawToggle summary{
+  cursor:pointer;
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(17,24,39,.75);
+  margin-bottom: 8px;
+}
