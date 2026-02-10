@@ -5,34 +5,30 @@ Swing Analysis API Router
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Union
-from datetime import datetime
 import uuid
 import os
 import base64
 
-# 현재는 상대 경로로 임포트 (나중에 절대 경로로 변경 가능)
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from app.db.data import get_db  # DB 세션
-from app.models.postModels import Post  # POST 모델
-from app.models.fileModels import File  # FILE 모델
-from app.models.analysisModels import Analysis  # ANALYSIS 모델
-from app.models.llmReportModels import LLMReport  # LLM_REPORT 모델
+# ⭐ 절대 경로로 수정
+from app.db.session import get_db  # DB 세션
+from app.models.postModels import Post
+from app.models.fileModels import File
+from app.models.analysisModels import Analysis
+from app.models.llmReportModels import LLMReport
 
 # 스키마
-from schemas.swing import (
+from app.schemas.swing import (
     SwingAnalysisRequest,
     QuickFeedbackResponse,
     AnalysisCompleteResponse,
     ScoreDetail
 )
 
-# 서비스
-from services.swing_service import swing_service
+# ⭐ 서비스
+from app.services.swing.swing_service import swing_service
 
-
-router = APIRouter(prefix="/api/swing", tags=["swing"])
+# ⭐ 수정: prefix 변경!
+router = APIRouter(prefix="/api/realtime", tags=["realtime"])
 
 
 # ==================== 헬퍼 함수 ====================
@@ -42,22 +38,11 @@ def save_keyframe_image(
     kf_num: int,
     swing_num: int,
     image_base64: str,
-    save_dir: str = "/tmp/keyframes"
+    save_dir: str = "backend/data/realtime"  # ⭐ 수정!
 ) -> str:
-    """
-    키프레임 이미지 저장
+    """키프레임 이미지 저장"""
     
-    Args:
-        post_id: POST ID
-        kf_num: 키프레임 번호 (1, 2, 3)
-        swing_num: 스윙 횟수 (1, 2, 3)
-        image_base64: Base64 인코딩된 이미지
-        save_dir: 저장 디렉토리
-        
-    Returns:
-        파일 경로
-    """
-    # 디렉토리 생성
+    # ⭐ os.path.join 사용 (플랫폼 독립적)
     post_dir = os.path.join(save_dir, post_id)
     os.makedirs(post_dir, exist_ok=True)
     
@@ -77,13 +62,15 @@ def save_keyframe_image(
     with open(filepath, "wb") as f:
         f.write(image_data)
     
-    return filepath
-
+    # ⭐ 경로를 forward slash로 정규화 (DB 저장용)
+    normalized_path = filepath.replace("\\", "/")
+    
+    return normalized_path
 
 # ==================== API 엔드포인트 ====================
 
 @router.post(
-    "/analyze",
+    "/analyze-swing",
     response_model=Union[QuickFeedbackResponse, AnalysisCompleteResponse],
     summary="실시간 스윙 분석",
     description="""
@@ -114,6 +101,21 @@ async def analyze_swing(
     
     # 4. 종합 점수 계산
     total_score = sum(scores.values()) // len(scores)
+
+    # ⭐ swing_num 검증 추가
+    if request.swing_num < 1 or request.swing_num > 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="swing_num은 1, 2, 3만 가능합니다."
+        )
+
+    # 1회차인데 post_id가 없는 경우는 OK
+    # 2~3회차인데 post_id가 없으면 에러
+    if request.swing_num > 1 and not request.post_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{request.swing_num}회차는 post_id가 필수입니다. 1회차부터 시작하세요."
+        )
     
     try:
         # ==================== 1회차: 새 POST 생성 ====================

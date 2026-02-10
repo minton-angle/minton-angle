@@ -72,9 +72,6 @@ def normalize_keypoints(keypoints: dict) -> dict:
         
         all_x.append(x_norm)
         all_y.append(y_norm)
-        
-        if f'{name}_visibility' in keypoints:
-            temp_normalized[f'{name}_visibility'] = keypoints[f'{name}_visibility']
     
     min_x = min(all_x)
     max_x = max(all_x)
@@ -96,9 +93,6 @@ def normalize_keypoints(keypoints: dict) -> dict:
         normalized[f'{name}_x'] = float((x_norm - min_x) / range_max)
         normalized[f'{name}_y'] = float((y_norm - min_y) / range_max)
         normalized[f'{name}_z'] = float(z_norm)
-        
-        if f'{name}_visibility' in temp_normalized:
-            normalized[f'{name}_visibility'] = temp_normalized[f'{name}_visibility']
     
     return normalized
 
@@ -117,8 +111,7 @@ def interpolate_all(df: pd.DataFrame) -> pd.DataFrame:
     """
     
     keypoint_cols = [col for col in df.columns
-                     if (col.endswith('_x') or col.endswith('_y') or col.endswith('_z'))
-                     and not col.endswith('_visibility')]
+                     if (col.endswith('_x') or col.endswith('_y') or col.endswith('_z'))]
     
     print(f"   🔧 보간 적용 중... (대상 컬럼: {len(keypoint_cols)}개)")
     
@@ -231,7 +224,6 @@ def process_single_video(video_path: str, gt_id: str) -> pd.DataFrame:
                 keypoints[f'{name}_x'] = lm.x
                 keypoints[f'{name}_y'] = lm.y
                 keypoints[f'{name}_z'] = lm.z
-                keypoints[f'{name}_visibility'] = lm.visibility
             
             # 정규화
             normalized = normalize_keypoints(keypoints)
@@ -265,7 +257,7 @@ def process_single_video(video_path: str, gt_id: str) -> pd.DataFrame:
 # 4. 메인: 10개 영상 통합
 # ========================================
 
-def process_multiple_gts(video_paths: List[str], output_path: str, save_videos: bool = True):
+def process_multiple_gts(video_paths: List[str], output_path: str):
     """
     GT 영상 여러 개 → 하나의 CSV로 통합
     """
@@ -276,12 +268,11 @@ def process_multiple_gts(video_paths: List[str], output_path: str, save_videos: 
     print(f"입력 영상 개수: {len(video_paths)}개")
     
     all_dfs = []
-    output_folder = os.path.dirname(output_path) if save_videos else None
     
     for i, video_path in enumerate(video_paths, 1):
         gt_id = f"GT{i}"
         
-        df = process_single_video(video_path, gt_id, output_folder)
+        df = process_single_video(video_path, gt_id)
         
         if df is not None and len(df) > 0:
             df = interpolate_all(df)
@@ -299,19 +290,23 @@ def process_multiple_gts(video_paths: List[str], output_path: str, save_videos: 
     # ⭐ 데이터 정리
     print(f"\n🔧 데이터 정리 중...")
     
-    # 1. visibility 컬럼 제거
-    visibility_cols = [col for col in combined_df.columns if col.endswith('_visibility')]
-    combined_df = combined_df.drop(columns=visibility_cols)
-    print(f"   ✅ visibility 컬럼 {len(visibility_cols)}개 제거")
+    # 1. x, y, z 컬럼만 남기기 (visibility 제거는 자동)
+    keep_cols = ['gt_id', 'frame_id', 'timestamp']
     
-    # 2. 소수점 4자리로 반올림
     keypoint_cols = [col for col in combined_df.columns 
                      if col.endswith('_x') or col.endswith('_y') or col.endswith('_z')]
     
+    keep_cols.extend(keypoint_cols)
+    
+    combined_df = combined_df[keep_cols]
+    
+    print(f"   ✅ x, y, z 컬럼만 유지 ({len(keypoint_cols)}개)")
+    
+    # 2. 소수점 4자리로 반올림
     for col in keypoint_cols:
         combined_df[col] = combined_df[col].round(4)
     
-    print(f"   ✅ {len(keypoint_cols)}개 컬럼 소수점 4자리로 정리")
+    print(f"   ✅ 소수점 4자리로 정리")
     
     # 저장
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -328,6 +323,7 @@ def process_multiple_gts(video_paths: List[str], output_path: str, save_videos: 
     for gt_id in combined_df['gt_id'].unique():
         count = len(combined_df[combined_df['gt_id'] == gt_id])
         print(f"  {gt_id}: {count}프레임")
+
 
 # ========================================
 # 메인 실행

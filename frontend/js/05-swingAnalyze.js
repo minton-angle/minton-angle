@@ -403,6 +403,17 @@ async function sendFramesToBackend(swingNum, frames) {
     console.log(`📡 API 호출: ${API_BASE_URL}/api/realtime/analyze-swing`);
     console.log(`📊 데이터: swing_num=${swingNum}, frames=${frames.length}개`);
     
+    // ⭐ keypoints 추출 (임시 더미 데이터)
+    const keypoints = frames.map(() => {
+        // 33개 랜드마크 x 4개 값 (x, y, z, visibility)
+        return Array(33).fill(null).map(() => [
+            Math.random(),  // x
+            Math.random(),  // y
+            Math.random(),  // z
+            Math.random()   // visibility
+        ]).flat();  // [x,y,z,v, x,y,z,v, ...] 형태로
+    });
+    
     const response = await fetch(`${API_BASE_URL}/api/realtime/analyze-swing`, {
         method: 'POST',
         headers: {
@@ -411,15 +422,27 @@ async function sendFramesToBackend(swingNum, frames) {
         body: JSON.stringify({
             user_id: USER_ID,
             swing_num: swingNum,
-            frames: frames
+            post_id: swingNum > 1 ? localStorage.getItem('post_id') : null,  // ⭐ 추가!
+            keypoints: keypoints,  // ⭐ 추가!
+            frames: frames.map(f => f.image)  // ⭐ image만 추출
         })
     });
 
     if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ 서버 응답:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    
+    // ⭐ 1회차면 post_id 저장
+    if (swingNum === 1 && result.post_id) {
+        localStorage.setItem('post_id', result.post_id);
+        console.log(`💾 post_id 저장: ${result.post_id}`);
+    }
+    
+    return result;
 }
 
 // UI 업데이트
@@ -435,7 +458,7 @@ function updateUIWithResult(swingNum, result) {
         el.classList.remove('active', 'bad', 'normal', 'good')
     );
     
-    const avgScore = result.overall_average;
+    const avgScore = result.overall_average;  // ← 여기가 문제!
     let status = 'bad';
     
     if (avgScore >= 80) {
