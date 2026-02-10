@@ -41,22 +41,26 @@
 
       <section class="card card--charts">
         <div class="miniGrid">
+
+          <!-- ✅ 종합 페이지: 세션 히스토리 점수 차트 -->
           <div class="miniCard">
-            <div class="miniCard__label">THUMB_IP (TIME SERIES)</div>
-            <canvas id="thumbIpSeriesChart"></canvas>
+            <div class="miniCard__label">SCORE (HISTORY)</div>
+            <canvas id="scoreHistoryChart"></canvas>
           </div>
+
           <div class="miniCard">
             <div class="miniCard__label">SEVERITY</div>
             <canvas id="severityDonutChart"></canvas>
           </div>
+
           <div class="miniCard">
             <div class="miniCard__label">PATTERN</div>
             <canvas id="anglesRadarChart"></canvas>
           </div>
-        </div>
 
+        </div>
       </section>
-        
+
       <section class="card">
         <h2>관절 오차각도</h2>
         <div class="row">
@@ -71,6 +75,7 @@
             <tbody></tbody>
           </table>
         </div>
+
         <div class="row actions">
           <button id="btnGenerate">LLM 리포트 생성</button>
         </div>
@@ -107,7 +112,6 @@
             <div class="reportSection__title">노트</div>
             <div id="llmNotes" class="reportSection__body">-</div>
           </div>
-
         </div>
       </section>
     </main>
