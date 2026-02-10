@@ -404,9 +404,14 @@ async function generateLLMReport(payload) {
 }
 
 function renderLLMReport(reportObj) {
-  // raw JSON
-  const rawEl = document.getElementById("llmReport");
-  if (rawEl) rawEl.textContent = JSON.stringify(reportObj, null, 2);
+  
+  const DEV = location.hostname === "localhost";
+  // 디버그용: 원본 JSON 전체 출력 로컬 개발 상황에서만 출력
+  if (DEV) {
+    console.groupCollapsed("[LLM REPORT RAW JSON]");
+    console.log(reportObj);
+    console.groupEnd();
+  }
 
   // top meta
   const createdAtEl = document.getElementById("llmCreatedAt");
