@@ -82,7 +82,37 @@
 
       <section class="card">
         <h2>LLM 리포트</h2>
-        <pre id="llmReport" class="pre"></pre>
+
+        <div class="reportBox">
+          <div class="reportTop">
+            <div id="overallSeverity" class="severityBadge severityBadge--low">LOW</div>
+            <div class="reportMeta">
+              <div class="reportMeta__row"><b>모델</b>: <span id="llmModel">-</span></div>
+              <div class="reportMeta__row"><b>생성</b>: <span id="llmCreatedAt">-</span></div>
+            </div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">요약</div>
+            <div id="llmSummary" class="reportSection__body">-</div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">핵심 이슈</div>
+            <div id="llmIssues" class="issuesList"></div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">빠른 체크리스트</div>
+            <ul id="llmChecklist" class="checkList"></ul>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">노트</div>
+            <div id="llmNotes" class="reportSection__body">-</div>
+          </div>
+
+        </div>
       </section>
     </main>
   </div>
