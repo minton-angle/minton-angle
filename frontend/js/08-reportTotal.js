@@ -4,26 +4,14 @@ const API_BASE = "http://localhost:8000"; // FastAPI 주소
 // ====== GT Profile (하드코딩) ======
 // NOTE: 여기 GT는 "정상 허용 범위" 예시입니다. (프로젝트 값에 맞게 조정하세요)
 const GT_PROFILES = {
-  badminton_grip_v1: {
-    KF1: {
-      thumb_ip: { min: 6.0, max: 18.0 },
-      index_mcp: { min: -8.0, max: -2.0 },
-      wrist_flex: { min: 4.0, max: 12.0 },
-    },
-    KF2: {
-      thumb_ip: { min: 8.0, max: 22.5 },
-      index_mcp: { min: -8.0, max: -2.0 },
-      wrist_flex: { min: 5.0, max: 14.0 },
-    },
-    KF3: {
-      thumb_ip: { min: 5.0, max: 17.0 },
-      index_mcp: { min: -9.0, max: -3.0 },
-      wrist_flex: { min: 5.0, max: 13.0 },
-    },
-  },
+  "badminton_swing_v1": {
+    "KF1": {"min": 6.0, "max": 18.0},
+    "KF2": {"min": 8.0, "max": 22.5},
+    "KF3": {"min": 5.0, "max": 17.0}
+  }
 };
-
-const ACTIVE_GT_PROFILE = "badminton_grip_v1";
+  
+const ACTIVE_GT_PROFILE = "badminton_swing_v1";
 
 function getGtRange(frameName, joint) {
   const profile = GT_PROFILES[ACTIVE_GT_PROFILE];
@@ -411,8 +399,8 @@ async function generateLLMReport(payload) {
     throw new Error(`LLM report failed: ${res.status} ${text}`);
   }
 
-  const data = await res.json(); // { report: {...} }
-  return data.report;
+  const data = await res.json(); // { report: { ... } }
+  return data.report; // 백앤드가 { report: {...} } 형태로 감싸서 반환한다고 가정
 }
 
 function renderLLMReport(reportObj) {
