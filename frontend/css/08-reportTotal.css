@@ -1,0 +1,182 @@
+:root{
+  --card:#ffffff;
+  --text:#111827;
+  --muted:#6b7280;
+  --accent:#20c997;
+}
+
+*{ box-sizing:border-box; }
+
+.topbar{
+  height: 56px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(17,24,39,.10);
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(10px);
+}
+.topbar__title{
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: -.2px;
+  color: var(--text);
+}
+
+.card{
+  background: var(--card);
+  border-radius: 16px;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid rgba(17,24,39,.08);
+}
+.card--charts{ background: #f3f4f6; }
+.card--summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+h1{ font-size: 18px; margin: 0 0 10px; line-height: 1.25; }
+h2{ font-size: 15px; margin: 0 0 8px; font-weight: 900; }
+.row{ margin: 6px 0; }
+
+.summary__headline{
+  font-size: 18px;
+  margin: 0 0 10px;
+  line-height: 1.25;
+  letter-spacing: -.2px;
+  font-weight: 900;
+}
+.summary__sub{
+  color: rgba(17,24,39,.7);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Score ring */
+.scoreRing{
+  width: 120px;
+  height: 120px;
+  position: relative;
+  display:grid;
+  place-items:center;
+}
+.scoreRing__svg{
+  width: 120px;
+  height: 120px;
+  transform: rotate(-90deg);
+}
+.scoreRing__bg{
+  fill:none;
+  stroke: rgba(17,24,39,.18);
+  stroke-width: 10;
+}
+.scoreRing__fg{
+  fill:none;
+  stroke: #22c55e;
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: 289.0;
+  transition: stroke-dashoffset .4s ease;
+}
+.scoreRing__text{
+  position:absolute;
+  display:flex;
+  align-items:baseline;
+  gap: 4px;
+}
+.scoreRing__num{ font-size: 30px; font-weight: 900; }
+.scoreRing__unit{
+  font-size: 14px;
+  font-weight: 800;
+  color: rgba(17,24,39,.75);
+}
+
+/* Charts grid */
+.miniGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.miniCard{
+  background:#fff;
+  border-radius: 14px;
+  padding: 10px;
+  border: 1px solid rgba(17,24,39,.08);
+}
+.miniCard:nth-child(1){ grid-column: 1 / span 2; }
+.miniCard__label{
+  font-size: 11px;
+  color: rgba(17,24,39,.55);
+  font-weight: 900;
+  margin-bottom: 6px;
+  letter-spacing: .4px;
+}
+
+canvas{
+  display:block;
+  width: 100% !important;
+  height: 110px !important;
+}
+#thumbIpSeriesChart{ height: 130px !important; }
+
+/* Table */
+#anglesTable{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  border: 1px solid rgba(17,24,39,.08);
+  border-radius: 12px;
+  overflow:hidden;
+}
+#anglesTable th, #anglesTable td{
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(17,24,39,.06);
+  text-align:left;
+  white-space: nowrap;
+  overflow:hidden;
+  text-overflow: ellipsis;
+}
+#anglesTable th{
+  color: rgba(17,24,39,.65);
+  background: rgba(243,244,246,.8);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+#anglesTable tbody{
+  display:block;
+  max-height: 180px;
+  overflow:auto;
+}
+#anglesTable thead, #anglesTable tbody tr{
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.actions button{
+  width: 100%;
+  border: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.pre{
+  font-size: 12px;
+  line-height: 1.35;
+  max-height: 200px;
+  overflow: auto;
+  background: #0b1020;
+  color: #e5e7eb;
+  border-radius: 12px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.06);
+}
