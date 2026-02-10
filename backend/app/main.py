@@ -1,13 +1,23 @@
 from dotenv import load_dotenv
 load_dotenv() # 환경 변수 로드
 
+import logging
+import os
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers.reportRouters import router as report_router
 
 app = FastAPI(title="MINTON-ANGLE FastAPI")
 
-# 프론트엔드와 통신하기 위한 CORS 설정 =
+# 프론트엔드와 통신하기 위한 CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  

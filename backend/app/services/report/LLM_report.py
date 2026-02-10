@@ -2,10 +2,18 @@ from __future__ import annotations
 
 import json
 import os
+import logging
+import time
 from datetime import datetime
 from typing import Any, Dict, Optional
 
 import httpx
+
+
+# -----------------------------------------------------------------------------
+# Logging (LLM 레벨)
+# -----------------------------------------------------------------------------
+logger_llm = logging.getLogger("app.llm")
 
 
 # -----------------------------------------------------------------------------
@@ -107,10 +115,14 @@ def _call_groq_chat(messages, model: str = GROQ_MODEL) -> str:
     # httpx timeout: connect/read 모두 제한
     timeout = httpx.Timeout(connect=10.0, read=40.0, write=10.0, pool=10.0)
 
+    t0 = time.perf_counter()
     with httpx.Client(timeout=timeout) as client:
         r = client.post(url, headers=headers, json=body)
+    dt_ms = (time.perf_counter() - t0) * 1000.0
+    logger_llm.info("Groq chat completion status=%s time_ms=%.1f model=%s", r.status_code, dt_ms, model)
 
     if r.status_code >= 400:
+        logger_llm.error("Groq API error body(head)=%s", r.text[:500])
         # Groq는 429(rate limit) 등을 반환할 수 있음
         raise RuntimeError(f"Groq API error {r.status_code}: {r.text}")
 
@@ -139,11 +151,20 @@ def generate_report(
     ]
 
     raw = _call_groq_chat(messages=messages, model=model)
+    logger_llm.info("LLM raw(head)=%s", raw)
 
     # LLM이 JSON만 반환하도록 요구하지만, 안전하게 파싱
     try:
         report_obj = json.loads(raw)
+        logger_llm.info(
+            "LLM parsed ok severity=%s keys=%s",
+            report_obj.get("overall_severity"),
+            list(report_obj.keys()),
+        )
+        logger_llm.info("LLM report=%s", json.dumps(report_obj, ensure_ascii=False))
     except json.JSONDecodeError:
+        logger_llm.warning("LLM JSON decode failed. raw(head)=%s", raw[:800])
+
         # 마지막 안전장치: JSON 부분만 잘라서 재시도(간단)
         start = raw.find("{")
         end = raw.rfind("}")
@@ -151,6 +172,11 @@ def generate_report(
             raise RuntimeError(f"LLM did not return JSON. raw={raw}")
         report_obj = json.loads(raw[start : end + 1])
 
+        logger_llm.info(
+            "LLM parsed(ok after slice) severity=%s keys=%s",
+            report_obj.get("overall_severity"),
+            list(report_obj.keys()),
+        )
     # 서버에서 공통 필드 추가
     report_obj.setdefault("created_at", datetime.utcnow().isoformat() + "Z")
     report_obj.setdefault("model", model)
