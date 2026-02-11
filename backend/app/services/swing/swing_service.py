@@ -22,7 +22,7 @@ class SwingService:
     
     def __init__(self):
         # ⭐ 저장 경로: backend/data/realtime
-        self.save_dir = os.path.join("backend", "data", "realtime")
+        self.save_dir = os.path.join("data", "realtime")
     
     
     # ========================================

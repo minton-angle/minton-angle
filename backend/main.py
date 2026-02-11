@@ -4,7 +4,7 @@ from app.db.base import Base
 from app.db.session import engine
 
 # ⭐ 수정: swing 라우터 import
-from app.routers import swingRouters
+from app.routers import swingRouters, uploadRouters
 
 # 모든 모델 import (테이블 생성용)
 from app.models.userModels import User
@@ -33,6 +33,7 @@ app.add_middleware(
 
 # ⭐ 수정: swing 라우터 등록
 app.include_router(swingRouters.router)
+app.include_router(uploadRouters.router)
 
 @app.get("/")
 def read_root():
