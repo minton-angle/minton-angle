@@ -4,6 +4,8 @@
 import os
 import uuid
 import base64
+import cv2
+import numpy as np
 from sqlalchemy.orm import Session
 
 from app.models.postModels import Post
@@ -21,7 +23,7 @@ class SwingService:
     """스윙 분석 서비스"""
     
     def __init__(self):
-        # ⭐ 저장 경로: backend/data/realtime
+        # ⭐ 저장 경로: data/realtime
         self.save_dir = os.path.join("data", "realtime")
     
     
@@ -157,7 +159,7 @@ class SwingService:
         )
         db.add(analysis)
         
-        # FILE 생성 (키프레임 이미지 3개)
+        # FILE 생성 (이미지 3개 + 동영상 2개)
         if request.frames and len(request.frames) > max(kf1, kf2, kf3):
             self._save_keyframe_files(
                 db, post_id, request.frames, [kf1, kf2, kf3], swing_num=1
@@ -208,7 +210,7 @@ class SwingService:
             analysis.kf2 = kf2
             analysis.kf3 = kf3
         
-        # FILE 추가
+        # FILE 추가 (이미지 3개 + 동영상 2개)
         if request.frames and len(request.frames) > max(kf1, kf2, kf3):
             self._save_keyframe_files(
                 db, request.post_id, request.frames,
@@ -246,8 +248,20 @@ class SwingService:
     
     
     def _save_keyframe_files(self, db, post_id, frames, keyframe_indices, swing_num):
-        """키프레임 이미지 3개 저장"""
-        for kf_num, kf_idx in enumerate(keyframe_indices, 1):
+        """
+        키프레임 저장 (이미지 3개 + 동영상 2개)
+        - 이미지 3개: KF1, KF2, KF3
+        - 동영상 2개: BACKSWING, IMPACT
+        """
+        
+        kf1, kf2, kf3 = keyframe_indices
+        
+        print(f"\n🎬 스윙 {swing_num}회 키프레임 저장:")
+        print(f"   📸 이미지 3개: KF1({kf1}), KF2({kf2}), KF3({kf3})")
+        print(f"   🎥 동영상 2개: BACKSWING({kf1}→{kf2}), IMPACT({kf2}→{kf3})")
+        
+        # 1. 이미지 3개 저장
+        for kf_num, kf_idx in enumerate([kf1, kf2, kf3], 1):
             frame_image = frames[kf_idx]
             file_path = self._save_image(post_id, kf_num, swing_num, frame_image)
             
@@ -261,6 +275,43 @@ class SwingService:
                 storage_type="LOCAL"
             )
             db.add(file)
+            print(f"  ✅ KF{kf_num} 이미지 저장")
+        
+        # 2. 백스윙 동영상 (KF1 → KF2)
+        backswing_path = self._save_video_from_frames(
+            post_id, swing_num, frames, kf1, kf2, 'BACKSWING'
+        )
+        
+        file = File(
+            idx=str(uuid.uuid4()),
+            post_idx=post_id,
+            file_type="BACKSWING",
+            file_name=f"swing{swing_num}_backswing.mp4",
+            file_path=backswing_path,
+            file_extension="mp4",
+            storage_type="LOCAL"
+        )
+        db.add(file)
+        print(f"  ✅ BACKSWING 동영상 저장 ({kf2-kf1+1}프레임)")
+        
+        # 3. 임팩트 동영상 (KF2 → KF3)
+        impact_path = self._save_video_from_frames(
+            post_id, swing_num, frames, kf2, kf3, 'IMPACT'
+        )
+        
+        file = File(
+            idx=str(uuid.uuid4()),
+            post_idx=post_id,
+            file_type="IMPACT",
+            file_name=f"swing{swing_num}_impact.mp4",
+            file_path=impact_path,
+            file_extension="mp4",
+            storage_type="LOCAL"
+        )
+        db.add(file)
+        print(f"  ✅ IMPACT 동영상 저장 ({kf3-kf2+1}프레임)")
+        
+        print(f"✅ 스윙 {swing_num}회 저장 완료: 이미지 3개 + 동영상 2개\n")
     
     
     def _save_image(self, post_id, kf_num, swing_num, image_base64):
@@ -284,6 +335,60 @@ class SwingService:
             f.write(image_data)
         
         # 경로 정규화 (Windows \\ → /)
+        return filepath.replace("\\", "/")
+    
+    
+    def _save_video_from_frames(self, post_id, swing_num, frames, start_idx, end_idx, video_type):
+        """
+        Base64 프레임들로 동영상 생성
+        
+        Args:
+            post_id: POST UUID
+            swing_num: 스윙 번호 (1, 2, 3)
+            frames: Base64 이미지 리스트
+            start_idx: 시작 프레임 인덱스
+            end_idx: 끝 프레임 인덱스
+            video_type: 'BACKSWING' 또는 'IMPACT'
+        """
+        
+        # 폴더 생성
+        post_dir = os.path.join(self.save_dir, post_id)
+        os.makedirs(post_dir, exist_ok=True)
+        
+        # 파일명
+        if video_type == 'BACKSWING':
+            filename = f"swing{swing_num}_backswing.mp4"
+        else:
+            filename = f"swing{swing_num}_impact.mp4"
+        
+        filepath = os.path.join(post_dir, filename)
+        
+        # 첫 프레임으로 크기 확인
+        first_frame_base64 = frames[start_idx].split(",")[1] if "," in frames[start_idx] else frames[start_idx]
+        first_frame_data = base64.b64decode(first_frame_base64)
+        first_frame_array = np.frombuffer(first_frame_data, dtype=np.uint8)
+        first_frame = cv2.imdecode(first_frame_array, cv2.IMREAD_COLOR)
+        
+        height, width, _ = first_frame.shape
+        
+        # VideoWriter 설정 (30fps)
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(filepath, fourcc, 30, (width, height))
+        
+        # 프레임 범위 동영상으로 저장
+        for i in range(start_idx, end_idx + 1):
+            # Base64 디코딩
+            frame_base64 = frames[i].split(",")[1] if "," in frames[i] else frames[i]
+            frame_data = base64.b64decode(frame_base64)
+            frame_array = np.frombuffer(frame_data, dtype=np.uint8)
+            frame = cv2.imdecode(frame_array, cv2.IMREAD_COLOR)
+            
+            # 프레임 쓰기
+            out.write(frame)
+        
+        out.release()
+        
+        # 경로 정규화
         return filepath.replace("\\", "/")
 
 

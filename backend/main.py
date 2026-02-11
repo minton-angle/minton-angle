@@ -1,12 +1,22 @@
+"""
+MINTON-ANGLE API Server
+"""
+import sys
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# 현재 디렉토리를 Python 경로에 추가
+current_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(current_dir))
+
 from app.db.base import Base
 from app.db.session import engine
 
-# ⭐ 수정: swing 라우터 import
+# 라우터 import
 from app.routers import swingRouters, uploadRouters
 
-# 모든 모델 import (테이블 생성용)
+# 모델 import (테이블 생성용)
 from app.models.userModels import User
 from app.models.postModels import Post
 from app.models.fileModels import File
@@ -16,6 +26,7 @@ from app.models.llmReportModels import LLMReport
 # 데이터베이스 테이블 생성
 Base.metadata.create_all(bind=engine)
 
+# FastAPI 앱 생성
 app = FastAPI(
     title="MINTON-ANGLE API",
     description="배드민턴 자세 분석 API",
@@ -31,10 +42,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ⭐ 수정: swing 라우터 등록
+# 라우터 등록
 app.include_router(swingRouters.router)
 app.include_router(uploadRouters.router)
 
+# 루트 엔드포인트
 @app.get("/")
 def read_root():
     return {"message": "MINTON-ANGLE API Server"}
@@ -42,3 +54,23 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+
+# 서버 실행
+if __name__ == "__main__":
+    import uvicorn
+    
+    print("=" * 60)
+    print("🚀 MINTON-ANGLE API Server 시작")
+    print("=" * 60)
+    print(f"📁 작업 디렉토리: {current_dir}")
+    print(f"🌐 서버 주소: http://localhost:8000")
+    print(f"📚 API 문서: http://localhost:8000/docs")
+    print("=" * 60 + "\n")
+    
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
