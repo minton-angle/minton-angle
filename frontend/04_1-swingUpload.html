@@ -19,41 +19,28 @@
 
         <div class="scroll-container">
             <main class="upload-content">
-                
-                <!-- 업로드 영역 -->
                 <div class="upload-section">
                     <div class="upload-box" id="upload-box" onclick="document.getElementById('video-input').click()">
-                        <!-- 기본 상태: 아이콘 + 텍스트 -->
                         <div class="upload-placeholder" id="upload-placeholder">
                             <div class="upload-icon">
-                                <img src="assets/images/image_icon.png" alt="업로드">
+                                <img src="assets/images/album.png" alt="업로드">
                             </div>
                             <p class="upload-text">앨범에서 영상 불러오기</p>
                         </div>
                         
-                        <!-- 선택된 영상 미리보기 -->
                         <div class="video-preview" id="video-preview" style="display: none;">
-                            <video id="preview-video" playsinline muted>
-                                <source src="" type="video/mp4">
-                            </video>
-                            <button class="change-btn" onclick="event.stopPropagation(); document.getElementById('video-input').click()">
-                                영상 변경
-                            </button>
+                            <video id="preview-video" playsinline muted loop></video>
                         </div>
                     </div>
-                    
-                    <!-- 숨겨진 파일 입력 -->
                     <input type="file" id="video-input" accept="video/*" style="display: none;">
                 </div>
 
-                <!-- 주의사항 카드 -->
                 <div class="info-container">
                     <div class="info-card">
                         <p class="info-highlight">
                             * 정확한 스윙 피드백을 위해 영상을 촬영하시기 전,<br>
                             <strong>아래 주의사항을 꼭 읽어주세요!</strong>
                         </p>
-                        
                         <ul class="info-list">
                             <li>
                                 <span>•</span>
@@ -70,7 +57,6 @@
                         </ul>
                     </div>
                 </div>
-
             </main>
         </div>
 
@@ -78,7 +64,6 @@
             <button class="submit-btn" id="submit-btn" onclick="startAnalysis()" disabled>분석 시작</button>
         </footer>
     </div>
-
     <script src="js/04_1-swingUpload.js"></script>
 </body>
 </html>
