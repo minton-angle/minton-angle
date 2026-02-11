@@ -458,7 +458,7 @@ function updateUIWithResult(swingNum, result) {
         el.classList.remove('active', 'bad', 'normal', 'good')
     );
     
-    const avgScore = result.overall_average;  // ← 여기가 문제!
+    const avgScore = result.overall_average;
     let status = 'bad';
     
     if (avgScore >= 80) {
