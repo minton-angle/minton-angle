@@ -25,5 +25,9 @@ main {
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    margin: 250px auto 0 auto;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    margin: auto;
+    margin-top: 80%;
 }
