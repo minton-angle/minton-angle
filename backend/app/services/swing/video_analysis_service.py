@@ -33,7 +33,7 @@ class VideoAnalysisService:
     async def analyze_video(self, user_id: str, video: UploadFile, db: Session):
         """영상 업로드 및 분석 전체 프로세스"""
         
-        # ⭐ 파일명 추출 (확장자 제외)
+        # 파일명 추출 (확장자 제외)
         filename_without_ext = os.path.splitext(video.filename)[0]
         
         # 1. POST 생성 (UUID)
@@ -49,7 +49,7 @@ class VideoAnalysisService:
         db.commit()
         
         try:
-            # 2. 영상 저장 (파일명으로 폴더)
+            # 2. 영상 저장
             video_path = await self._save_video(filename_without_ext, video)
             
             # 3. Keypoints 추출
@@ -62,7 +62,7 @@ class VideoAnalysisService:
             scores = swing_service.calculate_scores(keypoints_list, kf1, kf2, kf3)
             total_score = sum(scores.values()) // len(scores)
             
-            # 6. 키프레임 저장 (폴더=파일명, DB=UUID)
+            # 6. 키프레임 저장 (이미지 3개 + 동영상 2개)
             await self._save_keyframes(
                 folder_name=filename_without_ext,
                 video_path=video_path,
@@ -160,90 +160,82 @@ class VideoAnalysisService:
     ):
         """
         키프레임 저장
-        - folder_name: 파일명 (폴더용)
-        - post_idx: UUID (DB용)
-        - KF1 (준비자세): 이미지
-        - KF2 (백스윙): 동영상 (Ready → Backswing)
-        - KF3 (임팩트): 동영상 (Backswing → Impact)
+        - 이미지 3개: KF1, KF2, KF3
+        - 동영상 2개: BACKSWING (KF1→KF2), IMPACT (KF2→KF3)
         """
         
         kf1, kf2, kf3 = keyframe_indices
         
         print(f"\n🎬 키프레임 저장:")
-        print(f"   폴더명: {folder_name}")
-        print(f"   POST UUID: {post_idx}")
-        print(f"   KF1: {kf1}번 → 이미지")
-        print(f"   KF2: {kf1}~{kf2}번 → 동영상")
-        print(f"   KF3: {kf2}~{kf3}번 → 동영상")
+        print(f"   📂 폴더: {folder_name}")
+        print(f"   🆔 POST: {post_idx}")
+        print(f"   📸 이미지 3개: KF1({kf1}), KF2({kf2}), KF3({kf3})")
+        print(f"   🎥 동영상 2개: BACKSWING({kf1}→{kf2}), IMPACT({kf2}→{kf3})")
         
-        await self._save_single_image(folder_name, post_idx, video_path, kf1, 1, db)
-        await self._save_video_clip(folder_name, post_idx, video_path, kf1, kf2, 2, db)
-        await self._save_video_clip(folder_name, post_idx, video_path, kf2, kf3, 3, db)
+        # 1. 이미지 3개
+        await self._save_single_image(folder_name, post_idx, video_path, kf1, 'KF1', db)
+        await self._save_single_image(folder_name, post_idx, video_path, kf2, 'KF2', db)
+        await self._save_single_image(folder_name, post_idx, video_path, kf3, 'KF3', db)
         
-        print(f"✅ 키프레임 저장 완료!\n")
+        # 2. 백스윙 동영상 (KF1 → KF2)
+        await self._save_video_clip(
+            folder_name, post_idx, video_path, kf1, kf2, 'BACKSWING', db
+        )
+        
+        # 3. 임팩트 동영상 (KF2 → KF3)
+        await self._save_video_clip(
+            folder_name, post_idx, video_path, kf2, kf3, 'IMPACT', db
+        )
+        
+        print(f"✅ 저장 완료: 이미지 3개 + 동영상 2개\n")
     
     
     async def _save_single_image(
         self, folder_name: str, post_idx: str, video_path: str, 
-        frame_idx: int, kf_num: int, db: Session
+        frame_idx: int, file_type: str, db: Session
     ):
         """특정 프레임을 이미지로 저장"""
         
-        try:
-            cap = cv2.VideoCapture(video_path)
+        cap = cv2.VideoCapture(video_path)
+        
+        # 폴더명 = 파일명
+        kf_dir = os.path.join(self.keyframe_dir, folder_name)
+        os.makedirs(kf_dir, exist_ok=True)
+        
+        # 해당 프레임으로 이동
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        ret, frame = cap.read()
+        
+        if ret:
+            # 파일명: kf1.jpg, kf2.jpg, kf3.jpg
+            filename = f"{file_type.lower()}.jpg"
+            filepath = os.path.join(kf_dir, filename)
+            cv2.imwrite(filepath, frame)
             
-            # 폴더명 = 파일명
-            kf_dir = os.path.join(self.keyframe_dir, folder_name)
-            os.makedirs(kf_dir, exist_ok=True)
+            # 파일 크기
+            file_size = os.path.getsize(filepath)
             
-            print(f"  📂 폴더 생성: {kf_dir}")
+            # DB 저장
+            file = File(
+                idx=str(uuid.uuid4()),
+                post_idx=post_idx,
+                file_type=file_type,  # 'KF1', 'KF2', 'KF3'
+                file_name=filename,
+                file_path=filepath.replace("\\", "/"),
+                file_extension="jpg",
+                file_size=file_size,
+                storage_type="LOCAL"
+            )
+            db.add(file)
             
-            # 해당 프레임으로 이동
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-            ret, frame = cap.read()
-            
-            print(f"  📸 프레임 읽기: ret={ret}, frame_idx={frame_idx}")
-            
-            if ret:
-                # 이미지 저장
-                filename = f"kf{kf_num}.jpg"
-                filepath = os.path.join(kf_dir, filename)
-                
-                print(f"  💾 저장 시도: {filepath}")
-                
-                cv2.imwrite(filepath, frame)
-                
-                # 파일 크기
-                file_size = os.path.getsize(filepath)
-                
-                print(f"  ✅ 파일 저장 완료: {file_size:,} bytes")
-                
-                # DB 저장
-                file = File(
-                    idx=str(uuid.uuid4()),
-                    post_idx=post_idx,
-                    file_type=f"KF{kf_num}",
-                    file_name=filename,
-                    file_path=filepath.replace("\\", "/"),
-                    file_extension="jpg",
-                    file_size=file_size,
-                    storage_type="LOCAL"
-                )
-                db.add(file)
-                
-                print(f"  ✅ DB 저장 완료")
-            
-            cap.release()
-            
-        except Exception as e:
-            print(f"  ❌ 에러 발생: {type(e).__name__}: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            raise e
+            print(f"  ✅ {file_type} 이미지: {filename}")
+        
+        cap.release()
+    
     
     async def _save_video_clip(
         self, folder_name: str, post_idx: str, video_path: str, 
-        start_frame: int, end_frame: int, kf_num: int, db: Session
+        start_frame: int, end_frame: int, file_type: str, db: Session
     ):
         """프레임 구간을 동영상으로 저장"""
         
@@ -258,8 +250,8 @@ class VideoAnalysisService:
         kf_dir = os.path.join(self.keyframe_dir, folder_name)
         os.makedirs(kf_dir, exist_ok=True)
         
-        # 출력 파일
-        filename = f"kf{kf_num}.mp4"
+        # 파일명: backswing.mp4, impact.mp4
+        filename = f"{file_type.lower()}.mp4"
         filepath = os.path.join(kf_dir, filename)
         
         # VideoWriter 설정
@@ -292,11 +284,11 @@ class VideoAnalysisService:
         # 파일 크기
         file_size = os.path.getsize(filepath)
         
-        # DB 저장 (post_idx는 UUID!)
+        # DB 저장
         file = File(
             idx=str(uuid.uuid4()),
-            post_idx=post_idx,  # ⭐ UUID
-            file_type=f"KF{kf_num}",
+            post_idx=post_idx,
+            file_type=file_type,  # 'BACKSWING', 'IMPACT'
             file_name=filename,
             file_path=filepath.replace("\\", "/"),
             file_extension="mp4",
@@ -305,7 +297,7 @@ class VideoAnalysisService:
         )
         db.add(file)
         
-        print(f"  ✅ KF{kf_num} 동영상: {filename} ({frame_count}프레임, {file_size:,} bytes)")
+        print(f"  ✅ {file_type} 동영상: {filename} ({frame_count}프레임)")
     
     
     async def get_status(self, post_idx: str, db: Session):
@@ -339,20 +331,29 @@ class VideoAnalysisService:
         
         # FILE 조회
         files = db.query(File).filter(File.post_idx == post_idx).all()
-        keyframes = {
-            f.file_type: {
-                "path": f.file_path,
-                "type": f.file_extension,
-                "size": f.file_size
-            }
-            for f in files
-        }
+        
+        # 이미지와 동영상 분류
+        images = {}
+        videos = {}
+        
+        for file in files:
+            if file.file_extension == "jpg":
+                images[file.file_type] = {
+                    "path": file.file_path,
+                    "size": file.file_size
+                }
+            elif file.file_extension == "mp4":
+                videos[file.file_type] = {
+                    "path": file.file_path,
+                    "size": file.file_size
+                }
         
         return {
             "post_idx": post_idx,
             "total_score": post.total_score,
             "scores": analysis.score_json if analysis else {},
-            "keyframes": keyframes,
+            "images": images,  # KF1, KF2, KF3
+            "videos": videos,  # BACKSWING, IMPACT
             "feedback": "분석 완료!"
         }
 
