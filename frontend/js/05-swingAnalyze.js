@@ -331,7 +331,7 @@ async function runSwingRoutine() {
     await new Promise(r => setTimeout(r, 2000));
 
     // 단계 2: 카운트다운
-    for (let i = 4; i > 0; i--) {
+    for (let i = 3; i > 0; i--) {
         countdownEl.innerText = i;
         speak(i.toString());
         await new Promise(r => setTimeout(r, 1000));
@@ -351,7 +351,7 @@ async function runSwingRoutine() {
         }
     }, 100);  // 10fps
     
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise(r => setTimeout(r, 5000));
     
     isCapturing = false;
     clearInterval(captureInterval);
