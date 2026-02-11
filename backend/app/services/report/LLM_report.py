@@ -38,7 +38,7 @@ def _system_prompt(lang: str) -> str:
     if lang.lower().startswith("en"):
         return (
             "You are a biomechanics coaching assistant. "
-            "Given joint angle errors (in degrees) relative to a reference posture, "
+            "Given keyframe error angles (KF1~KF3, in degrees) relative to a reference posture, "
             "write a concise, actionable posture feedback report. "
             "Return ONLY valid JSON. Do not include markdown."
         )
@@ -46,7 +46,7 @@ def _system_prompt(lang: str) -> str:
     # default: Korean
     return (
         "당신은 배드민턴 자세 코칭 어시스턴트입니다. "
-        "기준 자세 대비 관절 오차각도(도 단위)를 입력으로 받아, "
+        "기준 자세 대비 키프레임(KF1~KF3) 오차각도(도 단위)를 입력으로 받아, "
         "사용자가 인간공학적으로 수정할 수 있도록 간결하고 실행 가능한 리포트를 작성하세요. "
         "반드시 JSON만 반환하세요. 마크다운/설명 문장/코드블록을 섞지 마세요."
     )
@@ -78,13 +78,13 @@ def _user_prompt(angles: Dict[str, float], meta: Optional[Dict[str, Any]], lang:
 
     if lang.lower().startswith("en"):
         return (
-            "Analyze the following joint-angle errors and generate a JSON report. "
+            "Analyze the following keyframe error angles (KF1~KF3) and generate a JSON report. "
             "Make fixes practical and measurable.\n\n"
             f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
         )
 
     return (
-        "다음 관절 오차각도를 분석해 자세 교정 리포트를 JSON으로 생성하세요. "
+        "다음 키프레임(KF1~KF3) 오차각도를 분석해 자세 교정 리포트를 JSON으로 생성하세요. "
         "교정 방법은 인간공학적으로 구체적이고 측정 가능하게 작성하세요.\n\n"
         f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
