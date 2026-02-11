@@ -6,7 +6,7 @@
 // ============================================
 // 설정
 // ============================================
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://localhost:8000';
 
 // ============================================
 // 초기화
@@ -19,34 +19,31 @@ document.addEventListener('DOMContentLoaded', () => {
 // 분석 결과 로드
 // ============================================
 async function loadAnalysisResult() {
-    // localStorage에서 analysis_id 가져오기
-    const analysisId = localStorage.getItem('analysis_id');
-    const analysisData = localStorage.getItem('analysis_result');
+    const postIdx = localStorage.getItem('analysis_post_id');
     
-    if (analysisData) {
-        // localStorage에 결과가 있으면 바로 사용
-        try {
-            const result = JSON.parse(analysisData);
-            displayResult(result);
-        } catch (e) {
-            console.error('결과 파싱 오류:', e);
-            showError('결과를 불러올 수 없습니다.');
+    if (!postIdx) {
+        console.log('❌ post_idx 없음');
+        showError('분석 결과를 찾을 수 없습니다.');
+        return;
+    }
+    
+    console.log('📊 분석 결과 조회:', postIdx);
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/upload/result/${postIdx}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
-    } else if (analysisId) {
-        // analysis_id로 서버에서 결과 조회
-        try {
-            const response = await fetch(`${API_BASE_URL}/swing/result/${analysisId}`);
-            if (!response.ok) throw new Error('결과 조회 실패');
-            const result = await response.json();
-            displayResult(result);
-        } catch (e) {
-            console.error('API 호출 오류:', e);
-            // 테스트용 더미 데이터 표시
-            displayDummyResult();
-        }
-    } else {
-        // 테스트용 더미 데이터 표시
-        displayDummyResult();
+        
+        const result = await response.json();
+        console.log('✅ 결과 로드:', result);
+        
+        displayResult(result);
+        
+    } catch (e) {
+        console.error('❌ API 호출 오류:', e);
+        showError('결과를 불러오는 중 오류가 발생했습니다.');
     }
 }
 
@@ -54,218 +51,208 @@ async function loadAnalysisResult() {
 // 결과 표시
 // ============================================
 function displayResult(result) {
-    if (!result.success) {
+    console.log('🎨 결과 표시:', result);
+    
+    // success 체크
+    if (result.success === false) {
         showError(result.message || '분석에 실패했습니다.');
         return;
     }
     
-    // 종합 점수
-    displayOverallScore(result.overall);
+    // 종합 점수 표시
+    displayOverallScore(result.total_score || 0);
     
-    // 피드백
-    displayFeedback(result.overall.feedback_summary);
+    // ⭐ files 또는 images/videos 처리
+    if (result.files) {
+        // 방법 1: files 객체가 있으면
+        console.log('📁 files 사용:', result.files);
+        displayFiles(result.files);
+    } else if (result.images || result.videos) {
+        // 방법 2: images/videos 객체면 변환
+        console.log('📁 images/videos 변환');
+        const files = {
+            kf1_image: result.images?.KF1?.path,
+            kf2_image: result.images?.KF2?.path,
+            kf3_image: result.images?.KF3?.path,
+            backswing_video: result.videos?.BACKSWING?.path,
+            impact_video: result.videos?.IMPACT?.path
+        };
+        console.log('📁 변환된 files:', files);
+        displayFiles(files);
+    } else {
+        console.error('❌ files 데이터 없음');
+        showError('파일 데이터를 찾을 수 없습니다.');
+    }
     
-    // 구간별 결과
-    displayPhase1(result.phases.phase1_ready, result.analysis_id);
-    displayPhase2(result.phases.phase2_backswing_impact, result.analysis_id);
-    displayPhase3(result.phases.phase3_followthrough, result.analysis_id);
+    console.log('✅ 화면 표시 완료');
 }
 
 // ============================================
 // 종합 점수 표시
 // ============================================
-function displayOverallScore(overall) {
+function displayOverallScore(score) {
     const scoreEl = document.getElementById('overall-score');
+    scoreEl.textContent = score || 0;
+    
     const gradeEl = document.getElementById('overall-grade');
     const commentEl = document.getElementById('overall-comment');
-    const circleEl = document.getElementById('overall-score-circle');
     
-    scoreEl.textContent = overall.score;
+    // 점수별 등급
+    let gradeText, comment;
     
-    // 등급별 텍스트 & 스타일
-    const gradeInfo = {
-        'excellent': { text: '완벽해요! 🎉', comment: '전문가 수준의 스윙이에요!' },
-        'good': { text: '좋아요! 👍', comment: '조금만 더 연습하면 완벽해질 거예요.' },
-        'fair': { text: '보통이에요', comment: '몇 가지 개선점을 확인해보세요.' },
-        'poor': { text: '연습이 필요해요', comment: '아래 피드백을 참고해서 연습해보세요.' }
-    };
-    
-    const grade = overall.grade || 'fair';
-    const info = gradeInfo[grade] || gradeInfo.fair;
-    
-    gradeEl.textContent = info.text;
-    commentEl.textContent = info.comment;
-    circleEl.className = `score-circle ${grade}`;
-}
-
-// ============================================
-// 피드백 표시
-// ============================================
-function displayFeedback(feedbackList) {
-    const listEl = document.getElementById('feedback-list');
-    listEl.innerHTML = '';
-    
-    if (!feedbackList || feedbackList.length === 0) {
-        feedbackList = ['전반적으로 좋은 스윙이에요!'];
-    }
-    
-    feedbackList.forEach(feedback => {
-        const li = document.createElement('li');
-        li.textContent = feedback.replace(/^\[.*?\]\s*/, ''); // [태그] 제거
-        listEl.appendChild(li);
-    });
-}
-
-// ============================================
-// 구간1: 준비자세
-// ============================================
-function displayPhase1(phase, analysisId) {
-    if (!phase) return;
-    
-    const imgEl = document.getElementById('phase1-user-img');
-    
-    if (phase.file_url) {
-        imgEl.src = `${API_BASE_URL}${phase.file_url}`;
-    }
-}
-
-// ============================================
-// 구간2: 백스윙~임팩트
-// ============================================
-function displayPhase2(phase, analysisId) {
-    if (!phase) return;
-    
-    // 영상 설정
-    const videoEl = document.getElementById('phase2-user-video');
-    if (phase.file_url) {
-        videoEl.querySelector('source').src = `${API_BASE_URL}${phase.file_url}`;
-        videoEl.load();
-    }
-    
-    // 임팩트 이미지
-    const impactImg = document.getElementById('phase2-impact-img');
-    if (phase.impact_image_url) {
-        impactImg.src = `${API_BASE_URL}${phase.impact_image_url}`;
-    }
-    
-    // 지표 표시
-    if (phase.metrics) {
-        displayMetric('elbow', phase.metrics.elbow_angle);
-        displayMetric('height', phase.metrics.impact_height);
-        displayMetric('hip', phase.metrics.hip_rotation);
-        
-        // 구간 점수 (지표 평균)
-        const avgScore = calculatePhaseScore(phase.metrics);
-        document.getElementById('phase2-badge').textContent = `${avgScore}점`;
-    }
-}
-
-// ============================================
-// 구간3: 팔로우스루
-// ============================================
-function displayPhase3(phase, analysisId) {
-    if (!phase) return;
-    
-    // 영상 설정
-    const videoEl = document.getElementById('phase3-user-video');
-    if (phase.file_url) {
-        videoEl.querySelector('source').src = `${API_BASE_URL}${phase.file_url}`;
-        videoEl.load();
-    }
-    
-    // 지표 표시
-    if (phase.metrics) {
-        displayMetric('followthrough', phase.metrics.followthrough);
-        
-        // 구간 점수
-        const score = phase.metrics.followthrough?.score || 0;
-        document.getElementById('phase3-badge').textContent = `${score}점`;
-    }
-}
-
-// ============================================
-// 개별 지표 표시
-// ============================================
-function displayMetric(metricKey, metricData) {
-    if (!metricData) return;
-    
-    const valueEl = document.getElementById(`${metricKey}-value`);
-    const barEl = document.getElementById(`${metricKey}-bar`);
-    const feedbackEl = document.getElementById(`${metricKey}-feedback`);
-    const itemEl = document.getElementById(`metric-${metricKey}`);
-    
-    // 값 표시
-    let displayValue = metricData.value;
-    if (metricData.unit === '°') {
-        displayValue = `${Math.round(metricData.value)}°`;
-    } else if (metricData.unit === '%') {
-        displayValue = `${Math.round(metricData.value)}%`;
+    if (score >= 90) {
+        gradeText = '완벽해요! 🎉';
+        comment = '전문가 수준의 스윙이에요!';
+    } else if (score >= 80) {
+        gradeText = '좋아요! 👍';
+        comment = '조금만 더 연습하면 완벽해질 거예요.';
+    } else if (score >= 70) {
+        gradeText = '보통이에요';
+        comment = '몇 가지 개선점을 확인해보세요.';
     } else {
-        displayValue = metricData.value.toFixed(2);
+        gradeText = '연습이 필요해요';
+        comment = '아래 피드백을 참고해서 연습해보세요.';
     }
-    valueEl.textContent = displayValue;
     
-    // 피드백
-    feedbackEl.textContent = metricData.feedback || '';
+    gradeEl.textContent = gradeText;
+    commentEl.textContent = comment;
     
-    // 등급별 스타일
-    itemEl.classList.remove('good', 'fair', 'poor');
-    itemEl.classList.add(metricData.grade || 'fair');
-    
-    // 바 위치 조정 (0~100% 범위)
-    const position = calculateBarPosition(metricKey, metricData.value);
-    barEl.style.setProperty('--indicator-position', `${position}%`);
-    barEl.querySelector('::after')?.style.setProperty('left', `${position}%`);
-    
-    // CSS 변수로 위치 설정
-    barEl.style.cssText = `--pos: ${position}%`;
-    
-    // ::after 위치 조정을 위한 인라인 스타일
-    const indicator = document.createElement('div');
-    indicator.className = 'bar-indicator';
-    indicator.style.left = `${position}%`;
-    barEl.innerHTML = '';
-    barEl.appendChild(indicator);
+    // SVG 원 애니메이션
+    const meter = document.getElementById('score-meter');
+    if (meter) {
+        const circumference = 2 * Math.PI * 45;
+        const offset = circumference - (score / 100) * circumference;
+        meter.style.strokeDasharray = `${circumference} ${circumference}`;
+        meter.style.strokeDashoffset = offset;
+    }
 }
 
 // ============================================
-// 바 위치 계산
+// 파일 표시
 // ============================================
-function calculateBarPosition(metricKey, value) {
-    const ranges = {
-        'elbow': { min: 120, max: 190, goodMin: 155, goodMax: 175 },
-        'height': { min: 0, max: 1, goodMin: 0.3, goodMax: 0.7 },
-        'hip': { min: 0, max: 0.6, goodMin: 0.15, goodMax: 0.4 },
-        'followthrough': { min: 0, max: 0.8, goodMin: 0.25, goodMax: 0.6 }
-    };
+function displayFiles(files) {
+    if (!files) {
+        console.log('❌ 파일 없음');
+        return;
+    }
     
-    const range = ranges[metricKey];
-    if (!range) return 50;
+    console.log('📁 파일 표시:', files);
     
-    // 0~100% 범위로 정규화
-    const normalized = (value - range.min) / (range.max - range.min);
-    return Math.max(0, Math.min(100, normalized * 100));
+    // 1. 준비자세 이미지 (KF1)
+    if (files.kf1_image) {
+        const img = document.getElementById('phase1-user-img');
+        const src = `${API_BASE_URL}${files.kf1_image}`;
+        console.log('🖼️ KF1 설정:', src);
+        
+        img.src = src;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        
+        img.onload = () => {
+            console.log('✅ KF1 이미지 로드 성공');
+        };
+        img.onerror = (e) => {
+            console.error('❌ KF1 이미지 로드 실패:', src, e);
+        };
+    } else {
+        console.log('⚠️ kf1_image 없음');
+    }
+    
+    // 2. 백스윙~임팩트 동영상 (BACKSWING)
+    if (files.backswing_video) {
+        const video = document.getElementById('phase2-user-video');
+        const source = video.querySelector('source');
+        const src = `${API_BASE_URL}${files.backswing_video}`;
+        console.log('🎥 BACKSWING 설정:', src);
+        
+        source.src = src;
+        video.load();
+        
+        video.addEventListener('loadedmetadata', () => {
+            console.log('✅ BACKSWING 동영상 로드 성공');
+        });
+        video.addEventListener('error', (e) => {
+            console.error('❌ BACKSWING 동영상 로드 실패:', src, e);
+        });
+    } else {
+        console.log('⚠️ backswing_video 없음');
+    }
+    
+    // 3. 임팩트 순간 이미지 (KF3)
+    if (files.kf3_image) {
+        const img = document.getElementById('phase2-impact-img');
+        const src = `${API_BASE_URL}${files.kf3_image}`;
+        console.log('🖼️ KF3 설정:', src);
+        
+        img.src = src;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        
+        img.onload = () => {
+            console.log('✅ KF3 이미지 로드 성공');
+        };
+        img.onerror = (e) => {
+            console.error('❌ KF3 이미지 로드 실패:', src, e);
+        };
+    } else {
+        console.log('⚠️ kf3_image 없음');
+    }
+    
+    // 4. 팔꿈치 최대 신전 이미지 (KF2)
+    if (files.kf2_image) {
+        const img = document.getElementById('phase2-elbow-img');
+        const src = `${API_BASE_URL}${files.kf2_image}`;
+        console.log('🖼️ KF2 설정:', src);
+        
+        img.src = src;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        
+        img.onload = () => {
+            console.log('✅ KF2 이미지 로드 성공');
+        };
+        img.onerror = (e) => {
+            console.error('❌ KF2 이미지 로드 실패:', src, e);
+        };
+    } else {
+        console.log('⚠️ kf2_image 없음');
+    }
+    
+    // 5. 팔로우스루 동영상 (IMPACT)
+    if (files.impact_video) {
+        const video = document.getElementById('phase3-user-video');
+        const source = video.querySelector('source');
+        const src = `${API_BASE_URL}${files.impact_video}`;
+        console.log('🎥 IMPACT 설정:', src);
+        
+        source.src = src;
+        video.load();
+        
+        video.addEventListener('loadedmetadata', () => {
+            console.log('✅ IMPACT 동영상 로드 성공');
+        });
+        video.addEventListener('error', (e) => {
+            console.error('❌ IMPACT 동영상 로드 실패:', src, e);
+        });
+    } else {
+        console.log('⚠️ impact_video 없음');
+    }
 }
 
 // ============================================
-// 구간 점수 계산
-// ============================================
-function calculatePhaseScore(metrics) {
-    const scores = [];
-    Object.values(metrics).forEach(m => {
-        if (m && m.score) scores.push(m.score);
-    });
-    
-    if (scores.length === 0) return 0;
-    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-}
-
-// ============================================
-// 동시 재생 기능
+// 동시 재생 기능 (전문가 영상 준비되면 사용)
 // ============================================
 function syncPlayVideos(phase) {
     const userVideo = document.getElementById(`${phase}-user-video`);
     const expertVideo = document.getElementById(`${phase}-expert-video`);
+    
+    if (!userVideo || !expertVideo) {
+        console.log('동영상 요소를 찾을 수 없음');
+        return;
+    }
     
     // 처음으로 이동
     userVideo.currentTime = 0;
@@ -274,6 +261,8 @@ function syncPlayVideos(phase) {
     // 동시 재생
     userVideo.play();
     expertVideo.play();
+    
+    console.log('▶️ 동시 재생:', phase);
 }
 
 // ============================================
@@ -281,113 +270,20 @@ function syncPlayVideos(phase) {
 // ============================================
 function showError(message) {
     const content = document.querySelector('.report-content');
+    if (!content) return;
+    
     content.innerHTML = `
-        <div class="error-message">
-            <p>😢 ${message}</p>
-            <button onclick="location.href='03-swingMode.html'" 
-                    style="margin-top:20px; padding:12px 24px; background:#025B36; color:#fff; border:none; border-radius:10px; cursor:pointer;">
+        <div style="padding: 40px; text-align: center;">
+            <p style="font-size: 18px; color: #666; margin-bottom: 20px;">
+                😢 ${message}
+            </p>
+            <button onclick="location.href='04_1-swingUpload.html'" 
+                    style="padding: 12px 24px; background: #025B36; color: #fff; 
+                           border: none; border-radius: 10px; cursor: pointer; font-size: 16px;">
                 다시 시도하기
             </button>
         </div>
     `;
 }
 
-// ============================================
-// 테스트용 더미 데이터
-// ============================================
-function displayDummyResult() {
-    const dummyResult = {
-        success: true,
-        analysis_id: 'test123',
-        overall: {
-            score: 72,
-            grade: 'good',
-            feedback_summary: [
-                '[팔꿈치 신전] 팔을 더 쭉 펴주세요! 힘이 제대로 전달되지 않아요.',
-                '[골반 회전] 골반 회전 좋아요! 하체 힘이 잘 전달되고 있어요 👍'
-            ]
-        },
-        phases: {
-            phase1_ready: {
-                name: '준비자세',
-                display_type: 'image',
-                file_url: null // 테스트용이라 없음
-            },
-            phase2_backswing_impact: {
-                name: '백스윙~임팩트',
-                display_type: 'video',
-                file_url: null,
-                metrics: {
-                    elbow_angle: {
-                        name: '팔꿈치 신전',
-                        value: 145,
-                        unit: '°',
-                        grade: 'fair',
-                        score: 65,
-                        feedback: '팔을 더 쭉 펴주세요! 힘이 제대로 전달되지 않아요.'
-                    },
-                    impact_height: {
-                        name: '임팩트 높이',
-                        value: 0.52,
-                        unit: '',
-                        grade: 'good',
-                        score: 85,
-                        feedback: '타점 높이 좋아요! 👍'
-                    },
-                    hip_rotation: {
-                        name: '골반 회전',
-                        value: 28,
-                        unit: '%',
-                        grade: 'good',
-                        score: 82,
-                        feedback: '골반 회전 좋아요! 하체 힘이 잘 전달되고 있어요 👍'
-                    }
-                }
-            },
-            phase3_followthrough: {
-                name: '팔로우스루',
-                display_type: 'video',
-                file_url: null,
-                metrics: {
-                    followthrough: {
-                        name: '팔로우스루',
-                        value: 42,
-                        unit: '%',
-                        grade: 'good',
-                        score: 88,
-                        feedback: '팔로우스루 완벽해요! 👍'
-                    }
-                }
-            }
-        }
-    };
-    
-    displayResult(dummyResult);
-    
-    // 테스트 모드 안내
-    console.log('📋 테스트 모드: 더미 데이터로 표시 중');
-}
-
-// ============================================
-// 바 인디케이터 스타일 (동적 생성)
-// ============================================
-const style = document.createElement('style');
-style.textContent = `
-    .bar-indicator {
-        position: absolute;
-        width: 16px;
-        height: 16px;
-        background: #fff;
-        border: 3px solid #025B36;
-        border-radius: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-        z-index: 10;
-    }
-    
-    .metric-bar {
-        position: relative;
-    }
-`;
-document.head.appendChild(style);
+console.log('📄 reportDetail.js 로드 완료');

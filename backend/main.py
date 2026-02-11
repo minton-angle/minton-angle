@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 # 현재 디렉토리를 Python 경로에 추가
 current_dir = Path(__file__).resolve().parent
@@ -42,9 +43,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# # CORS 설정 (더 구체적으로)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[
+#         "http://localhost:5500",      # Live Server
+#         "http://127.0.0.1:5500",      # Live Server
+#         "http://localhost:8000",      # 백엔드 자체
+#         "http://127.0.0.1:8000",
+#         "null"                        # 파일:// 프로토콜
+#     ],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
 # 라우터 등록
 app.include_router(swingRouters.router)
 app.include_router(uploadRouters.router)
+
+# data 폴더를 정적 파일로 제공
+app.mount("/data", StaticFiles(directory="data"), name="data")
 
 # 루트 엔드포인트
 @app.get("/")
