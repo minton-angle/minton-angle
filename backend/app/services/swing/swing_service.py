@@ -340,7 +340,7 @@ class SwingService:
     
     def _save_video_from_frames(self, post_id, swing_num, frames, start_idx, end_idx, video_type):
         """
-        Base64 프레임들로 동영상 생성
+        Base64 프레임들로 동영상 생성 (ffmpeg 사용 - 브라우저 호환)
         
         Args:
             post_id: POST UUID
@@ -350,6 +350,10 @@ class SwingService:
             end_idx: 끝 프레임 인덱스
             video_type: 'BACKSWING' 또는 'IMPACT'
         """
+        
+        import subprocess
+        import tempfile
+        import shutil
         
         # 폴더 생성
         post_dir = os.path.join(self.save_dir, post_id)
@@ -363,34 +367,60 @@ class SwingService:
         
         filepath = os.path.join(post_dir, filename)
         
-        # 첫 프레임으로 크기 확인
-        first_frame_base64 = frames[start_idx].split(",")[1] if "," in frames[start_idx] else frames[start_idx]
-        first_frame_data = base64.b64decode(first_frame_base64)
-        first_frame_array = np.frombuffer(first_frame_data, dtype=np.uint8)
-        first_frame = cv2.imdecode(first_frame_array, cv2.IMREAD_COLOR)
+        # ⭐ 임시 폴더 생성 (프레임 이미지 저장용)
+        temp_dir = tempfile.mkdtemp()
         
-        height, width, _ = first_frame.shape
-        
-        # VideoWriter 설정 (30fps)
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(filepath, fourcc, 30, (width, height))
-        
-        # 프레임 범위 동영상으로 저장
-        for i in range(start_idx, end_idx + 1):
-            # Base64 디코딩
-            frame_base64 = frames[i].split(",")[1] if "," in frames[i] else frames[i]
-            frame_data = base64.b64decode(frame_base64)
-            frame_array = np.frombuffer(frame_data, dtype=np.uint8)
-            frame = cv2.imdecode(frame_array, cv2.IMREAD_COLOR)
+        try:
+            print(f"  🎬 동영상 생성 시작: {filename}")
+            print(f"     프레임 범위: {start_idx} ~ {end_idx} ({end_idx - start_idx + 1}개)")
             
-            # 프레임 쓰기
-            out.write(frame)
+            # ⭐ 1. Base64 프레임들을 임시 JPG로 저장
+            for idx, i in enumerate(range(start_idx, end_idx + 1)):
+                # Base64 디코딩
+                frame_base64 = frames[i].split(",")[1] if "," in frames[i] else frames[i]
+                frame_data = base64.b64decode(frame_base64)
+                
+                # 임시 파일로 저장
+                temp_img_path = os.path.join(temp_dir, f"frame_{idx:04d}.jpg")
+                with open(temp_img_path, 'wb') as f:
+                    f.write(frame_data)
+            
+            print(f"     ✅ {end_idx - start_idx + 1}개 프레임 임시 저장 완료")
+            
+            # ⭐ 2. ffmpeg로 동영상 생성 (H.264 코덱, 브라우저 호환)
+            cmd = [
+                'ffmpeg',
+                '-framerate', '30',                              # 30fps
+                '-i', os.path.join(temp_dir, 'frame_%04d.jpg'), # 입력 이미지 패턴
+                '-c:v', 'libx264',                              # H.264 비디오 코덱
+                '-preset', 'fast',                              # 빠른 인코딩
+                '-crf', '23',                                   # 품질 (18-28)
+                '-pix_fmt', 'yuv420p',                          # 픽셀 포맷 (브라우저 호환)
+                '-movflags', '+faststart',                      # 웹 스트리밍 최적화
+                '-y',                                           # 덮어쓰기
+                filepath
+            ]
+            
+            # ffmpeg 실행
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print(f"     ❌ ffmpeg 에러:")
+                print(result.stderr)
+                raise Exception(f"ffmpeg 실패: {result.stderr}")
+            
+            print(f"     ✅ 동영상 생성 완료: {filepath}")
+            
+        finally:
+            # ⭐ 3. 임시 폴더 삭제
+            shutil.rmtree(temp_dir)
+            print(f"     🧹 임시 파일 정리 완료")
         
-        out.release()
+        # ⭐ 경로 정규화 (Windows 경로 → Unix 경로)
+        normalized_path = filepath.replace("\\", "/")
+        print(f"     📁 정규화 경로: {normalized_path}")
         
-        # 경로 정규화
-        return filepath.replace("\\", "/")
-
+        return normalized_path
 
 # 싱글톤 인스턴스
 swing_service = SwingService()

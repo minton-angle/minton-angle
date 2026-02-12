@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minton Angle - LLM Report</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/08-reportTotal.css">
+</head>
+
+<body class="page-reportTotal">
+  <div class="app-wrapper">
+    <header class="topbar">
+      <div class="topbar__title">종합 AI 피드백 리포트</div>
+    </header>
+
+    <main class="scroll-container">
+      <section class="card card--summary">
+        <div class="summary__left">
+          <h1 id="summaryHeadline" class="summary__headline">안녕하세요!</h1>
+          <div id="summarySub" class="summary__sub"> LLM 리포트 요약해드려용~</div>
+        </div>
+
+        <div class="summary__right">
+          <div class="scoreRing" aria-label="점수 70점">
+            <svg class="scoreRing__svg" viewBox="0 0 120 120">
+              <circle class="scoreRing__bg" cx="60" cy="60" r="46"></circle>
+              <circle id="scoreRingFg" class="scoreRing__fg" cx="60" cy="60" r="46" style="stroke-dashoffset: 86.7;"></circle>
+            </svg>
+            <div class="scoreRing__text">
+              <div id="scoreValue" class="scoreRing__num">70</div>
+              <div class="scoreRing__unit">점</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card--charts">
+        <div class="miniGrid">
+          <div class="miniCard miniCard--wide">
+            <div class="miniCard__head">
+              <div class="miniCard__label"> REPORT </div>
+            </div>
+            <canvas id="scoreKfHistoryChart"></canvas>
+            <div id="bestKFInRange" class="miniCard__hint">-</div>
+            <div class="kfTabsWrap">
+              <div class="kfTabs" role="tablist" aria-label="KeyFrame filter">
+                <button type="button" class="kfTab is-active" data-kf="ALL" aria-selected="true">ALL</button>
+                <button type="button" class="kfTab" data-kf="KF1" aria-selected="false">KF1</button>
+                <button type="button" class="kfTab" data-kf="KF2" aria-selected="false">KF2</button>
+                <button type="button" class="kfTab" data-kf="KF3" aria-selected="false">KF3</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>관절 오차각도</h2>
+        <div class="row">
+          <table id="anglesTable">
+            <thead>
+              <tr>
+                <th>Joint</th>
+                <th>Error (deg)</th>
+                <th>Severity</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="row actions">
+          <button id="btnGenerate">LLM 리포트 생성</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>LLM 리포트</h2>
+
+        <div class="reportBox">
+          <div class="reportTop">
+            <div id="overallSeverity" class="severityBadge severityBadge--low">LOW</div>
+            <div class="reportMeta">
+              <div class="reportMeta__row"><b>모델</b>: <span id="llmModel">-</span></div>
+              <div class="reportMeta__row"><b>생성</b>: <span id="llmCreatedAt">-</span></div>
+            </div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">요약</div>
+            <div id="llmSummary" class="reportSection__body">-</div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">핵심 이슈</div>
+            <div id="llmIssues" class="issuesList"></div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">빠른 체크리스트</div>
+            <ul id="llmChecklist" class="checkList"></ul>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">노트</div>
+            <div id="llmNotes" class="reportSection__body">-</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/08-reportTotal.js"></script>
+</body>
+</html>

@@ -310,7 +310,9 @@ setTimeout(() => {
 // 5. 스윙 분석 루틴
 async function runSwingRoutine() {
     if (currentSwing > 3) {
-        // 🆕 모든 데이터 초기화
+        // localStorage 초기화
+        const postId = localStorage.getItem('post_id');  // ⭐ post_id 백업
+        
         localStorage.removeItem('currentSwing');
         localStorage.removeItem('swingResults');
         console.log('🧹 localStorage 초기화 완료');
@@ -318,8 +320,10 @@ async function runSwingRoutine() {
         const finalMsg = "모든 분석이 완료되었습니다. 결과 리포트로 이동합니다.";
         feedbackEl.innerText = finalMsg;
         speak(finalMsg);
+        
         setTimeout(() => {
-            window.location.href = '06-reportLoading.html';
+            // ⭐ URL 파라미터로 전달
+            window.location.href = `06-reportLoading.html?post_id=${postId}&type=realtime`;
         }, 2500);
         return;
     }
@@ -437,9 +441,9 @@ async function sendFramesToBackend(swingNum, frames) {
     const result = await response.json();
     
     // ⭐ 1회차면 post_id 저장
-    if (swingNum === 1 && result.post_id) {
-        localStorage.setItem('post_id', result.post_id);
-        console.log(`💾 post_id 저장: ${result.post_id}`);
+    if (swingNum === 1 && result.post_idx) {
+        localStorage.setItem('post_id', result.post_idx);
+        console.log(`💾 post_id 저장: ${result.post_idx}`);
     }
     
     return result;

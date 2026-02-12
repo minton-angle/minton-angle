@@ -23,10 +23,25 @@
     </div>
 
     <script>
-        // 3초 뒤에 자동으로 리포트 상세 페이지로 이동
-        setTimeout(() => {
-            window.location.href = '07-reportDetail.html';
-        }, 3000);
+        // ⭐ URL 파라미터 읽기
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = urlParams.get('post_id');
+        const type = urlParams.get('type');
+        
+        console.log('📊 로딩 화면:', { postId, type });
+        
+        if (!postId || !type) {
+            console.error('❌ post_id 또는 type 없음');
+            alert('잘못된 접근입니다.');
+            window.location.href = '01-home.html';
+        } else {
+            // ⭐ 3초 뒤 리포트로 이동 (파라미터 전달!)
+            setTimeout(() => {
+                const reportUrl = `07-reportDetail.html?post_id=${postId}&type=${type}`;
+                console.log('🔗 이동:', reportUrl);
+                window.location.href = reportUrl;
+            }, 3000);
+        }
     </script>
 </body>
 </html>
