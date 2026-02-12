@@ -69,7 +69,7 @@ from app.models.analysisModels import Analysis
 db = SessionLocal()
 
 try:
-    post_idx_value = "d6072ac0-2de6-47ad-9067-03bfe68f9d32"
+    post_idx_value = "43e44416-f84a-42ee-a04c-ec608e23f618"
 
     # ✅ 5일치 생성 (오늘 포함 5일: 0~4일 전)
     rows = []

@@ -17,7 +17,6 @@ from app.db.session import engine
 # 라우터 import
 from app.routers import swingRouters, uploadRouters
 from app.routers import swingRouters, uploadRouters, calendarRouters
-from app.services.swing import realtime
 from app.routers.reportRouters import router as report_router
 
 # 모델 import (테이블 생성용)
@@ -60,21 +59,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# # CORS 설정 (더 구체적으로)
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=[
-#         "http://localhost:5500",      # Live Server
-#         "http://127.0.0.1:5500",      # Live Server
-#         "http://localhost:8000",      # 백엔드 자체
-#         "http://127.0.0.1:8000",
-#         "null"                        # 파일:// 프로토콜
-#     ],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
 # 라우터 등록
 app.include_router(swingRouters.router)
 app.include_router(uploadRouters.router)
@@ -84,7 +68,6 @@ app.include_router(calendarRouters.router)
 app.mount("/data", StaticFiles(directory="data"), name="data")
 
 # 루트 엔드포인트
-app.include_router(realtime.router)
 app.include_router(report_router)
 
 @app.get("/")
