@@ -53,7 +53,7 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,6 +63,7 @@ app.add_middleware(
 app.include_router(swingRouters.router)
 app.include_router(uploadRouters.router)
 app.include_router(calendarRouters.router)
+app.include_router(report_router)
 
 # data 폴더를 정적 파일로 제공
 app.mount("/data", StaticFiles(directory="data"), name="data")

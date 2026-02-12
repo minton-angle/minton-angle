@@ -27,6 +27,7 @@ async def upload_video(
     try:
         # ⭐ video_analysis_service.video_analysis_service 사용
         result = await video_analysis_service.analyze_video(user_id, video, db)
+        print(f"📡 프론트엔드로 보낼 최종 데이터: {result}")
         return result
     except Exception as e:
         import traceback

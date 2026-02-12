@@ -310,4 +310,4 @@ class VideoAnalysisService:
 
 
 # 싱글톤 인스턴스
-video_analysis_service = VideoAnalysisService(),
+video_analysis_service = VideoAnalysisService()
