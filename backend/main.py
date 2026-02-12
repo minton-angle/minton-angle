@@ -16,6 +16,7 @@ from app.db.session import engine
 
 # 라우터 import
 from app.routers import swingRouters, uploadRouters
+from app.routers import swingRouters, uploadRouters, calendarRouters
 
 # 모델 import (테이블 생성용)
 from app.models.userModels import User
@@ -61,6 +62,7 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(swingRouters.router)
 app.include_router(uploadRouters.router)
+app.include_router(calendarRouters.router)
 
 # data 폴더를 정적 파일로 제공
 app.mount("/data", StaticFiles(directory="data"), name="data")
