@@ -64,13 +64,12 @@ async function startAnalysis() {
         const result = await response.json();
         console.log('✅ 분석 완료:', result);
         
-        // post_idx 저장 (결과 페이지에서 사용)
-        localStorage.setItem('analysis_post_id', result.post_idx);
-        localStorage.setItem('analysis_score', result.total_score);
+        // ⭐ URL 파라미터로 전달 (localStorage 사용 안 함!)
+        const postId = result.post_idx;
         
         // 결과 페이지로 이동
         setTimeout(() => {
-            location.href = '06-reportLoading.html';
+            location.href = `06-reportLoading.html?post_id=${postId}&type=video`;
         }, 500);
         
     } catch (error) {
@@ -83,3 +82,5 @@ async function startAnalysis() {
         submitBtn.textContent = '분석 시작';
     }
 }
+
+console.log('📄 04_1-swingUpload.js 로드 완료');

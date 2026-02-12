@@ -19,15 +19,18 @@ document.addEventListener('DOMContentLoaded', () => {
 // 분석 결과 로드
 // ============================================
 async function loadAnalysisResult() {
-    const postIdx = localStorage.getItem('analysis_post_id');
+    // ⭐ URL 파라미터에서 읽기
+    const urlParams = new URLSearchParams(window.location.search);
+    const postIdx = urlParams.get('post_id');
+    const type = urlParams.get('type');
     
     if (!postIdx) {
-        console.log('❌ post_idx 없음');
+        console.log('❌ post_id 없음');
         showError('분석 결과를 찾을 수 없습니다.');
         return;
     }
     
-    console.log('📊 분석 결과 조회:', postIdx);
+    console.log(`📊 분석 결과 조회:`, { postIdx, type });
     
     try {
         const response = await fetch(`${API_BASE_URL}/api/upload/result/${postIdx}`);
@@ -39,7 +42,7 @@ async function loadAnalysisResult() {
         const result = await response.json();
         console.log('✅ 결과 로드:', result);
         
-        displayResult(result);
+        displayResult(result, type);
         
     } catch (e) {
         console.error('❌ API 호출 오류:', e);
@@ -50,38 +53,38 @@ async function loadAnalysisResult() {
 // ============================================
 // 결과 표시
 // ============================================
-function displayResult(result) {
-    console.log('🎨 결과 표시:', result);
+function displayResult(result, type) {
+    console.log('🎨 결과 표시:', result, 'Type:', type);
     
-    // success 체크
     if (result.success === false) {
         showError(result.message || '분석에 실패했습니다.');
         return;
     }
     
+    // ⭐ 제목 변경
+    const headerTitle = document.querySelector('.header-title');
+    if (headerTitle) {
+        if (type === 'realtime') {
+            headerTitle.textContent = '실시간 분석 리포트';
+        } else if (type === 'video') {
+            headerTitle.textContent = '영상 업로드 리포트';
+        }
+    }
+    
     // 종합 점수 표시
     displayOverallScore(result.total_score || 0);
     
-    // ⭐ files 또는 images/videos 처리
+    // 파일 표시
     if (result.files) {
-        // 방법 1: files 객체가 있으면
-        console.log('📁 files 사용:', result.files);
         displayFiles(result.files);
     } else if (result.images || result.videos) {
-        // 방법 2: images/videos 객체면 변환
-        console.log('📁 images/videos 변환');
-        const files = {
+        displayFiles({
             kf1_image: result.images?.KF1?.path,
             kf2_image: result.images?.KF2?.path,
             kf3_image: result.images?.KF3?.path,
             backswing_video: result.videos?.BACKSWING?.path,
             impact_video: result.videos?.IMPACT?.path
-        };
-        console.log('📁 변환된 files:', files);
-        displayFiles(files);
-    } else {
-        console.error('❌ files 데이터 없음');
-        showError('파일 데이터를 찾을 수 없습니다.');
+        });
     }
     
     console.log('✅ 화면 표시 완료');
