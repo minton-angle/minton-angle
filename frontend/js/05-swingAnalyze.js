@@ -310,7 +310,9 @@ setTimeout(() => {
 // 5. 스윙 분석 루틴
 async function runSwingRoutine() {
     if (currentSwing > 3) {
-        // 🆕 모든 데이터 초기화
+        // localStorage 초기화
+        const postId = localStorage.getItem('post_id');  // ⭐ post_id 백업
+        
         localStorage.removeItem('currentSwing');
         localStorage.removeItem('swingResults');
         console.log('🧹 localStorage 초기화 완료');
@@ -318,8 +320,10 @@ async function runSwingRoutine() {
         const finalMsg = "모든 분석이 완료되었습니다. 결과 리포트로 이동합니다.";
         feedbackEl.innerText = finalMsg;
         speak(finalMsg);
+        
         setTimeout(() => {
-            window.location.href = '06-reportLoading.html';
+            // ⭐ URL 파라미터로 전달
+            window.location.href = `06-reportLoading.html?post_id=${postId}&type=realtime`;
         }, 2500);
         return;
     }
@@ -331,7 +335,7 @@ async function runSwingRoutine() {
     await new Promise(r => setTimeout(r, 2000));
 
     // 단계 2: 카운트다운
-    for (let i = 4; i > 0; i--) {
+    for (let i = 3; i > 0; i--) {
         countdownEl.innerText = i;
         speak(i.toString());
         await new Promise(r => setTimeout(r, 1000));
@@ -351,7 +355,7 @@ async function runSwingRoutine() {
         }
     }, 100);  // 10fps
     
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise(r => setTimeout(r, 5000));
     
     isCapturing = false;
     clearInterval(captureInterval);
@@ -403,6 +407,17 @@ async function sendFramesToBackend(swingNum, frames) {
     console.log(`📡 API 호출: ${API_BASE_URL}/api/realtime/analyze-swing`);
     console.log(`📊 데이터: swing_num=${swingNum}, frames=${frames.length}개`);
     
+    // ⭐ keypoints 추출 (임시 더미 데이터)
+    const keypoints = frames.map(() => {
+        // 33개 랜드마크 x 4개 값 (x, y, z, visibility)
+        return Array(33).fill(null).map(() => [
+            Math.random(),  // x
+            Math.random(),  // y
+            Math.random(),  // z
+            Math.random()   // visibility
+        ]).flat();  // [x,y,z,v, x,y,z,v, ...] 형태로
+    });
+    
     const response = await fetch(`${API_BASE_URL}/api/realtime/analyze-swing`, {
         method: 'POST',
         headers: {
@@ -411,15 +426,27 @@ async function sendFramesToBackend(swingNum, frames) {
         body: JSON.stringify({
             user_id: USER_ID,
             swing_num: swingNum,
-            frames: frames
+            post_id: swingNum > 1 ? localStorage.getItem('post_id') : null,  // ⭐ 추가!
+            keypoints: keypoints,  // ⭐ 추가!
+            frames: frames.map(f => f.image)  // ⭐ image만 추출
         })
     });
 
     if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ 서버 응답:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    
+    // ⭐ 1회차면 post_id 저장
+    if (swingNum === 1 && result.post_id) {
+        localStorage.setItem('post_id', result.post_id);
+        console.log(`💾 post_id 저장: ${result.post_id}`);
+    }
+    
+    return result;
 }
 
 // UI 업데이트

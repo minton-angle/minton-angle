@@ -1,6 +1,6 @@
 """
 Swing Analysis Schemas
-스윙 분석 관련 Request/Response 스키마
+스윙 분석 관련 Request/Response 스키마 = DTO
 """
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any

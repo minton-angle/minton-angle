@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
+# from sqlalchemy.orm import relationship
 
 class Analysis(Base):
     __tablename__ = "analysis"
