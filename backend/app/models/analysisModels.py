@@ -1,10 +1,12 @@
 """
 ANALYSIS 모델 (CV 분석 결과)
 """
+
 # backend/app/models/analysisModels.py
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.db.base import Base
 # from sqlalchemy.orm import relationship
 

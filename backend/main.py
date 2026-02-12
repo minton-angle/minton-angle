@@ -17,13 +17,29 @@ from app.db.session import engine
 # 라우터 import
 from app.routers import swingRouters, uploadRouters
 from app.routers import swingRouters, uploadRouters, calendarRouters
+from app.services.swing import realtime
+from app.routers.reportRouters import router as report_router
 
 # 모델 import (테이블 생성용)
 from app.models.userModels import User
 from app.models.postModels import Post
 from app.models.fileModels import File
 from app.models.analysisModels import Analysis
-from app.models.llmReportModels import LLMReport
+from app.models.llmReportModels import LLMReport  # 🔧 수정! LlmReport → LLMReport
+
+from dotenv import load_dotenv
+load_dotenv() # 환경 변수 로드
+
+import logging
+import os
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+
 
 # 데이터베이스 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -68,6 +84,9 @@ app.include_router(calendarRouters.router)
 app.mount("/data", StaticFiles(directory="data"), name="data")
 
 # 루트 엔드포인트
+app.include_router(realtime.router)
+app.include_router(report_router)
+
 @app.get("/")
 def read_root():
     return {"message": "MINTON-ANGLE API Server"}
