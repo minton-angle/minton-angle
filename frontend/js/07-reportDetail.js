@@ -79,6 +79,20 @@ function displayOverallScore(overall) {
     const gradeEl = document.getElementById('overall-grade');
     const commentEl = document.getElementById('overall-comment');
     const circleEl = document.getElementById('overall-score-circle');
+
+    const meterEL = document.querySelector('.score-svg circle.meter');
+    const circumference = 283;
+    /*const offset = circumference - (overall.score / 100) * circumference;*/
+    const progress = (overall.score / 100) * circumference;
+
+    meterEL.style.transition = 'none';
+    meterEL.style.strokeDasharray = `0 ${circumference}`;
+
+    meterEL.getBoundingClientRect();
+    requestAnimationFrame(() => {
+        meterEL.style.transition = 'stroke-dasharray 1.5s ease-out';
+        meterEL.style.strokeDasharray = `${progress} ${circumference}`;
+    });
     
     scoreEl.textContent = overall.score;
     

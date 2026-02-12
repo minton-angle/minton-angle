@@ -1,88 +1,143 @@
 body {
     font-family: 'Pretendard', sans-serif;
+    align-items: center;
+    flex-direction: column;
+}
+
+.mobile-container {
+    width: 100%;
+    background-color: #fcfcfc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    align-items: center;
+    max-width: 600px;
+}
+
+.scroll-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 /* 헤더 스타일 */
 .header {
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    height: 40px;
-    margin-top: 20px;
-    margin-bottom: 10px;
+    padding: 3dvh 3dvh;
+    min-height: 25px;
+    background-color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #fff;
 }
 
 .back-btn {
     position: absolute;
-    left: 0;
-    font-size: 24px;
-    margin-right: 70px;
+    left: 25px;
+    width: 24px;
+    height: 24px;
+    /*margin-left: 20px;*/
+    color:#000;
+    align-items: center;
+
+    background-image: url('../assets/images/arrow_back.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
 }
 
-.header h1 {
+.header-title {
     font-size: 20px;
-    font-weight: 600;
+    font-weight: 700;
     margin: 0;
+    text-align: center;
 }
 
 .divider {
     border: 0;
     border-top: 2px solid #ddd;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
 .signup-form {
+    width: 100%;
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
 
 /* 폼 스타일 */
 .field-group {
-    margin-bottom: 30px;
+    width: 85%;
+    margin-bottom: 2.5dvh;
 }
 
 .field-group label {
     display: block;
     font-size: 14px;
-    margin-bottom: 8px;
+    margin-bottom: 2dvh;
     font-weight: 600;
+    padding-left: 15px;
 }
 
 input {
     width: 100%;
-    padding: 15px;
+    box-sizing: border-box;
+    padding: 2.5dvh;
     border: 1px solid #000;
     border-radius: 25px;
     font-size: 14px;
     outline: none;
+    background-color: white;
 }
 
 /* 성별 버튼 */
 .gender-buttons {
+    width: 100%;
     display: flex;
     gap: 25px;
     justify-content: center;
+    align-items: center;
+    margin: 0 auto;
 }
 
 .gender-btn {
     flex: 1;
-    height: 45px;
+    max-width: 130px;
+    height: 6.5dvh;
     background: white;
     border: 1px solid #000;
     border-radius: 30px;
     cursor: pointer;
     font-size: 17px;
+    transition: all 0.2s;
+    color: black;
+}
+
+.gender-btn.active {
+    background-color: #3e5d4f;
 }
 
 /* 아이디 입력창 내 중복확인 버튼 */
 .input-with-btn {
     position: relative;
+    width: 100%;
+    display: flex;
+    justify-self: center;
+}
+
+.input-with-btn input {
+    padding-right: 95px;
 }
 
 .check-btn {
     position: absolute;
-    right: 10px;
+    right: 15px;
     top: 50%;
     transform: translateY(-50%);
     background-color: #F5B342;
@@ -90,13 +145,13 @@ input {
     border: none;
     padding: 10px 15px;
     border-radius: 20px;
-    font-size: 12px;
+    font-size: 14px;
     cursor: pointer;
 }
 
 /* 하단 회원가입 제출 버튼 */
 .submit-btn {
-    width: 100%;
+    width: 90%;
     padding: 18px;
     background-color: #3E6D4F;
     color: white;
@@ -105,5 +160,5 @@ input {
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;
-    margin-top: 40px;
+    margin-top: 1dvh;
 }

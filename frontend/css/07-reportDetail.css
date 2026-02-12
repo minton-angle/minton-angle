@@ -3,13 +3,17 @@
    스윙 분석 리포트 상세 페이지
    ============================================ */
 
+body {
+    font-family: 'Pretendard', sans-serif;
+}
+
 .header {
     display: flex;
     align-items: center;
-    padding: 16px 20px;
+    padding: 1.5dvh 3dvh;
     background-color: #fff;
     position: sticky;
-    top: 24px;
+    top: 0;
     z-index: 10;
 }
 .back-btn {
@@ -39,12 +43,12 @@
 .report-card.overall-card {
     background: #fff;
     border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 20px;
+    padding: 2dvh;
+    margin: 2dvh;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
-.card-header { margin-bottom: 20px; }
+.card-header { margin-bottom: 1dvh; }
 .card-subtitle { font-size: 13px; color: #666; font-weight: 500; }
 .card-subtitle .highlight { color: #025B36; font-weight: 700; }
 
@@ -63,14 +67,15 @@
 
 /* 동적 원형 차트 */
 .chart-container { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
-.score-svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+.score-svg { transform: rotate(-90deg); width: 100%; height: 100%; transform-origin: center; }
 .score-svg circle { fill: none; stroke-width: 10; stroke-linecap: round; }
 .score-svg circle.bg { stroke: #F0F0F0; }
 .score-svg circle.meter {
     stroke: #03A65A;
-    stroke-dasharray: 283;
-    stroke-dashoffset: 283;
-    transition: stroke-dashoffset 1.5s ease-out;
+    stroke-dasharray: 0 283;
+    /*stroke-dashoffset: 283;*/
+    stroke-linecap: round;
+    transition: stroke-dasharray 1.5s ease-out;
 }
 .score-text {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -243,7 +248,7 @@
 
 /* 임팩트 순간 비교 */
 .impact-comparison {
-    margin-bottom: 16px;
+    margin: 16px;
 }
 
 .sub-title {
@@ -333,7 +338,7 @@
 .metric-range {
     display: flex;
     justify-content: space-between;
-    margin-top: 6px;
+    margin-top: 8px;
     font-size: 10px;
     color: #999;
 }
@@ -437,5 +442,27 @@
     text-align: center;
     padding: 40px 20px;
     color: #D32F2F;
+}
+
+/* 하단 안내 문구 박스 스타일 */
+.bottom-notice-box {
+    margin: 10px 20px 20px; /* 위 10px, 좌우 20px, 아래 40px 여백 */
+    padding: 20px;
+    border-radius: 15px;
+    text-align: center;
+    border: 1px dashed #d1d1d1; /* 점선 테두리로 부드러운 느낌 */
+}
+
+.notice-text {
+    font-size: 14px;
+    color: #777;
+    line-height: 1.5;
+    word-break: keep-all;
+}
+
+.notice-text .highlight {
+    color: #025B36; /* 앱 메인 컬러인 초록색 */
+    font-weight: 700;
+    text-decoration: underline; /* 강조를 위해 밑줄 추가 */
 }
 
