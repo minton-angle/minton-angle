@@ -1,27 +1,5 @@
-/* 기본 설정 */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
 body {
-    background-color: #f0f0f0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
     font-family: 'Pretendard', sans-serif;
-}
-
-.container {
-    background-color: white;
-    width: 375px; /* 모바일 사이즈 기준 */
-    height: 100%;
-    border-radius: 30px;
-    padding: 80px 25px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    position: relative;
 }
 
 /* 헤더 스타일 */
@@ -31,17 +9,15 @@ body {
     justify-content: center;
     position: relative;
     height: 40px;
+    margin-top: 20px;
     margin-bottom: 10px;
 }
 
 .back-btn {
     position: absolute;
     left: 0;
-    background: none;
-    border: none;
     font-size: 24px;
     margin-right: 70px;
-    padding: 0;
 }
 
 .header h1 {
@@ -54,6 +30,11 @@ body {
     border: 0;
     border-top: 2px solid #ddd;
     margin-bottom: 30px;
+}
+
+.signup-form {
+    display: flex;
+    flex-direction: column;
 }
 
 /* 폼 스타일 */
@@ -85,7 +66,7 @@ input {
 }
 
 .gender-btn {
-    width: 130px;
+    flex: 1;
     height: 45px;
     background: white;
     border: 1px solid #000;
@@ -113,7 +94,7 @@ input {
     cursor: pointer;
 }
 
-/* 하단 회원가입 버튼 */
+/* 하단 회원가입 제출 버튼 */
 .submit-btn {
     width: 100%;
     padding: 18px;
