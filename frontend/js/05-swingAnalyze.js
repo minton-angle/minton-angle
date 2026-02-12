@@ -440,13 +440,17 @@ async function sendFramesToBackend(swingNum, frames) {
 
     const result = await response.json();
     
-    // ⭐ 1회차면 post_id 저장
-    if (swingNum === 1 && result.post_idx) {
-        localStorage.setItem('post_id', result.post_idx);
-        console.log(`💾 post_id 저장: ${result.post_idx}`);
+    // ⭐ 1회차면 post_id 저장 (post_id 또는 post_idx 둘 다 체크)
+    if (swingNum === 1) {
+        const postId = result.post_id || result.post_idx;  // ← 둘 다 체크!
+        
+        if (postId) {
+            localStorage.setItem('post_id', postId);
+            console.log(`💾 post_id 저장 성공: ${postId}`);
+        } else {
+            console.error('❌ 응답에 post_id/post_idx 없음!', result);
+        }
     }
-    
-    return result;
 }
 
 // UI 업데이트
