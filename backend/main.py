@@ -17,7 +17,7 @@ from app.db.session import engine
 # 라우터 import
 from app.routers import swingRouters, uploadRouters
 from app.routers import swingRouters, uploadRouters, calendarRouters
-from app.services.swing import realtime
+# from app.services.swing import realtime
 from app.routers.reportRouters import router as report_router
 
 # 모델 import (테이블 생성용)
@@ -85,7 +85,6 @@ app.include_router(calendarRouters.router)
 app.mount("/data", StaticFiles(directory="data"), name="data")
 
 # 루트 엔드포인트
-app.include_router(realtime.router)
 app.include_router(report_router)
 
 @app.get("/")
