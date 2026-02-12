@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="css/08-reportTotal.css">
 </head>
 
-<body>
+<body class="page-reportTotal">
   <div class="app-wrapper">
     <header class="topbar">
       <div class="topbar__title">종합 AI 피드백 리포트</div>
@@ -41,23 +41,21 @@
 
       <section class="card card--charts">
         <div class="miniGrid">
-
-          <!-- ✅ 종합 페이지: 세션 히스토리 점수 차트 -->
-          <div class="miniCard">
-            <div class="miniCard__label">SCORE (HISTORY)</div>
-            <canvas id="scoreHistoryChart"></canvas>
+          <div class="miniCard miniCard--wide">
+            <div class="miniCard__head">
+              <div class="miniCard__label"> REPORT </div>
+            </div>
+            <canvas id="scoreKfHistoryChart"></canvas>
+            <div id="bestKFInRange" class="miniCard__hint">-</div>
+            <div class="kfTabsWrap">
+              <div class="kfTabs" role="tablist" aria-label="KeyFrame filter">
+                <button type="button" class="kfTab is-active" data-kf="ALL" aria-selected="true">ALL</button>
+                <button type="button" class="kfTab" data-kf="KF1" aria-selected="false">KF1</button>
+                <button type="button" class="kfTab" data-kf="KF2" aria-selected="false">KF2</button>
+                <button type="button" class="kfTab" data-kf="KF3" aria-selected="false">KF3</button>
+              </div>
+            </div>
           </div>
-
-          <div class="miniCard">
-            <div class="miniCard__label">SEVERITY</div>
-            <canvas id="severityDonutChart"></canvas>
-          </div>
-
-          <div class="miniCard">
-            <div class="miniCard__label">PATTERN</div>
-            <canvas id="anglesRadarChart"></canvas>
-          </div>
-
         </div>
       </section>
 
