@@ -3,6 +3,25 @@
    스윙 분석 리포트 상세 페이지
    ============================================ */
 
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.mobile-container {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+}
+
+.scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 body {
     font-family: 'Pretendard', sans-serif;
 }
@@ -249,6 +268,7 @@ body {
 /* 임팩트 순간 비교 */
 .impact-comparison {
     margin: 16px;
+    
 }
 
 .sub-title {
@@ -259,7 +279,7 @@ body {
 }
 
 .comparison-container.small .media-box {
-    aspect-ratio: 4/3;
+    aspect-ratio: 3/4;
 }
 
 /* 구간 팁 */
