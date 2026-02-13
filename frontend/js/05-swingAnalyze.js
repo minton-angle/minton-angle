@@ -404,6 +404,7 @@ function captureFrame() {
 
 // 백엔드로 전송
 async function sendFramesToBackend(swingNum, frames) {
+    console.log(`현재 ${swingNum}회차 진행중`);
     console.log(`📡 API 호출: ${API_BASE_URL}/api/realtime/analyze-swing`);
     console.log(`📊 데이터: swing_num=${swingNum}, frames=${frames.length}개`);
     
@@ -442,15 +443,28 @@ async function sendFramesToBackend(swingNum, frames) {
     
     // ⭐ 1회차면 post_id 저장
     if (swingNum === 1) {
-        const postId = result.post_id || result.post_idx;  // ← 둘 다 체크!
-
+        const postId = result.post_id || result.post_idx;
+        
+        console.log('🎯 추출한 postId:', postId);
+        console.log('🎯 추출한 postId 타입:', typeof postId);
+        
         if (postId) {
             localStorage.setItem('post_id', postId);
-            console.log(`💾 post_id 저장 성공: ${postId}`);
+            console.log(`✅✅✅ localStorage 저장 성공: ${postId}`);
+            
+            // 저장 확인
+            const saved = localStorage.getItem('post_id');
+            console.log(`🔍 저장 확인: ${saved}`);
+            
+            if (saved !== postId) {
+                console.error('❌❌❌ 저장 실패! 저장값 불일치!');
+            }
         } else {
-            console.error('❌ 응답에 post_id/post_idx 없음!', result);
+            console.error('❌❌❌ postId가 undefined/null!');
+            console.error('📦 전체 응답:', JSON.stringify(result, null, 2));
         }
     }
+    
     return result;
 }
 
