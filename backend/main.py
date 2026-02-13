@@ -17,7 +17,6 @@ from app.db.session import engine
 # 라우터 import
 from app.routers import swingRouters, uploadRouters
 from app.routers import swingRouters, uploadRouters, calendarRouters
-# from app.services.swing import realtime
 from app.routers.reportRouters import router as report_router
 
 # 모델 import (테이블 생성용)
@@ -26,7 +25,6 @@ from app.models.postModels import Post
 from app.models.fileModels import File
 from app.models.analysisModels import Analysis
 from app.models.llmReportModels import LLMReport
-from app.models.llmReportModels import LLMReport  # 🔧 수정! LlmReport → LLMReport
 
 from dotenv import load_dotenv
 load_dotenv() # 환경 변수 로드
