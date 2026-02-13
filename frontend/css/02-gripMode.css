@@ -1,20 +1,40 @@
+html, body {
+    height: 100dvh;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
+}
+
 /* 1. 헤더 영역 */
 .header {
-    display: flex;
+    /*display: flex;
     align-items: center;
     padding: 16px 20px;
     background-color: #fff;
     position: sticky;
     top: 25px;
+    z-index: 10;*/
+    display: flex;
+    align-items: center;
+    padding: 1.5dvh 3dvh;
+    background-color: #fff;
+    position: sticky;
+    top: 0;
     z-index: 10;
 }
 
 /* 2. 스크롤 컨테이너(가운데 영역) 배경색 추가 */
 .scroll-container {
-    flex: 1;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    /*flex: 1;*/
+    /*overflow-y: auto;*/
+    justify-content: space-between;
     background-color: #F2F2F2; /* 피그마의 연한 회색 배경색 추가 */
-    padding: 20px;
+    /*padding: 20px;*/
+    height: 100%;
 }
 
 /* 3. 내부 카드 */
@@ -57,7 +77,7 @@
     font-weight: 700;
     color: #025B36;
     text-align: center;
-    margin-top: 35px;
+    margin-top: 2dvh;
     margin-bottom: 5px;
 }
 
@@ -65,18 +85,20 @@
     font-size: 14px;
     color: #444;
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 2dvh;
 }
 
 /* 3. 이미지 및 카메라 박스 */
 .image-pair {
     display: flex;
+    justify-content: center;
+    width: 100%;
     gap: 12px;
-    margin-bottom: 30px;
+    margin-bottom: 2dvh;
 }
 
-.img-box, .camera-box {
-    flex: 1;
+.img-box {
+    height: 25dvh;
     aspect-ratio: 1 / 1;
     border-radius: 20px;
     overflow: hidden;
@@ -88,6 +110,38 @@
     border: 1px solid #c9c8c8;
 }
 
+.camera-box {
+    appearance: none;
+    border: none;
+    background: none;
+    padding: 0;
+    height: 25dvh;
+    aspect-ratio: 1 / 1;
+    border-radius: 20px;
+    overflow: hidden;
+    background-color: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #c9c8c8;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+}
+
+.hidden-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+    opacity: 0;
+}
+
 .img-box img {
     width: 100%;
     height: 100%;
@@ -95,16 +149,31 @@
 }
 
 .camera-icon-wrapper {
-    width: 17.946px; /* 카메라 아이콘 크기 */
-    height: 17.946px;
-    aspect-ratio: 1/1;
-    margin-bottom: 3px;
+    width: 40%; /* 카메라 아이콘 크기 */
+    height: 40%;
+    object-fit: contain;
+    /*aspect-ratio: 1/1;*/
+    margin-bottom: 2px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.camera-icon-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .camera-box span {
+    margin-top: 1dvh;
     font-size: 13px;
     color: #666;
     font-weight: 500;
+}
+
+.camera-box > * {
+    pointer-events: none;
 }
 
 /* 4. 주의사항 및 카드 */
@@ -114,8 +183,8 @@
     font-size: 16px;
     font-weight: 600;
     line-height: 25px;
-    margin-top: 23px;
-    margin-bottom: 15px;
+    margin-top: 1dvh;
+    margin-bottom: 1.5dvh;
 }
 
 .warning-msg span {
@@ -126,8 +195,8 @@
     border-radius: 30px;
     border: 1px solid rgba(28, 89, 63, 0.30);
     background: rgba(217, 217, 217, 0.00);
-    padding: 20px;
-    margin-bottom: 30px;
+    padding: 2dvh;
+    margin: 0 2dvh 3dvh;
 
 }
 
@@ -136,7 +205,7 @@
     font-weight: 700;
     color: #003B23;
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 1dvh;
 }
 
 .info-list {
@@ -144,7 +213,7 @@
 }
 
 .info-list li {
-    font-size: 15px;
+    font-size: 2dvh;
     color:#494949;
     font-weight: 500;
     line-height: 25px;
@@ -158,25 +227,29 @@
     flex-shrink: 0;
 }
 
-/* 5. 하단 버튼 */
 .bottom-action {
-    padding: 16px 20px 34px 20px;
+    padding: 1.5dvh 5dvh;
     background-color: #fff;
 }
 
 .next-btn {
     width: 100%;
-    background-color: #025B36;
+    background-color: #ccc;
     color: #fff;
+    cursor: not-allowed;
+    transition: background-color 0.3s;
     border: none;
-    padding: 18px;
+    padding: 2.5dvh;
     border-radius: 50px;
-    font-weight: normal;
-    font-size: 22px; /* 디자인에 맞춰 살짝 조정 */
+    font-weight: 700;
+    font-size: 22px;
     cursor: pointer;
+    transition: opacity 0.2s;
 }
 
 .next-btn:active {
+    background-color: #025b36;
+    cursor: pointer;
+    opacity: 0.8;
     transform: scale(0.98);
-    opacity: 0.9;
 }
