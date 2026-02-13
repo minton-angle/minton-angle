@@ -8,7 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
-from app.services.report.LLM_report import generate_report
+from app.services.report.LLM_Total_report import generate_report
 
 # --- DB/ORM imports for post_idx-based report ---
 from sqlalchemy.orm import Session
