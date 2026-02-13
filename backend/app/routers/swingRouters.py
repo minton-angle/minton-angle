@@ -31,7 +31,9 @@ router = APIRouter(prefix="/api/realtime", tags=["realtime"])
     **모든 회차에서 DB 저장됨**
     """
 )
-async def analyze_swing(
+
+# 프론트로부터 스윙 분석 요청을 받는 엔드포인트
+async def analyze_swing( 
     request: SwingAnalysisRequest,
     db: Session = Depends(get_db)
 ):
