@@ -7,10 +7,14 @@ import base64
 import cv2
 import numpy as np
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.models.postModels import Post
 from app.models.fileModels import File
 from app.models.analysisModels import Analysis
+from app.models.llmReportModels import LLMReport  # 추가
+from app.services.report.LLM_Detail_report import generate_swing_detail_feedback  # 추가
+
 from app.schemas.swing import (
     SwingAnalysisRequest,
     QuickFeedbackResponse,
@@ -222,6 +226,30 @@ class SwingService:
             post.status = "DONE"
             post.total_score = sum(analysis.score_json.values()) // len(analysis.score_json)
             
+            # LLM 상세 피드백 생성 + DB 저장
+            llm_meta = {
+                "post_id": request.post_id,
+                "user_id": request.user_id,
+                "swing_num": 3,
+                "kf": {"kf1": kf1, "kf2": kf2, "kf3": kf3},
+                "total_score": int(post.total_score),
+            }
+            detailed_feedback = generate_swing_detail_feedback(
+                scores=analysis.score_json,
+                kf1=kf1,
+                kf2=kf2,
+                kf3=kf3,
+                lang="ko",
+                meta=llm_meta,
+            )
+
+            llm_row = LLMReport(
+                idx=str(uuid.uuid4()),
+                post_idx=request.post_id,
+                feedback=detailed_feedback,  # JSON 저장
+                create_date=datetime.utcnow(),
+            )
+            db.add(llm_row)
             db.commit()
             db.refresh(post)
             
@@ -231,7 +259,9 @@ class SwingService:
                 save_to_db=True,
                 total_score=post.total_score,
                 scores=ScoreDetail(**analysis.score_json),
-                quick_feedback=quick_feedback
+                quick_feedback=quick_feedback,
+                detailed_feedback=detailed_feedback,
+                llm_report_idx=llm_row.idx
             )
         
         # 2회차
