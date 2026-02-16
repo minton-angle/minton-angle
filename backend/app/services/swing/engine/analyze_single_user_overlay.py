@@ -344,15 +344,6 @@ class OverlayGenerator:
                     traj_points.append(wrist)
                     cv2.circle(frame, wrist, 10, (0, 0, 255), -1)
                 
-                if len(traj_points) > 1:
-                    cv2.polylines(
-                        frame,
-                        [np.array(traj_points)],
-                        False,
-                        (0, 0, 255),
-                        3
-                    )
-                
                 temp_img_path = os.path.join(temp_dir, f"frame_{frame_idx:04d}.jpg")
                 cv2.imwrite(temp_img_path, frame)
                 frame_idx += 1
