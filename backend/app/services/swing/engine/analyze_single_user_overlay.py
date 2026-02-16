@@ -85,7 +85,6 @@ class OverlayGenerator:
         
         # 연결선 정의
         connections_str = [
-            ('nose', 'left_shoulder'), ('nose', 'right_shoulder'),
             ('left_shoulder', 'right_shoulder'),
             ('left_shoulder', 'left_elbow'), ('left_elbow', 'left_wrist'),
             ('right_shoulder', 'right_elbow'), ('right_elbow', 'right_wrist'),
@@ -174,8 +173,6 @@ class OverlayGenerator:
         is_behind = False
         
         if nose and wrist:
-            cv2.circle(overlay, nose, 10, (0, 0, 255), -1)
-            cv2.circle(overlay, wrist, 10, (0, 0, 255), -1)
             
             if wrist[0] < nose[0]:
                 is_behind = True

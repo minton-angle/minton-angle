@@ -102,22 +102,8 @@ class KeyframeDetector:
             )
         else:
             r_idx = 0
-        
-        # [STEP 2] IMPACT: 최고점 이후 +12프레임 내 팔이 가장 펴진 순간
-        limit = min(len(df), highest_idx + 12)
-        impact_scope = df.loc[highest_idx:limit].copy()
-        
-        if not impact_scope.empty:
-            # 어깨-손목 거리가 최대인 순간
-            dist_sq = (
-                (impact_scope[c['shld'][0]] - impact_scope[c['wri'][0]])**2 +
-                (impact_scope[c['shld'][1]] - impact_scope[c['wri'][1]])**2
-            )
-            i_idx = int(dist_sq.idxmax())
-        else:
-            i_idx = int(highest_idx)
-        
-        # [STEP 3] BACKSWING: Ready ~ Highest 사이
+
+        # [STEP 2] BACKSWING: Ready ~ Highest 사이 (← 먼저!)
         start_bs = min(r_idx, highest_idx)
         bs_scope = df.loc[start_bs:highest_idx].copy()
         
@@ -139,6 +125,30 @@ class KeyframeDetector:
             else:
                 # 3차: 중간값
                 b_idx = int((start_bs + highest_idx) / 2)
+
+        # [STEP 3] IMPACT: 백스윙 이후 ~ 최고점 사이에서 팔 가장 펴진 순간
+        search_start = b_idx  # 백스윙 프레임
+        search_end = int(highest_idx)  # 손목 최고점
+        
+        impact_scope = df.loc[search_start:search_end].copy()
+        
+        if not impact_scope.empty:
+            # 팔꿈치 각도 계산
+            def calc_elbow_angle(row):
+                s = np.array([row[c['shld'][0]], row[c['shld'][1]]])
+                e = np.array([row[c['elb'][0]], row[c['elb'][1]]])
+                w = np.array([row[c['wri'][0]], row[c['wri'][1]]])
+                
+                v1 = s - e
+                v2 = w - e
+                
+                cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
+                return np.degrees(np.arccos(np.clip(cos_angle, -1, 1)))
+            
+            angles = impact_scope.apply(calc_elbow_angle, axis=1)
+            i_idx = int(angles.idxmax())  # 팔이 가장 펴진 순간
+        else:
+            i_idx = int(highest_idx)
         
         # [STEP 4] FOLLOW-THROUGH: Z축 부호 반전
         ft_res = "X"
@@ -167,6 +177,8 @@ class KeyframeDetector:
         print(f"✅ 키프레임 감지 완료: {result}")
         
         return result
+        
+       
     
     def draw_skeleton(self, frame_data, canvas, draw_w, draw_h, off_x, off_y):
         """
