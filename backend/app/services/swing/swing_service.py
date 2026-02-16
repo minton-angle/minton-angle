@@ -6,6 +6,7 @@ import uuid
 import base64
 import cv2
 import numpy as np
+import pandas as pd
 from sqlalchemy.orm import Session
 
 from app.models.postModels import Post
@@ -18,38 +19,123 @@ from app.schemas.swing import (
     ScoreDetail
 )
 
+# ⭐ Engine 모듈 Import
+from .engine.gt_normalization_dtw import Preprocessor
+from .engine.merged_keyframes import KeyframeDetector
+from .engine.pose_detector import PoseDetector
+from .engine.score_calculator import ScoreCalculator
+from .engine.analyze_single_user_overlay import OverlayGenerator
+
 
 class SwingService:
     """스윙 분석 서비스"""
     
     def __init__(self):
-        # ⭐ 저장 경로: data/realtime
+        # 저장 경로
         self.save_dir = os.path.join("data", "realtime")
+        
+        # ⭐ Engine 초기화
+        self.preprocessor = Preprocessor()
+        self.keyframe_detector = KeyframeDetector()
+        self.pose_detector = PoseDetector()
+        
+        # ⭐ ScoreCalculator (GT 경로 필요)
+        gt_metrics_path = "backend/data/standard/GT_angle/gt_total_metrics2.csv"
+        if os.path.exists(gt_metrics_path):
+            self.score_calculator = ScoreCalculator(gt_metrics_path)
+        else:
+            print(f"⚠️ GT 메트릭 파일 없음: {gt_metrics_path}")
+            self.score_calculator = None
+        
+        # ⭐ OverlayGenerator
+        self.overlay_generator = OverlayGenerator()
     
     
     # ========================================
-    # 기본 분석 메서드 (더미)
+    # 실제 분석 메서드
     # ========================================
     
-    def detect_keyframes(self, keypoints):
-        """키프레임 감지 (임시 더미)"""
-        total_frames = len(keypoints)
-        kf1 = total_frames // 3
-        kf2 = total_frames * 2 // 3
-        kf3 = total_frames - 1
-        return kf1, kf2, kf3
+    def detect_keyframes(self, keypoints_list):
+        """
+        키프레임 감지 (실제 알고리즘)
+        
+        Args:
+            keypoints_list: [{'frame_id': 0, 'nose_x': 0.5, ...}, ...]
+            
+        Returns:
+            (kf1, kf2, kf3) 프레임 인덱스
+        """
+        # DataFrame 변환
+        df = pd.DataFrame(keypoints_list)
+        
+        # 키프레임 감지
+        result = self.keyframe_detector.detect(df)
+        
+        if result is None:
+            print("⚠️ 키프레임 감지 실패, 기본값 사용")
+            total_frames = len(keypoints_list)
+            return total_frames // 3, total_frames * 2 // 3, total_frames - 1
+        
+        return result['ready'], result['backswing'], result['impact']
     
     
-    def calculate_scores(self, keypoints, kf1, kf2, kf3):
-        """점수 계산 (임시 더미)"""
-        return {
-            "elbow_height": 85,
-            "wrist_snap": 78,
-            "hit_position": 90,
-            "shoulder_rotation": 82,
-            "racket_angle": 88,
-            "follow_through": 75
+    def calculate_scores(self, keypoints_list, kf1, kf2, kf3):
+        """
+        점수 계산 (실제 알고리즘)
+        
+        Args:
+            keypoints_list: [{'frame_id': 0, 'nose_x': 0.5, ...}, ...]
+            kf1, kf2, kf3: 키프레임 인덱스
+            
+        Returns:
+            {
+                "elbow_height": 85,
+                "wrist_snap": 78,
+                ...
+            }
+        """
+        if self.score_calculator is None:
+            print("⚠️ ScoreCalculator 없음, 더미 점수 반환")
+            return {
+                "elbow_height": 85,
+                "wrist_snap": 78,
+                "hit_position": 90,
+                "shoulder_rotation": 82,
+                "racket_angle": 88,
+                "follow_through": 75
+            }
+        
+        # DataFrame 변환
+        df = pd.DataFrame(keypoints_list)
+        
+        keyframes = {
+            'ready': kf1,
+            'backswing': kf2,
+            'impact': kf3
         }
+        
+        # 점수 계산
+        result = self.score_calculator.calculate_scores(df, keyframes)
+        
+        # 기존 형식으로 변환
+        scores = {}
+        for item in result['user_evaluation']:
+            stage = item['단계']
+            score = item['점수']
+            
+            if stage == 'ready':
+                scores['elbow_height'] = score
+            elif stage == 'backswing':
+                scores['wrist_snap'] = score
+                scores['shoulder_rotation'] = score
+            elif stage == 'impact':
+                scores['hit_position'] = score
+                scores['racket_angle'] = score
+        
+        # 추가 지표 (더미)
+        scores['follow_through'] = 75
+        
+        return scores
     
     
     def get_quick_feedback(self, scores):
@@ -101,13 +187,33 @@ class SwingService:
         # 1. 검증
         self._validate_request(request)
         
-        # 2. 키프레임 감지 & 점수 계산
-        kf1, kf2, kf3 = self.detect_keyframes(request.keypoints)
-        scores = self.calculate_scores(request.keypoints, kf1, kf2, kf3)
+        # ⭐ 2. Keypoints 추출 (Base64 → MediaPipe)
+        keypoints_list = []
+        
+        print(f"\n📊 프레임 처리 시작: {len(request.frames)}개")
+        
+        for frame_id, frame_base64 in enumerate(request.frames):
+            keypoints = self.pose_detector.extract_from_base64(frame_base64)
+            
+            if keypoints:
+                keypoints['frame_id'] = frame_id
+                keypoints_list.append(keypoints)
+        
+        print(f"✅ Keypoint 추출 완료: {len(keypoints_list)}개 프레임")
+        
+        if len(keypoints_list) == 0:
+            raise ValueError("Keypoint 추출 실패! 사람이 감지되지 않았습니다.")
+        
+        # ⭐ 3. 키프레임 감지 & 점수 계산
+        kf1, kf2, kf3 = self.detect_keyframes(keypoints_list)
+        scores = self.calculate_scores(keypoints_list, kf1, kf2, kf3)
         quick_feedback = self.get_quick_feedback(scores)
         total_score = sum(scores.values()) // len(scores)
         
-        # 3. 회차별 처리
+        print(f"🎯 키프레임: KF1={kf1}, KF2={kf2}, KF3={kf3}")
+        print(f"📊 점수: {total_score}점")
+        
+        # 4. 회차별 처리
         if request.swing_num == 1:
             return await self._process_swing_1(
                 request, db, kf1, kf2, kf3, scores, quick_feedback, total_score

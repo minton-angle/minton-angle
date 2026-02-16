@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="css/07-reportDetail.css">
 </head>
 <body>
-    <div class="app-wrapper">
+    <div class="mobile-container">
         <header class="header">
             <button class="back-btn" onclick="location.href='01-home.html'">
                 <img src="assets/images/arrow_back.png" alt="뒤로가기">
@@ -20,36 +20,37 @@
         <div class="scroll-container">
             <main class="report-content">
                 
-                <section class="report-card overall-card">
-                    <div class="card-header">
-                        <div class="header-text">
-                            <p class="card-subtitle">스윙별 자세 확인하기 <span class="highlight">(*전문가와 동시 비교 가능)</span></p>
-                        </div>
-                        <div class="swing-tabs" id="swing-tabs" style="display: none;">
-                            <button class="tab-btn active" data-index="0">1회</button>
-                            <button class="tab-btn" data-index="1">2회</button>
-                            <button class="tab-btn" data-index="2">3회</button>
-                        </div>
-                    </div>
-                    
-                    <div class="card-body">
-                        <div class="overall-info">
-                            <h2 class="overall-grade" id="overall-grade">조금만 더 노력하면<br>선수 폼 나오겠어요!</h2>
-                            <p class="overall-comment" id="overall-comment">종합 평가 내용이 로드됩니다.</p>
-                        </div>
-                        
-                        <div class="chart-container">
-                            <svg viewBox="0 0 100 100" class="score-svg">
-                                <circle class="bg" cx="50" cy="50" r="45"></circle>
-                                <circle class="meter" id="score-meter" cx="50" cy="50" r="45"></circle>
-                            </svg>
-                            <div class="score-text">
-                                <span id="overall-score">0</span>
-                                <span class="unit">점</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+            <section class="report-card overall-card">
+                                <div class="card-header">
+                                    <div class="header-text">
+                                        <p class="card-subtitle">스윙별 자세 확인하기 <span class="highlight">(*전문가와 동시 비교 가능)</span></p>
+                                    </div>
+                                    <div class="swing-tabs" id="swing-tabs" style="display: none;">
+                                        <button class="tab-btn active" data-index="0">1회</button>
+                                        <button class="tab-btn" data-index="1">2회</button>
+                                        <button class="tab-btn" data-index="2">3회</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-body">
+                                    <div class="overall-info">
+                                        <h2 class="overall-grade" id="overall-grade">조금만 더 노력하면<br>선수 폼 나오겠어요!</h2>
+                                        <p class="overall-comment" id="overall-comment">종합 평가 내용이 로드됩니다.</p>
+                                    </div>
+                                    
+                                    <div class="chart-container">
+                                        <svg viewBox="0 0 100 100" class="score-svg">
+                                            <circle class="bg" cx="50" cy="50" r="45"></circle>
+                                            <circle class="meter" id="score-meter" cx="50" cy="50" r="45"></circle>
+                                        </svg>
+                                        <div class="score-text">
+                                            <span id="overall-score">0</span>
+                                            <span class="unit">점</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
 
                 <!-- 구간1: 준비자세 -->
                 <section class="phase-section">
@@ -60,18 +61,16 @@
                     </div>
                     
                     <div class="comparison-container">
-                        <!-- 사용자 (DB에서 로드) -->
                         <div class="comparison-item">
                             <span class="comparison-label">나의 자세</span>
                             <div class="media-box">
                                 <img id="phase1-user-img" src="" alt="내 준비자세">
                             </div>
                         </div>
-                        <!-- 전문가 (준비 중) -->
                         <div class="comparison-item">
-                            <span class="comparison-label">전문가 (준비 중)</span>
-                            <div class="media-box" style="background: #f5f5f5; display: flex; align-items: center; justify-content: center;">
-                                <p style="color: #999; font-size: 14px;">전문가 영상 준비 중</p>
+                            <span class="comparison-label">전문가</span>
+                            <div class="media-box">
+                                <img id="phase1-expert-img" src="assets/gt_1_ready.jpg" alt="전문가 준비자세">
                             </div>
                         </div>
                     </div>
@@ -86,7 +85,6 @@
                     </p>
                 </section>
 
-                <!-- 구간2: 백스윙~임팩트 -->
                 <section class="phase-section">
                     <div class="phase-header">
                         <span class="phase-number">2</span>
@@ -95,7 +93,6 @@
                     </div>
                     
                     <div class="comparison-container">
-                        <!-- 사용자 (DB에서 로드) -->
                         <div class="comparison-item">
                             <span class="comparison-label">나의 스윙</span>
                             <div class="media-box video-box">
@@ -104,16 +101,17 @@
                                 </video>
                             </div>
                         </div>
-                        <!-- 전문가 (준비 중) -->
                         <div class="comparison-item">
-                            <span class="comparison-label">전문가 (준비 중)</span>
-                            <div class="media-box video-box" style="background: #f5f5f5; display: flex; align-items: center; justify-content: center;">
-                                <p style="color: #999; font-size: 14px;">전문가 영상 준비 중</p>
+                            <span class="comparison-label">전문가</span>
+                            <div class="media-box video-box">
+                                <video id="phase2-expert-video" controls playsinline>
+                                    <source src="assets/gt_1_rotation_fixed.mp4" type="video/mp4">
+                                </video>
                             </div>
                         </div>
                     </div>
 
-                    <button class="sync-play-btn" onclick="syncPlayVideos('phase2')" style="display: none;">
+                    <button class="sync-play-btn" onclick="syncPlayVideos('phase2')">
                         ▶️ 동시에 재생하기
                     </button>
 
@@ -138,16 +136,14 @@
                     <div class="impact-comparison">
                         <h4 class="sub-title">⚡ 임팩트 순간 비교</h4>
                         <div class="comparison-container small">
-                            <!-- 사용자 (DB에서 로드) -->
                             <div class="comparison-item">
                                 <div class="media-box">
                                     <img id="phase2-impact-img" src="" alt="나의 임팩트">
                                 </div>
                             </div>
-                            <!-- 전문가 (준비 중) -->
                             <div class="comparison-item">
-                                <div class="media-box" style="background: #f5f5f5; display: flex; align-items: center; justify-content: center;">
-                                    <p style="color: #999; font-size: 12px;">준비 중</p>
+                                <div class="media-box">
+                                    <img id="phase2-expert-impact" src="assets/gt_1_impact.jpg" alt="전문가 임팩트">
                                 </div>
                             </div>
                         </div>
@@ -174,16 +170,14 @@
                     <div class="impact-comparison">
                         <h4 class="sub-title">💪 팔꿈치 최대 신전 비교</h4>
                         <div class="comparison-container small">
-                            <!-- 사용자 (DB에서 로드) -->
                             <div class="comparison-item">
                                 <div class="media-box">
                                     <img id="phase2-elbow-img" src="" alt="나의 팔꿈치 신전">
                                 </div>
                             </div>
-                            <!-- 전문가 (준비 중) -->
                             <div class="comparison-item">
-                                <div class="media-box" style="background: #f5f5f5; display: flex; align-items: center; justify-content: center;">
-                                    <p style="color: #999; font-size: 12px;">준비 중</p>
+                                <div class="media-box">
+                                    <img id="phase2-expert-elbow" src="assets/gt_1_backswing.jpg" alt="전문가 팔꿈치 신전">
                                 </div>
                             </div>
                         </div>
@@ -217,7 +211,6 @@
                     </div>
                     
                     <div class="comparison-container">
-                        <!-- 사용자 (DB에서 로드) -->
                         <div class="comparison-item">
                             <span class="comparison-label">나의 마무리</span>
                             <div class="media-box video-box">
@@ -226,16 +219,17 @@
                                 </video>
                             </div>
                         </div>
-                        <!-- 전문가 (준비 중) -->
                         <div class="comparison-item">
-                            <span class="comparison-label">전문가 (준비 중)</span>
-                            <div class="media-box video-box" style="background: #f5f5f5; display: flex; align-items: center; justify-content: center;">
-                                <p style="color: #999; font-size: 14px;">전문가 영상 준비 중</p>
+                            <span class="comparison-label">전문가</span>
+                            <div class="media-box video-box">
+                                <video id="phase3-expert-video" controls playsinline>
+                                    <source src="assets/gt_1_follow_fixed.mp4" type="video/mp4">
+                                </video>
                             </div>
                         </div>
                     </div>
 
-                    <button class="sync-play-btn" onclick="syncPlayVideos('phase3')" style="display: none;">
+                    <button class="sync-play-btn" onclick="syncPlayVideos('phase3')">
                         ▶️ 동시에 재생하기
                     </button>
 
@@ -258,6 +252,11 @@
                         </div>
                     </div>
                 </section>
+                <div class="bottom-notice-box">
+                    <p class="notice-text">
+                        위 내용은 <span class="highlight">기록 섹션</span>에서 언제든지<br>다시 확인하실 수 있습니다.
+                    </p>
+                </div>
 
             </main>
         </div>
@@ -266,3 +265,21 @@
     <script src="js/07-reportDetail.js"></script>
 </body>
 </html>
+
+<script>
+// 페이지 로드 후 실행
+window.addEventListener('DOMContentLoaded', () => {
+    const video = document.getElementById('phase2-expert-video');
+    
+    video.addEventListener('error', (e) => {
+        console.error('❌ 비디오 로드 실패:', e);
+        console.error('Video src:', video.src);
+        console.error('Error code:', video.error.code);
+        console.error('Error message:', video.error.message);
+    });
+    
+    video.addEventListener('loadeddata', () => {
+        console.log('✅ 비디오 로드 성공!');
+    });
+});
+</script>

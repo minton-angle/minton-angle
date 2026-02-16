@@ -31,7 +31,7 @@ class SwingAnalysisRequest(BaseModel):
     user_id: str = Field(..., description="사용자 ID")
     swing_num: int = Field(..., ge=1, le=3, description="스윙 횟수 (1~3)")
     post_id: Optional[str] = Field(None, description="POST ID (2~3회차 시 필수, 1회차에서 받은 ID)")
-    keypoints: List[List[float]] = Field(..., description="키포인트 데이터 [33개 랜드마크 x 4개 값(x,y,z,visibility)]")
+    keypoints: List[Dict[str, float]] = Field(..., description="키포인트 데이터 [19개 랜드마크 x 3개 값(x,y,z)]")
     frames: Optional[List[str]] = Field(None, description="Base64 인코딩된 프레임 이미지들 (키프레임 저장용)")
     
     class Config:
@@ -41,9 +41,15 @@ class SwingAnalysisRequest(BaseModel):
                 "swing_num": 2,
                 "post_id": "550e8400-e29b-41d4-a716-446655440000",  # 2~3회차는 필수
                 "keypoints": [
-                    [0.5, 0.3, 0.8, 0.9],
-                    [0.4, 0.5, 0.7, 0.95],
-                    # ... 33개
+                    {
+                        "nose_x": 0.5,
+                        "nose_y": 0.3,
+                        "nose_z": 0.1,
+                        "left_shoulder_x": 0.4,
+                        "left_shoulder_y": 0.2,
+                        "left_shoulder_z": 0.05,
+                        # ... (57개 키)
+                    }
                 ],
                 "frames": ["data:image/jpeg;base64,/9j/4AAQ...", "..."]
             }
