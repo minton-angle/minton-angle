@@ -37,15 +37,15 @@ class SwingAnalysisRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "user_id": "user_123",
-                "swing_num": 2,
-                "post_id": "550e8400-e29b-41d4-a716-446655440000",  # 2~3회차는 필수
+                "user_id": "user_001",
+                "swing_num": 3,
+                "post_id": "2bf25d4c-d698-4a37-b56e-5de29f3c800a",  # 2~3회차는 필수
                 "keypoints": [
                     [0.5, 0.3, 0.8, 0.9],
                     [0.4, 0.5, 0.7, 0.95],
                     # ... 33개
-                ],
-                "frames": ["data:image/jpeg;base64,/9j/4AAQ...", "..."]
+                ]
+                # "frames": ["data:image/jpeg;base64,/9j/4AAQ...", "..."]
             }
         }
 
@@ -115,7 +115,7 @@ class QuickFeedbackResponse(BaseModel):
         }
 
 
-class AnalysisCompleteResponse(BaseModel):
+class AnalysisCompleteResponse(BaseModel): # 프론트 측에서 기대하는 최종 응답 형태
     """분석 완료 응답 (3회차 - DB 저장)"""
     swing_num: int = Field(..., description="현재 스윙 횟수")
     post_id: str = Field(..., description="생성된 POST ID")
@@ -123,12 +123,15 @@ class AnalysisCompleteResponse(BaseModel):
     total_score: int = Field(..., ge=0, le=100, description="종합 점수")
     scores: ScoreDetail = Field(..., description="6대 지표 점수")
     quick_feedback: str = Field(..., description="간단한 피드백 메시지")
+    # 추가
+    detailed_feedback: Optional[Dict[str, Any]] = None
+    llm_report_idx: Optional[str] = None  # LLM 보고서와 연결할 수 있는 ID (선택적)
     
     class Config:
         json_schema_extra = {
             "example": {
                 "swing_num": 3,
-                "post_id": "550e8400-e29b-41d4-a716-446655440000",
+                "post_id": "550e8400-e29b-41d4-a716-446655440000", # 1회차에서 생성된 POST(세션/분석 묶음)을 가리키는 ID (3회차에도 동일하게 사용)
                 "save_to_db": True,
                 "total_score": 87,
                 "scores": {
@@ -139,7 +142,13 @@ class AnalysisCompleteResponse(BaseModel):
                     "racket_angle": 88,
                     "follow_through": 75
                 },
-                "quick_feedback": "아주 좋아요! 👍"
+                "quick_feedback": "아주 좋아요! 👍",
+                "detailed_feedback": {
+                    "elbow_height": "팔꿈치가 너무 낮아요. 좀 더 높게 유지해보세요.",
+                    "wrist_snap": "손목 스냅이 부족해요. 임팩트 순간에 손목을 더 빠르게 휘둘러보세요."
+                },
+                "llm_report_idx": "2d9285fd-fb6e-4c49-bfb2-edf5cec4bca5"  #  “생성된 LLM 리포트 한 건”을 가리키는 ID
+
             }
         }
 
