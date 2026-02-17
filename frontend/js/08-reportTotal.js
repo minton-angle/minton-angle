@@ -537,72 +537,8 @@ function renderMonthlySummary(sessions){
   `;
 }
 
-// ====== GT_profile 범위 내에서 가장 안정적인 KeyFrame 표시 ======
-function readGTProfile(){
-  // 1) window 전역 주입
-  if (window.__GT_PROFILE__ && typeof window.__GT_PROFILE__ === "object") return window.__GT_PROFILE__;
-
-  // 2) localStorage (선택)
-  try{
-    const raw = localStorage.getItem("gt_profile");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object") return parsed;
-  }catch(_){ /* ignore */ }
-
-  return null;
-}
-
-function isWithinGT(angles, gtProfile){
-  if (!gtProfile) return false;
-  const a = angles || {};
-  // gtProfile: { jointName: { min: number, max: number }, ... }
-  for (const [joint, range] of Object.entries(gtProfile)){
-    const v = Number(a[joint]);
-    if (!Number.isFinite(v)) return false;
-    const mn = Number(range?.min);
-    const mx = Number(range?.max);
-    if (!Number.isFinite(mn) || !Number.isFinite(mx)) return false;
-    if (v < mn || v > mx) return false;
-  }
-  return true;
-}
-
-function renderBestKFInRange(sessions){
-  const el = document.getElementById("bestKFInRange");
-  if (!el) return;
-
-  const gt = readGTProfile();
-  if (!gt){
-    el.textContent = "GT_profile 미설정: 범위 내 최적 KF를 계산할 수 없습니다.";
-    return;
-  }
-
-  const xs = Array.isArray(sessions) ? sessions : [];
-
-  let best = null; // { frame, idx, created_at, meanErr }
-  for (const s of xs){
-    const angles = s?.angles || {};
-    if (!isWithinGT(angles, gt)) continue;
-    const m = meanAbsFromAngles(angles);
-    if (m == null) continue;
-    if (!best || m < best.meanErr){
-      best = {
-        frame: s?.frame ?? "-",
-        idx: s?.idx ?? "-",
-        created_at: s?.created_at ?? "-",
-        meanErr: +m.toFixed(2),
-      };
-    }
-  }
-
-  if (!best){
-    el.textContent = "GT_profile 범위 내 세션이 없습니다.";
-    return;
-  }
-
-  el.textContent = `GT 범위 내 최적 KeyFrame: ${best.frame} (avg |error| ${best.meanErr}°, session #${best.idx}, ${best.created_at})`;
-}
+// (removed) GT_profile-based best KF feature was removed per product decision.
+function renderBestKFInRange(){ /* intentionally removed */ }
 
 let __RANGE_FILTER__ = "7d";
 window.__LAST_SESSION__ = null;
@@ -650,7 +586,7 @@ async function refreshByRange(range){
   setScore(initialScore);
 
   // GT 문구도 같이 갱신
-  renderBestKFInRange(sessions);
+  // (removed) renderBestKFInRange(sessions);
 }
 
 // ====== LLM 리포트 생성 호출 (DB 기반) ======
