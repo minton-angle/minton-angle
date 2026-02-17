@@ -71,26 +71,27 @@ db = SessionLocal()
 try:
     post_idx_value = "e70ba785-e705-41f8-b83c-c9ea45da28f5"
 
-    # ✅ 5일치 생성 (오늘 포함 5일: 0~4일 전)
+    # ✅ 40일치 생성 (1개월(30d) + 여유분) : 0~39일 전
+    #    - 1주일(7d) vs 1개월(30d) 비교가 되도록 최소 한 달 이상 데이터 확보
     rows = []
-    for days_ago in range(5):
+    for days_ago in range(40):
         dt = datetime.utcnow() - timedelta(days=days_ago)
-
         rows.append(
             Analysis(
                 idx=str(uuid.uuid4()),
                 post_idx=post_idx_value,
                 kf1=1, kf2=2, kf3=3,
-                kf1_error=0.12 + (days_ago * 0.01),   # 예시: 날짜별로 조금 변하게
-                kf2_error=0.08 + (days_ago * 0.01),
-                kf3_error=0.15 + (days_ago * 0.01),
+                # 최근(0일 전)일수록 오차가 작고, 과거로 갈수록 오차가 커지는 형태(개선 추세)
+                kf1_error=round(0.10 + (days_ago * 0.002), 4),
+                kf2_error=round(0.08 + (days_ago * 0.0022), 4),
+                kf3_error=round(0.12 + (days_ago * 0.0018), 4),
                 score_json={
-                    "ready": 85 - days_ago,
-                    "backswing": 78 - days_ago,
-                    "impact": 90 - days_ago,
-                    "rotation": 88 - days_ago,
-                    "balance": 80 - days_ago,
-                    "followthrough": 92 - days_ago
+                    "ready": max(0, min(100, 75 + (39 - days_ago))),
+                    "backswing": max(0, min(100, 70 + (39 - days_ago))),
+                    "impact": max(0, min(100, 80 + (39 - days_ago))),
+                    "rotation": max(0, min(100, 78 + (39 - days_ago))),
+                    "balance": max(0, min(100, 72 + (39 - days_ago))),
+                    "followthrough": max(0, min(100, 82 + (39 - days_ago))),
                 },
                 create_date=dt,  # ✅ 날짜별 create_date 강제 입력
             )
@@ -98,7 +99,7 @@ try:
 
     db.add_all(rows)
     db.commit()
-    print(f"✅ analysis 5일치({len(rows)}건) 생성 완료! post_idx={post_idx_value}")
+    print(f"✅ analysis 40일치({len(rows)}건) 생성 완료! post_idx={post_idx_value}")
 
 except Exception as e:
     db.rollback()
