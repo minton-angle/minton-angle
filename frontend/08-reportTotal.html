@@ -43,7 +43,7 @@
         <div class="miniGrid">
           <div class="miniCard miniCard--wide">
             <div class="miniCard__head">
-              <div class="miniCard__label"> REPORT </div>
+              <div class="miniCard__label"> 성장곡선 </div>
             </div>
             <canvas id="scoreKfHistoryChart"></canvas>
             <div id="bestKFInRange" class="miniCard__hint">-</div>
@@ -56,26 +56,6 @@
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>관절 오차각도</h2>
-        <div class="row">
-          <table id="anglesTable">
-            <thead>
-              <tr>
-                <th>Joint</th>
-                <th>Error (deg)</th>
-                <th>Severity</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-
-        <div class="row actions">
-          <button id="btnGenerate">LLM 리포트 생성</button>
         </div>
       </section>
 
@@ -110,6 +90,26 @@
             <div class="reportSection__title">노트</div>
             <div id="llmNotes" class="reportSection__body">-</div>
           </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>관절 오차각도</h2>
+        <div class="row">
+          <table id="anglesTable">
+            <thead>
+              <tr>
+                <th>Joint</th>
+                <th>Error (deg)</th>
+                <th>Severity</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="row actions">
+          <button id="btnGenerate">LLM 리포트 생성</button>
         </div>
       </section>
     </main>
