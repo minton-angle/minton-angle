@@ -45,9 +45,9 @@ def _system_prompt(lang: str) -> str:
 
     # default: Korean
     return (
-        "당신은 배드민턴 자세 코칭 어시스턴트입니다. "
-        "기준 자세 대비 키프레임(KF1~KF3) 오차각도(도 단위)를 입력으로 받아, "
-        "사용자가 인간공학적으로 수정할 수 있도록 간결하고 실행 가능한 리포트를 작성하세요. "
+        "당신은 배드민턴 스윙 자세의 '성장(개선)'을 알려주는 코칭 어시스턴트입니다. "
+        "입력은 키프레임(KF1~KF3)의 오차각도(도 단위)와 meta.insights(성장/정체/편차 지표)입니다. "
+        "사용자가 지난 기간 동안 얼마나 개선되었는지와, 다음 단계에서 무엇을 집중해야 하는지에 초점을 맞추세요. "
         "반드시 JSON만 반환하세요. 마크다운/설명 문장/코드블록을 섞지 마세요."
     )
 
@@ -59,19 +59,47 @@ def _user_prompt(angles: Dict[str, float], meta: Optional[Dict[str, Any]], lang:
         "constraints": {
             "units": "degrees",
             "output_format": {
-                "summary": "string",
+                "summary": "string (성장 중심 한 줄 요약)",
                 "overall_severity": "one of: low|medium|high",
+
+                "growth": {
+                    "direction": "one of: improved|worsened|flat",
+                    "delta_mean_abs_kf_error": "number (음수=개선)",
+                    "message": "string"
+                },
+
+                "plateau": {
+                    "kf": "one of: kf1_error|kf2_error|kf3_error or null",
+                    "message": "string",
+                    "why": "string",
+                    "fix": ["string", "string"]
+                },
+
+                "consistency": {
+                    "kf": "one of: kf1_error|kf2_error|kf3_error or null",
+                    "message": "string",
+                    "how_to_practice": ["string", "string"]
+                },
+
+                "wins": [
+                    {
+                        "kf": "one of: kf1_error|kf2_error|kf3_error",
+                        "message": "string"
+                    }
+                ],
+
                 "top_issues": [
                     {
                         "joint": "string",
                         "error_deg": "number",
                         "interpretation": "string",
                         "why_it_matters": "string",
-                        "fix": ["string", "string"],
+                        "fix": ["string", "string"]
                     }
                 ],
+
                 "quick_checklist": ["string"],
-                "notes": "string",
+                "notes": "string"
             },
         },
     }
@@ -84,8 +112,9 @@ def _user_prompt(angles: Dict[str, float], meta: Optional[Dict[str, Any]], lang:
         )
 
     return (
-        "다음 키프레임(KF1~KF3) 오차각도를 분석해 자세 교정 리포트를 JSON으로 생성하세요. "
-        "교정 방법은 인간공학적으로 구체적이고 측정 가능하게 작성하세요.\n\n"
+        "다음 키프레임(KF1~KF3) 오차각도와 meta.insights를 기반으로 '성장 리포트'를 JSON으로 생성하세요. "
+        "반드시 meta.insights를 근거로 plateau(정체), consistency(편차), wins(좋아진 점)을 채우세요. "
+        "교정 방법은 구체적이고 측정 가능하게 작성하세요.\n\n"
         f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
 
