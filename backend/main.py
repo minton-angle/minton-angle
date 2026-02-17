@@ -18,6 +18,7 @@ from app.db.session import engine
 from app.routers import swingRouters, uploadRouters
 from app.routers import swingRouters, uploadRouters, calendarRouters
 from app.routers.reportRouters import router as report_router
+from app.routers.authRouters import router as auth_router
 
 # 모델 import (테이블 생성용)
 from app.models.userModels import User
@@ -64,6 +65,7 @@ app.include_router(swingRouters.router)
 app.include_router(uploadRouters.router)
 app.include_router(calendarRouters.router)
 app.include_router(report_router)
+app.include_router(auth_router)
 
 # data 폴더를 정적 파일로 제공
 app.mount("/data", StaticFiles(directory="data"), name="data")

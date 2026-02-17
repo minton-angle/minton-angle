@@ -9,12 +9,15 @@ from app.db.session import get_db
 from app.models.postModels import Post
 from app.models.fileModels import File
 
+from app.routers.authRouters import get_current_user
+from app.models.userModels import User
+
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
 
 @router.get("/reports")
 async def get_calendar_reports(
-    user_id: str = Query(..., description="사용자 ID"),
+    current_user = Depends(get_current_user),
     date: str = Query(..., description="날짜 (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
@@ -28,6 +31,7 @@ async def get_calendar_reports(
         query_date = datetime.strptime(date, "%Y-%m-%d").date()
         start_datetime = datetime.combine(query_date, datetime.min.time())
         end_datetime = datetime.combine(query_date, datetime.max.time())
+        user_id = current_user.id
         
         print(f"\n{'='*50}")
         print(f"📅 캘린더 조회: {user_id} / {date}")

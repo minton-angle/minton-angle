@@ -13,6 +13,8 @@ from app.schemas.swing import (
 )
 from app.services.swing.swing_service import swing_service
 
+from app.routers.authRouters import get_current_user
+
 router = APIRouter(prefix="/api/realtime", tags=["realtime"])
 
 
@@ -38,6 +40,8 @@ async def analyze_swing(
     """실시간 스윙 분석 - Service에 위임"""
     
     try:
+        request.user_id = get_current_user.id
+
         result = await swing_service.analyze_realtime(request, db)
         return result
         
@@ -51,3 +55,6 @@ async def analyze_swing(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"분석 실패: {str(e)}"
         )
+    
+
+

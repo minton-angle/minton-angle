@@ -28,7 +28,6 @@ class FileTypeEnum(str, Enum):
 
 class SwingAnalysisRequest(BaseModel):
     """실시간 스윙 분석 요청"""
-    user_id: str = Field(..., description="사용자 ID")
     swing_num: int = Field(..., ge=1, le=3, description="스윙 횟수 (1~3)")
     post_id: Optional[str] = Field(None, description="POST ID (2~3회차 시 필수, 1회차에서 받은 ID)")
     keypoints: List[Dict[str, float]] = Field(..., description="키포인트 데이터 [19개 랜드마크 x 3개 값(x,y,z)]")
@@ -37,7 +36,6 @@ class SwingAnalysisRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "user_id": "user_123",
                 "swing_num": 2,
                 "post_id": "550e8400-e29b-41d4-a716-446655440000",  # 2~3회차는 필수
                 "keypoints": [
@@ -58,7 +56,6 @@ class SwingAnalysisRequest(BaseModel):
 
 class VideoUploadRequest(BaseModel):
     """동영상 업로드 분석 요청"""
-    user_id: str = Field(..., description="사용자 ID")
     video_file: str = Field(..., description="Base64 인코딩된 동영상 파일")
     
     class Config:
