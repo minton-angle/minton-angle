@@ -4,6 +4,7 @@ import time
 
 import uuid
 from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
@@ -82,24 +83,45 @@ def posture_report(payload: PostureReportRequest):
 
 
 
-# --------------- GET /api/report/analysis/post/{post_idx} ---------------
+# --------------- GET /api/report/analysis/post/{post_idx}?range=7d|1m|3m|all ---------------
 @router.get("/analysis/post/{post_idx}")
-def get_analysis_by_post_alias(post_idx: str, db: Session = Depends(get_db)):
+def get_analysis_by_post_alias(
+    post_idx: str,
+    range: str = "7d",
+    db: Session = Depends(get_db),
+):
     """
     프론트 차트/테이블 렌더링용 API.
     post_idx 기준으로 Analysis 히스토리를 조회하여
     세션 목록(JSON)으로 반환합니다.
+
+    Query Params:
+      - range: "7d" | "1m" | "3m" | "all" (default: 7d)
     """
     try:
-        analyses = (
-            db.query(Analysis)
-            .filter(Analysis.post_idx == post_idx)
-            .order_by(Analysis.create_date.asc())
-            .all()
-        )
+        r = (range or "7d").lower().strip()
+        if r not in ("7d", "1m", "3m", "all"):
+            r = "7d"
+
+        start_dt = None
+        now = datetime.utcnow()
+        if r == "7d":
+            start_dt = now - timedelta(days=7)
+        elif r == "1m":
+            start_dt = now - timedelta(days=30)  # 근사
+        elif r == "3m":
+            start_dt = now - timedelta(days=90)  # 근사
+        elif r == "all":
+            start_dt = None
+
+        q = db.query(Analysis).filter(Analysis.post_idx == post_idx)
+        if start_dt is not None:
+            q = q.filter(Analysis.create_date >= start_dt)
+
+        analyses = q.order_by(Analysis.create_date.asc()).all()
 
         if not analyses:
-            raise HTTPException(status_code=404, detail="No analysis rows for this post_idx")
+            raise HTTPException(status_code=404, detail="No analysis rows for this post_idx in the selected range")
 
         sessions = []
         for a in analyses:
@@ -109,19 +131,21 @@ def get_analysis_by_post_alias(post_idx: str, db: Session = Depends(get_db)):
             sessions.append({
                 "idx": a.idx,
                 "created_at": a.create_date.isoformat() if a.create_date else None,
-                "frame": "ALL",  # 종합 페이지 기준
+                "frame": "ALL",
                 "score": score,
                 "kf_error": round(mean_err, 4),
+
+                # ✅ 테이블용(프론트가 기대하는 필드)
+                "kf1_error": float(a.kf1_error or 0.0),
+                "kf2_error": float(a.kf2_error or 0.0),
+                "kf3_error": float(a.kf3_error or 0.0),
             })
 
-        logger_api.info(
-            "[GET ANALYSIS] post_idx=%s row_count=%d",
-            post_idx,
-            len(sessions),
-        )
+        logger_api.info("[GET ANALYSIS] post_idx=%s range=%s row_count=%d", post_idx, r, len(sessions))
 
         return {
             "post_idx": post_idx,
+            "range": r,
             "sessions": sessions,
         }
 
@@ -130,7 +154,7 @@ def get_analysis_by_post_alias(post_idx: str, db: Session = Depends(get_db)):
     except Exception as e:
         logger_api.exception("[GET ANALYSIS] failed post_idx=%s err=%s", post_idx, str(e))
         raise HTTPException(status_code=500, detail=str(e))
-
+        
 # --------------- POST /api/report/post/{post_idx} ---------------
 
 class PostReportResponse(BaseModel):
