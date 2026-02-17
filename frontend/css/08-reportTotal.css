@@ -131,20 +131,13 @@ h2{ font-size: 15px; margin: 0 0 8px; font-weight: 900; }
   margin-bottom: 6px;
 }
 
-
-.kfTabsWrap{
-  display:flex;
-  justify-content:center;
-  margin-top: 10px;
-}
-
-.kfTabs{
+.rangeTabs{
   display:flex;
   gap: 8px;
   justify-content:center;
 }
 
-.kfTab{
+.rangeTab{
   height: 26px;
   padding: 0 10px;
   border-radius: 999px;
@@ -156,15 +149,16 @@ h2{ font-size: 15px; margin: 0 0 8px; font-weight: 900; }
   cursor: pointer;
 }
 
-.kfTab.is-active{
+.rangeTab.is-active{
   background: rgba(32,201,151,.14);
   border-color: rgba(32,201,151,.35);
   color: rgba(17,24,39,.9);
 }
 
-.kfTab:active{
+.rangeTab:active{
   transform: translateY(1px);
 }
+
 .miniCard__hint{
   margin-top: 10px;
   font-size: 12px;
