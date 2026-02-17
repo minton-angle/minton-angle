@@ -46,7 +46,6 @@
               <div class="miniCard__label"> 성장곡선 </div>
             </div>
             <canvas id="scoreKfHistoryChart"></canvas>
-            <div id="bestKFInRange" class="miniCard__hint">-</div>
             <div class="kfTabsWrap">
               <div class="rangeTabs" role="tablist" aria-label="기간 필터">
                 <button type="button" class="rangeTab is-active" data-range="7d" aria-selected="true">1주일</button>
@@ -74,6 +73,26 @@
           <div class="reportSection">
             <div class="reportSection__title">요약</div>
             <div id="llmSummary" class="reportSection__body">-</div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">성장</div>
+            <div id="llmGrowth" class="reportSection__body">-</div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">정체 구간(개선이 잘 안됨)</div>
+            <div id="llmPlateau" class="reportSection__body">-</div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">일관성(편차/재현성)</div>
+            <div id="llmConsistency" class="reportSection__body">-</div>
+          </div>
+
+          <div class="reportSection">
+            <div class="reportSection__title">좋아진 점</div>
+            <div id="llmWins" class="reportSection__body">-</div>
           </div>
 
           <div class="reportSection">
