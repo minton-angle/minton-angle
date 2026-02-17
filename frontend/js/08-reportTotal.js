@@ -595,14 +595,17 @@ function renderBestKFInRange(sessions){
   el.textContent = `GT 범위 내 최적 KeyFrame: ${best.frame} (avg |error| ${best.meanErr}°, session #${best.idx}, ${best.created_at})`;
 }
 
-function wireKFTabs(onChange){
-  const tabs = Array.from(document.querySelectorAll(".kfTab"));
+let __RANGE_FILTER__ = "7d";
+window.__LAST_SESSION__ = null;
+
+function wireRangeTabs(onChange){
+  const tabs = Array.from(document.querySelectorAll(".rangeTab"));
   if (!tabs.length) return;
 
   tabs.forEach((btn)=>{
     btn.addEventListener("click", ()=>{
-      const kf = String(btn.dataset.kf || "ALL").toUpperCase();
-      __KF_FILTER__ = (kf === "KF1" || kf === "KF2" || kf === "KF3") ? kf : "ALL";
+      const v = String(btn.dataset.range || "7d").toLowerCase();
+      __RANGE_FILTER__ = (v === "7d" || v === "1m" || v === "3m" || v === "all") ? v : "7d";
 
       tabs.forEach((b)=>{
         const active = (b === btn);
@@ -610,10 +613,37 @@ function wireKFTabs(onChange){
         b.setAttribute("aria-selected", active ? "true" : "false");
       });
 
-      if (typeof onChange === "function") onChange(__KF_FILTER__);
+      if (typeof onChange === "function") onChange(__RANGE_FILTER__);
     });
   });
 }
+
+async function refreshByRange(range){
+  const payload = await loadFromDB(range);
+  const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
+
+  __ALL_SESSIONS__ = sessions;
+  const last = sessions.length ? sessions[sessions.length - 1] : null;
+  window.__LAST_SESSION__ = last;
+
+  // 차트
+  renderScoreKfHistoryChart(sessions);
+
+  // 스냅샷(기간 내 마지막)
+  window.__CURRENT_FRAME__ = last?.frame ?? "ALL";
+  const meta = last?.meta || {};
+  renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
+  renderTableFromSession(last);
+
+  const initialScore = Number.isFinite(Number(last?.score))
+    ? Number(last.score)
+    : computeScoreFromKfError(last?.kf_error);
+  setScore(initialScore);
+
+  // GT 문구도 같이 갱신
+  renderBestKFInRange(sessions);
+}
+
 // ====== LLM 리포트 생성 호출 (DB 기반) ======
 function getPostIdxFromURL() {
   try {
@@ -719,13 +749,14 @@ function renderLLMReport(reportObj) {
 }
 
 // ====== 초기 로드: DB에서 JSON 가져오기 (실제 DB) ======
-async function loadFromDB() {
+async function loadFromDB(range = "7d") {
   const postIdx = getPostIdxFromURL() || getPostIdxFallback();
   if (!postIdx) {
     throw new Error("post_idx가 없습니다. URL에 ?post_idx=... 를 붙이세요.");
   }
 
-  const url = `${API_BASE}/api/report/analysis/post/${encodeURIComponent(postIdx)}`;
+  const r = (range || "7d").toLowerCase();
+  const url = `${API_BASE}/api/report/analysis/post/${encodeURIComponent(postIdx)}?range=${encodeURIComponent(r)}`;
   console.log("[DB FETCH REQUEST]", url);
 
   const res = await fetch(url, { method: "GET" });
@@ -741,7 +772,7 @@ async function loadFromDB() {
 
 // ====== 부트스트랩 ======
 (async function init() {
-  const payload = await loadFromDB();
+  const payload = await loadFromDB(__RANGE_FILTER__);
 
   const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
   const last = sessions.length ? sessions[sessions.length - 1] : null;
@@ -750,8 +781,12 @@ async function loadFromDB() {
   __ALL_SESSIONS__ = sessions;
 
   // KF 탭 클릭 시 차트를 현재 필터 기준으로 재렌더
-  wireKFTabs(() => {
-    renderScoreKfHistoryChart(__ALL_SESSIONS__);
+  wireRangeTabs(async (r) => {
+    try {
+      await refreshByRange(r);
+    } catch (e) {
+      alert(e.message);
+    }
   });
 
   // 종합 리포트 페이지: 세션 히스토리(여러 번의 평가)를 시각화
@@ -790,9 +825,10 @@ async function loadFromDB() {
         
         // ✅ (B) 버튼을 누를 때마다 "현재 angles" 기준으로 점수를 다시 계산해 반영
         // 종합 리포트 페이지에서는 점수를 LLM이 아니라 프론트 규칙(computeScoreFromKfError)로 산출합니다.
-        const refreshedScore = Number.isFinite(Number(last?.score))
-          ? Number(last.score)
-          : computeScoreFromKfError(last?.kf_error);
+        const curLast2 = window.__LAST_SESSION__;
+        const refreshedScore = Number.isFinite(Number(curLast2?.score))
+          ? Number(curLast2.score)
+          : computeScoreFromKfError(curLast2?.kf_error);
 
         setScore(refreshedScore);
 
