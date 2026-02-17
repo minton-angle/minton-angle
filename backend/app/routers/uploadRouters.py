@@ -9,6 +9,7 @@ from app.models.postModels import Post
 from app.models.fileModels import File as FileModel
 from app.models.analysisModels import Analysis
 from app.services.swing.video_analysis_service import VideoAnalysisService, video_analysis_service
+from app.services.swing.swing_service import generate_swing_detail_feedback
 
 # ⭐ import 방식 변경
 # from app.services.swing import video_analysis_service
@@ -79,6 +80,11 @@ async def get_analysis_result(post_idx: str, db: Session = Depends(get_db)):
         
         print(f"{'='*50}\n")
         
+        score_json = analysis.score_json if analysis and analysis.score_json else {}
+        detailed_feedback = None
+        if isinstance(score_json, dict):
+            detailed_feedback = score_json.get("detailed_feedback")
+
         return {
             "success": True,
             "post_idx": post_idx,
@@ -95,7 +101,9 @@ async def get_analysis_result(post_idx: str, db: Session = Depends(get_db)):
                 "kf2": analysis.kf2 if analysis else None,
                 "kf3": analysis.kf3 if analysis else None
             },
-            "scores": analysis.score_json if analysis else {}
+            "scores": score_json,
+            # 프론트(07-reportDetail.js) 매핑용
+            "detailed_feedback": detailed_feedback
         }
     
     except HTTPException:

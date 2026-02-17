@@ -243,6 +243,13 @@ class SwingService:
                 meta=llm_meta,
             )
 
+            # ⭐ Analysis.score_json에 detailed_feedback 포함 (프론트 GET /result용)
+            if isinstance(analysis.score_json, dict):
+                analysis.score_json = {
+                    **analysis.score_json,
+                    "detailed_feedback": detailed_feedback
+                }
+                
             llm_row = LLMReport(
                 idx=str(uuid.uuid4()),
                 post_idx=request.post_id,
