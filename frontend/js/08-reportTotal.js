@@ -199,7 +199,7 @@ function renderScoreKfHistoryChart(sessions) {
 
   const xs = getFilteredSessions(sessions);
 
-  const labels = xs.map((s) => s.created_at ?? `#${s.idx ?? "-"}`);
+  const labels = xs.map((s) => formatMonthDay(s.created_at ?? null));
 
   const scoreValues = xs.map((s) => {
     const direct = Number(s.score);
@@ -332,6 +332,15 @@ function renderAnglesRadarChart(angles) {
 function safeDate(d){
   const x = new Date(d);
   return Number.isFinite(x.getTime()) ? x : null;
+}
+
+// created_at이 유효한 날짜면 "M.D" 형식으로, 아니면 원래 문자열 그대로 반환
+function formatMonthDay(x){
+  const d = safeDate(x);
+  if (!d) return String(x ?? "-");
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${m}.${day}`;
 }
 
 // ✅ 평균 |오차| 계산
