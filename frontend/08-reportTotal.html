@@ -105,33 +105,20 @@
             <ul id="llmChecklist" class="checkList"></ul>
           </div>
 
-          <div class="reportSection">
-            <div class="reportSection__title">추천 영상</div>
-            <div id="llmYoutubeLinks" class="ytGrid"></div>
+          <div class="row actions" style="margin-top:12px;">
+            <button id="btnGenerate">LLM 리포트 생성</button>
           </div>
 
         </div>
       </section>
 
       <section class="card">
-        <h2>관절 오차각도</h2>
+        <h2>추천 영상</h2>
         <div class="row">
-          <table id="anglesTable">
-            <thead>
-              <tr>
-                <th>Joint</th>
-                <th>Error (deg)</th>
-                <th>Severity</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-
-        <div class="row actions">
-          <button id="btnGenerate">LLM 리포트 생성</button>
+          <div id="llmYoutubeLinks" class="ytGrid"></div>
         </div>
       </section>
+
     </main>
   </div>
 

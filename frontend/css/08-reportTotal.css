@@ -460,3 +460,33 @@ canvas{
 .ytEmpty{
   opacity: 0.7;
 }
+
+/* ===== 추천 영상 테이블 ===== */
+#ytTable{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  border: 1px solid rgba(17,24,39,.08);
+  border-radius: 12px;
+  overflow:hidden;
+}
+#ytTable th, #ytTable td{
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(17,24,39,.06);
+  text-align:left;
+  white-space: nowrap;
+  overflow:hidden;
+  text-overflow: ellipsis;
+}
+#ytTable th{
+  color: rgba(17,24,39,.65);
+  background: rgba(243,244,246,.8);
+}
+#ytTable a{
+  color: rgba(32,201,151,1);
+  font-weight: 900;
+  text-decoration: none;
+}
+#ytTable a:hover{
+  text-decoration: underline;
+}

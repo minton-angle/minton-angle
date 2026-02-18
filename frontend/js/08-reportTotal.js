@@ -44,10 +44,10 @@ const CURATED_YT = {
 };
 
 function curatedListForKf(kfKey) {
-  const action = actionNameFromKfKey(kfKey);
-  if (action === "동작 1") return CURATED_YT.action1;
-  if (action === "동작 2") return CURATED_YT.action2;
-  if (action === "동작 3") return CURATED_YT.action3;
+  const k = String(kfKey || "").toLowerCase();
+  if (k.includes("kf1")) return CURATED_YT.action1;
+  if (k.includes("kf2")) return CURATED_YT.action2;
+  if (k.includes("kf3")) return CURATED_YT.action3;
   return [];
 }
 
@@ -109,6 +109,64 @@ function renderYoutubeLinksFromReport(reportObj) {
     .join("");
 }
 
+function renderYoutubeTableFromReport(reportObj) {
+  const tbody = document.querySelector("#ytTable tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const plateauKf = reportObj?.plateau?.kf || null;
+  const consKf = reportObj?.consistency?.kf || null;
+
+  const picked = [];
+  if (plateauKf) picked.push({ kf: plateauKf, list: curatedListForKf(plateauKf) });
+  if (consKf && consKf !== plateauKf) picked.push({ kf: consKf, list: curatedListForKf(consKf) });
+
+  // fallback: 대표 세트
+  if (!picked.length) {
+    picked.push({ kf: "kf1_error", list: CURATED_YT.action1 });
+    picked.push({ kf: "kf2_error", list: CURATED_YT.action2 });
+    picked.push({ kf: "kf3_error", list: CURATED_YT.action3 });
+  }
+
+  const rows = [];
+  for (const group of picked) {
+    for (const v of Array.isArray(group.list) ? group.list : []) {
+      rows.push({
+        action: actionNameFromKfKey(group.kf),
+        title: String(v?.title || "추천 영상"),
+        channel: String(v?.channel || ""),
+        url: youtubeWatchUrl(v?.videoId),
+      });
+    }
+  }
+
+  const uniq = [];
+  const seen = new Set();
+  for (const r of rows) {
+    if (!r.url || seen.has(r.url)) continue;
+    seen.add(r.url);
+    uniq.push(r);
+  }
+
+  const top = uniq.slice(0, 6);
+  if (!top.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="4">-</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  for (const r of top) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.action}</td>
+      <td title="${r.title}">${r.title}</td>
+      <td title="${r.channel}">${r.channel || "-"}</td>
+      <td><a href="${r.url}" target="_blank" rel="noopener noreferrer">열기</a></td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
 
 
 // ====== 유틸: 심각도(룰 기반) ======
@@ -685,7 +743,6 @@ async function refreshByRange(range){
   window.__CURRENT_FRAME__ = last?.frame ?? "ALL";
   const meta = last?.meta || {};
   renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
-  renderTableFromSession(last);
 
   const initialScore = Number.isFinite(Number(last?.score))
     ? Number(last.score)
@@ -849,6 +906,7 @@ function renderLLMReport(reportObj) {
     checklistEl.innerHTML = items.map((x) => `<li>${String(x)}</li>`).join("");
   }
 
+  // 추천 영상(썸네일 카드) 렌더
   renderYoutubeLinksFromReport(reportObj);
 }
 
@@ -903,8 +961,6 @@ async function loadFromDB(range = "7d") {
   // 메타/스냅샷 렌더
   renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
 
-  // 테이블: KF 오차 기반
-  renderTableFromSession(last);
 
   // 초기 점수: 최근 세션의 score 또는 kf_error 기반
   const initialScore = Number.isFinite(Number(last?.score))
