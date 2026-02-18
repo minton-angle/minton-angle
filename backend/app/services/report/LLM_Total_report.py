@@ -67,7 +67,6 @@ def _user_prompt(angles: Dict[str, float], meta: Optional[Dict[str, Any]], lang:
             "wins": "{kf:string,message:string}[]",
             "top_issues": "{joint:string,error_deg:number,interpretation:string,why_it_matters:string,fix:string[]}[]",
             "quick_checklist": "string[]",
-            "notes": "string",
         },
     }
 
@@ -116,7 +115,7 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
         return {}
 
     # If already correct shape, keep.
-    expected_keys = {"summary", "overall_severity", "growth", "plateau", "consistency", "wins", "top_issues", "quick_checklist", "notes"}
+    expected_keys = {"summary", "overall_severity", "growth", "plateau", "consistency", "wins", "top_issues", "quick_checklist"}
     if expected_keys.issubset(set(report_obj.keys())):
         return report_obj
 
@@ -134,7 +133,6 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
         report_obj.setdefault("wins", [])
         report_obj.setdefault("top_issues", [])
         report_obj.setdefault("quick_checklist", [])
-        report_obj.setdefault("notes", "")
         return report_obj
 
     # Map Korean/nested structure
@@ -210,7 +208,6 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
         "wins": wins,
         "top_issues": [],
         "quick_checklist": [],
-        "notes": "",
     }
     return normalized
 

@@ -741,9 +741,6 @@ function renderLLMReport(reportObj) {
     const items = Array.isArray(reportObj?.quick_checklist) ? reportObj.quick_checklist : [];
     checklistEl.innerHTML = items.map((x) => `<li>${String(x)}</li>`).join("");
   }
-
-  const notesEl = document.getElementById("llmNotes");
-  if (notesEl) notesEl.textContent = reportObj?.notes ? String(reportObj.notes) : "-";
 }
 
 // ====== 초기 로드: DB에서 JSON 가져오기 (실제 DB) ======
