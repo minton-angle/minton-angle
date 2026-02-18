@@ -7,10 +7,148 @@ const API_BASE = "http://localhost:8000"; // FastAPI 주소
 // ====== KF 키 → 사용자 친화 명칭 ======
 function actionNameFromKfKey(kfKey) {
   const k = String(kfKey || "").toLowerCase();
-  if (k.includes("kf1")) return "백스윙 동작 ";
+  if (k.includes("kf1")) return "백스윙 동작";
   if (k.includes("kf2")) return "임팩트 동작";
   if (k.includes("kf3")) return "팔로스루 동작";
   return "-";
+}
+// ====== 동작별 피드백 카드 렌더 ======
+function kfKeyOfAction(actionNum){
+  if (String(actionNum) === "1") return "kf1_error";
+  if (String(actionNum) === "2") return "kf2_error";
+  if (String(actionNum) === "3") return "kf3_error";
+  return null;
+}
+
+function setText(id, html){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = (html == null || html === "") ? "-" : String(html);
+}
+
+function renderActionFeedback(reportObj){
+  // 각 동작별로: plateau/consistency/wins/top_issues를 필터링해서 보여준다.
+  for (const n of [1,2,3]){
+    const kf = kfKeyOfAction(n);
+
+    // 요약: 전체 summary를 보여주되, 해당 동작이 plateau/consistency 대상이면 강조
+    const isPlateau = (reportObj?.plateau?.kf && String(reportObj.plateau.kf) === kf);
+    const isCons = (reportObj?.consistency?.kf && String(reportObj.consistency.kf) === kf);
+
+    const summary = reportObj?.summary ? String(reportObj.summary) : "-";
+    setText(`a${n}Summary`, (isPlateau || isCons) ? `<div class="actionHi">${summary}</div>` : summary);
+
+    // plateau
+    if (isPlateau){
+      const p = reportObj?.plateau || {};
+      const msg = p?.message ? String(p.message) : "-";
+      const why = p?.why ? String(p.why) : "";
+      const fixes = Array.isArray(p?.fix) ? p.fix : [];
+      const fixText = fixes.length ? fixes.map((x)=>`• ${String(x)}`).join("<br/>") : "-";
+      setText(`a${n}Plateau`, `<div class="actionHi">${msg}${why ? `<br/><br/><b>왜 중요?</b><br/>${why}` : ""}<br/><br/><b>추천 교정</b><br/>${fixText}</div>`);
+    } else {
+      setText(`a${n}Plateau`, "-");
+    }
+
+    // consistency
+    if (isCons){
+      const c = reportObj?.consistency || {};
+      const msg = c?.message ? String(c.message) : "-";
+      const how = Array.isArray(c?.how_to_practice) ? c.how_to_practice : [];
+      const howText = how.length ? how.map((x)=>`• ${String(x)}`).join("<br/>") : "-";
+      setText(`a${n}Consistency`, `<div class="actionHi">${msg}<br/><br/><b>연습 방법</b><br/>${howText}</div>`);
+    } else {
+      setText(`a${n}Consistency`, "-");
+    }
+
+    // wins: 해당 동작만 필터
+    const wins = Array.isArray(reportObj?.wins) ? reportObj.wins : [];
+    const myWins = wins.filter((w)=> String(w?.kf || "") === kf);
+    setText(`a${n}Wins`, myWins.length ? myWins.map((w)=>`• ${String(w?.message || "-")}`).join("<br/>") : "-");
+
+    // issues: top_issues는 joint 기반이라 KF 매핑이 없어서, 전체를 보여주되 plateau/consistency 동작이면 강조
+    const issues = Array.isArray(reportObj?.top_issues) ? reportObj.top_issues : [];
+    if (!issues.length){
+      setText(`a${n}Issues`, "-");
+    } else {
+      const html = issues.slice(0,3).map((it)=>{
+        const joint = it?.joint ?? "-";
+        const deg = it?.error_deg ?? "-";
+        const interp = it?.interpretation ?? "";
+        return `• <b>${String(joint)}</b> (${String(deg)}°) ${interp ? `- ${String(interp)}` : ""}`;
+      }).join("<br/>");
+      setText(`a${n}Issues`, (isPlateau || isCons) ? `<div class="actionHi">${html}</div>` : html);
+    }
+
+    // checklist: 전체 체크리스트를 보여주되 plateau/consistency 동작이면 강조
+    const items = Array.isArray(reportObj?.quick_checklist) ? reportObj.quick_checklist : [];
+    const chk = items.length ? items.map((x)=>`• ${String(x)}`).join("<br/>") : "-";
+    setText(`a${n}Checklist`, (isPlateau || isCons) ? `<div class="actionHi">${chk}</div>` : chk);
+  }
+}
+
+function wireActionCarousel(){
+  const carousel = document.getElementById("actionCarousel");
+  const prev = document.getElementById("actionPrev");
+  const next = document.getElementById("actionNext");
+  const dots = Array.from(document.querySelectorAll(".actionDot"));
+  if (!carousel || !dots.length) return;
+
+  function panelWidth(){
+    // first panel width including gap is handled by scroll; just use container width
+    return carousel.clientWidth;
+  }
+
+  function goTo(n){
+    const idx = Math.max(1, Math.min(3, Number(n)||1)) - 1;
+    carousel.scrollTo({ left: idx * panelWidth(), behavior: "smooth" });
+  }
+
+  function setActive(n){
+    dots.forEach((b)=>{
+      const active = String(b.dataset.action) === String(n);
+      b.classList.toggle("is-active", active);
+      b.setAttribute("aria-selected", active ? "true" : "false");
+    });
+  }
+
+  // click dots
+  dots.forEach((b)=> b.addEventListener("click", ()=>{
+    const n = b.dataset.action;
+    goTo(n);
+    setActive(n);
+  }));
+
+  // arrows
+  if (prev) prev.addEventListener("click", ()=>{
+    const cur = getCurrentAction();
+    const nextN = cur <= 1 ? 1 : (cur - 1);
+    goTo(nextN);
+    setActive(nextN);
+  });
+  if (next) next.addEventListener("click", ()=>{
+    const cur = getCurrentAction();
+    const nextN = cur >= 3 ? 3 : (cur + 1);
+    goTo(nextN);
+    setActive(nextN);
+  });
+
+  function getCurrentAction(){
+    const w = panelWidth();
+    if (!w) return 1;
+    const idx = Math.round(carousel.scrollLeft / w);
+    return idx + 1;
+  }
+
+  // update active on swipe/scroll end
+  let t = null;
+  carousel.addEventListener("scroll", ()=>{
+    if (t) clearTimeout(t);
+    t = setTimeout(()=>{
+      const n = getCurrentAction();
+      setActive(n);
+    }, 120);
+  }, { passive: true });
 }
 
 // ====== Curated YouTube 추천 (검색이 아니라, 특정 영상 ID 기반) ======
@@ -908,6 +1046,8 @@ function renderLLMReport(reportObj) {
 
   // 추천 영상(썸네일 카드) 렌더
   renderYoutubeLinksFromReport(reportObj);
+  // 동작별 피드백 렌더
+  renderActionFeedback(reportObj);
 }
 
 // ====== 초기 로드: DB에서 JSON 가져오기 (실제 DB) ======
@@ -961,6 +1101,8 @@ async function loadFromDB(range = "7d") {
   // 메타/스냅샷 렌더
   renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
 
+  // 동작별 피드백 슬라이더 wiring
+  wireActionCarousel();
 
   // 초기 점수: 최근 세션의 score 또는 kf_error 기반
   const initialScore = Number.isFinite(Number(last?.score))

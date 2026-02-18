@@ -113,6 +113,64 @@
       </section>
 
       <section class="card">
+        <h2>동작별 피드백</h2>
+
+        <div class="actionNav" aria-label="동작별 피드백 네비게이션">
+          <button type="button" class="actionNav__btn" id="actionPrev" aria-label="이전 동작">‹</button>
+          <div class="actionNav__dots" role="tablist" aria-label="동작 선택">
+            <button type="button" class="actionDot is-active" data-action="1" aria-selected="true">백스윙 동작 </button>
+            <button type="button" class="actionDot" data-action="2" aria-selected="false">임팩트 동작</button>
+            <button type="button" class="actionDot" data-action="3" aria-selected="false">팔로스루 동작</button>
+          </div>
+          <button type="button" class="actionNav__btn" id="actionNext" aria-label="다음 동작">›</button>
+        </div>
+
+        <div id="actionCarousel" class="actionCarousel" aria-label="동작별 피드백 슬라이더">
+          <article class="actionPanel" data-action="1">
+            <div class="actionPanel__title">백스윙 동작</div>
+            <table class="actionTable">
+              <tbody>
+                <tr><th>요약</th><td id="a1Summary">-</td></tr>
+                <tr><th>개선이 필요해요</th><td id="a1Plateau">-</td></tr>
+                <tr><th>일관성</th><td id="a1Consistency">-</td></tr>
+                <tr><th>좋아진 점</th><td id="a1Wins">-</td></tr>
+                <tr><th>핵심 이슈</th><td id="a1Issues">-</td></tr>
+                <tr><th>체크리스트</th><td id="a1Checklist">-</td></tr>
+              </tbody>
+            </table>
+          </article>
+
+          <article class="actionPanel" data-action="2">
+            <div class="actionPanel__title">임팩트 동작</div>
+            <table class="actionTable">
+              <tbody>
+                <tr><th>요약</th><td id="a2Summary">-</td></tr>
+                <tr><th>개선이 필요해요</th><td id="a2Plateau">-</td></tr>
+                <tr><th>일관성</th><td id="a2Consistency">-</td></tr>
+                <tr><th>좋아진 점</th><td id="a2Wins">-</td></tr>
+                <tr><th>핵심 이슈</th><td id="a2Issues">-</td></tr>
+                <tr><th>체크리스트</th><td id="a2Checklist">-</td></tr>
+              </tbody>
+            </table>
+          </article>
+
+          <article class="actionPanel" data-action="3">
+            <div class="actionPanel__title">팔로스루 동작</div>
+            <table class="actionTable">
+              <tbody>
+                <tr><th>요약</th><td id="a3Summary">-</td></tr>
+                <tr><th>개선이 필요해요</th><td id="a3Plateau">-</td></tr>
+                <tr><th>일관성</th><td id="a3Consistency">-</td></tr>
+                <tr><th>좋아진 점</th><td id="a3Wins">-</td></tr>
+                <tr><th>핵심 이슈</th><td id="a3Issues">-</td></tr>
+                <tr><th>체크리스트</th><td id="a3Checklist">-</td></tr>
+              </tbody>
+            </table>
+          </article>
+        </div>
+      </section>
+
+      <section class="card">
         <h2>추천 영상</h2>
         <div class="row">
           <div id="llmYoutubeLinks" class="ytGrid"></div>
