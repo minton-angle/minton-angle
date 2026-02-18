@@ -47,10 +47,7 @@ def _system_prompt(lang: str) -> str:
     return (
         "당신은 배드민턴 스윙 자세의 '성장(개선)'을 알려주는 코칭 어시스턴트입니다. "
         "입력은 키프레임(KF1~KF3)의 오차각도(도 단위)와 meta.insights(성장/정체/편차 지표)입니다. "
-        "반드시 아래의 최상위 JSON 키를 정확히 사용해 반환하세요(키 이름 변경/한글 키 금지): "
-        "summary, overall_severity, growth, plateau, consistency, wins, top_issues, quick_checklist. "
-        "overall_severity 값은 low|medium|high 중 하나입니다. "
-        "JSON 외 텍스트는 절대 포함하지 마세요."
+        "반드시 아래의 최상위 JSON 키를 정확히 사용해 반환하세요(키 이름 변경 금지): summary, growth, actions, today_checklist. JSON 외 텍스트는 절대 포함하지 마세요. 동작 라벨은 반드시 '백스윙 동작', '임팩트 동작', '팔로스루 동작'으로 작성하세요."
     )
 
 
@@ -59,14 +56,30 @@ def _user_prompt(angles: Dict[str, float], meta: Optional[Dict[str, Any]], lang:
         "angles": angles,
         "meta": meta or {},
         "schema": {
-            "summary": "string",
-            "overall_severity": "low|medium|high",
-            "growth": {"direction": "improved|worsened|flat", "delta_mean_abs_kf_error": "number", "message": "string"},
-            "plateau": {"kf": "kf1_error|kf2_error|kf3_error|null", "message": "string", "why": "string", "fix": "string[]"},
-            "consistency": {"kf": "kf1_error|kf2_error|kf3_error|null", "message": "string", "how_to_practice": "string[]"},
-            "wins": "{kf:string,message:string}[]",
-            "top_issues": "{joint:string,error_deg:number,interpretation:string,why_it_matters:string,fix:string[]}[]",
-            "quick_checklist": "string[]",
+            "summary": "string (전체 성장 요약 한 줄)",
+            "growth": {
+                "direction": "improved|worsened|flat",
+                "delta_mean_abs_kf_error": "number",
+                "message": "string (이전 대비 변화 설명)"
+            },
+            "actions": {
+                "kf1": {
+                    "title": "백스윙 동작",
+                    "problem_one": "string (가장 핵심 문제 1개)",
+                    "fix_two": "string[] (구체적 교정 방법 2개)"
+                },
+                "kf2": {
+                    "title": "임팩트 동작",
+                    "problem_one": "string",
+                    "fix_two": "string[]"
+                },
+                "kf3": {
+                    "title": "팔로스루 동작",
+                    "problem_one": "string",
+                    "fix_two": "string[]"
+                }
+            },
+            "today_checklist": "string[] (오늘 바로 실천할 3개)"
         },
     }
 
@@ -104,112 +117,23 @@ def _ensure_list(x: Any) -> list:
 
 
 def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
-    """Best-effort normalization.
-
-    Frontend expects:
-      summary, overall_severity, growth, plateau, consistency, wins, top_issues, quick_checklist
-
-    Some model outputs may come as Korean/nested, e.g. {"성장 리포트": {...}}.
-    """
     if not isinstance(report_obj, dict):
         return {}
 
-    # If already correct shape, keep.
-    expected_keys = {"summary", "overall_severity", "growth", "plateau", "consistency", "wins", "top_issues", "quick_checklist"}
-    if expected_keys.issubset(set(report_obj.keys())):
-        return report_obj
+    report_obj.setdefault("summary", "-")
+    report_obj.setdefault("growth", {
+        "direction": "flat",
+        "delta_mean_abs_kf_error": 0.0,
+        "message": "-"
+    })
+    report_obj.setdefault("actions", {
+        "kf1": {"title": "백스윙 동작", "problem_one": "-", "fix_two": []},
+        "kf2": {"title": "임팩트 동작", "problem_one": "-", "fix_two": []},
+        "kf3": {"title": "팔로스루 동작", "problem_one": "-", "fix_two": []},
+    })
+    report_obj.setdefault("today_checklist", [])
 
-    inner = None
-    if "성장 리포트" in report_obj and isinstance(report_obj.get("성장 리포트"), dict):
-        inner = report_obj.get("성장 리포트")
-
-    if not inner:
-        # Try a minimal coercion (avoid breaking UI)
-        report_obj.setdefault("summary", report_obj.get("요약") or "-")
-        report_obj.setdefault("overall_severity", "low")
-        report_obj.setdefault("growth", {"direction": "flat", "delta_mean_abs_kf_error": 0.0, "message": "-"})
-        report_obj.setdefault("plateau", {"kf": None, "message": "-", "why": "", "fix": []})
-        report_obj.setdefault("consistency", {"kf": None, "message": "-", "how_to_practice": []})
-        report_obj.setdefault("wins", [])
-        report_obj.setdefault("top_issues", [])
-        report_obj.setdefault("quick_checklist", [])
-        return report_obj
-
-    # Map Korean/nested structure
-    summary = inner.get("리포트 요약") or inner.get("요약") or "-"
-
-    # severity: if 개선 정도/좋음 etc, default low.
-    sev = "low"
-    sev_raw = str(inner.get("개선 정도") or "").lower()
-    if any(k in sev_raw for k in ["나쁨", "bad", "high"]):
-        sev = "high"
-    elif any(k in sev_raw for k in ["보통", "medium"]):
-        sev = "medium"
-
-    # growth
-    growth_obj = {
-        "direction": "improved" if "좋" in str(inner.get("개선 정도") or "") else "flat",
-        "delta_mean_abs_kf_error": float(inner.get("delta_mean_abs_kf_error") or 0.0),
-        "message": str(inner.get("리포트 요약") or "-")[:300],
-    }
-
-    # plateau
-    plateau_in = inner.get("plateau")
-    plateau = {"kf": None, "message": "-", "why": "", "fix": []}
-    if isinstance(plateau_in, dict) and plateau_in:
-        # take first key
-        k0 = next(iter(plateau_in.keys()))
-        kf = _kf_label_to_key(k0)
-        v0 = plateau_in.get(k0)
-        if isinstance(v0, dict):
-            prev_m = v0.get("previous_mean")
-            rec_m = v0.get("recent_mean")
-            delta = v0.get("delta")
-            plateau = {
-                "kf": kf,
-                "message": f"최근 구간에서 {k0} 변화량(Δ) {delta}° (이전 평균 {prev_m}°, 최근 평균 {rec_m}°)",
-                "why": "오차 감소가 정체되면 동일 구간에서 반복적으로 폼이 흔들릴 수 있습니다.",
-                "fix": [],
-            }
-
-    # consistency
-    cons_in = inner.get("consistency")
-    consistency = {"kf": None, "message": "-", "how_to_practice": []}
-    if isinstance(cons_in, dict) and cons_in:
-        k0 = next(iter(cons_in.keys()))
-        kf = _kf_label_to_key(k0)
-        v0 = cons_in.get(k0)
-        std = v0.get("std") if isinstance(v0, dict) else None
-        consistency = {
-            "kf": kf,
-            "message": f"{k0}의 편차(std)가 상대적으로 큽니다 (std={std}).",
-            "how_to_practice": [],
-        }
-
-    # wins
-    wins_in = inner.get("wins")
-    wins: list[dict] = []
-    for item in _ensure_list(wins_in):
-        if isinstance(item, dict) and item:
-            kk = next(iter(item.keys()))
-            kf = _kf_label_to_key(kk)
-            vv = item.get(kk)
-            if isinstance(vv, dict):
-                wins.append({"kf": kf or kk, "message": f"개선(Δ) {vv.get('delta')}° (전 {vv.get('first_half')}°, 후 {vv.get('second_half')}°)"})
-            else:
-                wins.append({"kf": kf or kk, "message": "개선되었습니다."})
-
-    normalized = {
-        "summary": str(summary),
-        "overall_severity": sev,
-        "growth": growth_obj,
-        "plateau": plateau,
-        "consistency": consistency,
-        "wins": wins,
-        "top_issues": [],
-        "quick_checklist": [],
-    }
-    return normalized
+    return report_obj
 
 
 # -----------------------------------------------------------------------------

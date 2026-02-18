@@ -26,65 +26,22 @@ function setText(id, html){
   el.innerHTML = (html == null || html === "") ? "-" : String(html);
 }
 
-function renderActionFeedback(reportObj){
-  // 각 동작별로: plateau/consistency/wins/top_issues를 필터링해서 보여준다.
-  for (const n of [1,2,3]){
-    const kf = kfKeyOfAction(n);
+// ===== A안: 동작별 간단 구조 =====
+// 새 actions 필드 기반 간단 카드 렌더링
+function renderActionSimple(n, key) {
+  const actions = window.__LLM_ACTIONS__ || {};
+  const a = actions[key] || {};
+  const title = a?.title || "-";
+  const problem = a?.problem_one || "-";
+  const fixes = Array.isArray(a?.fix_two) ? a.fix_two : [];
+  const fixText = fixes.length ? fixes.map((x)=>`• ${String(x)}`).join("<br/>") : "-";
 
-    // 요약: 전체 summary를 보여주되, 해당 동작이 plateau/consistency 대상이면 강조
-    const isPlateau = (reportObj?.plateau?.kf && String(reportObj.plateau.kf) === kf);
-    const isCons = (reportObj?.consistency?.kf && String(reportObj.consistency.kf) === kf);
-
-    const summary = reportObj?.summary ? String(reportObj.summary) : "-";
-    setText(`a${n}Summary`, (isPlateau || isCons) ? `<div class="actionHi">${summary}</div>` : summary);
-
-    // plateau
-    if (isPlateau){
-      const p = reportObj?.plateau || {};
-      const msg = p?.message ? String(p.message) : "-";
-      const why = p?.why ? String(p.why) : "";
-      const fixes = Array.isArray(p?.fix) ? p.fix : [];
-      const fixText = fixes.length ? fixes.map((x)=>`• ${String(x)}`).join("<br/>") : "-";
-      setText(`a${n}Plateau`, `<div class="actionHi">${msg}${why ? `<br/><br/><b>왜 중요?</b><br/>${why}` : ""}<br/><br/><b>추천 교정</b><br/>${fixText}</div>`);
-    } else {
-      setText(`a${n}Plateau`, "-");
-    }
-
-    // consistency
-    if (isCons){
-      const c = reportObj?.consistency || {};
-      const msg = c?.message ? String(c.message) : "-";
-      const how = Array.isArray(c?.how_to_practice) ? c.how_to_practice : [];
-      const howText = how.length ? how.map((x)=>`• ${String(x)}`).join("<br/>") : "-";
-      setText(`a${n}Consistency`, `<div class="actionHi">${msg}<br/><br/><b>연습 방법</b><br/>${howText}</div>`);
-    } else {
-      setText(`a${n}Consistency`, "-");
-    }
-
-    // wins: 해당 동작만 필터
-    const wins = Array.isArray(reportObj?.wins) ? reportObj.wins : [];
-    const myWins = wins.filter((w)=> String(w?.kf || "") === kf);
-    setText(`a${n}Wins`, myWins.length ? myWins.map((w)=>`• ${String(w?.message || "-")}`).join("<br/>") : "-");
-
-    // issues: top_issues는 joint 기반이라 KF 매핑이 없어서, 전체를 보여주되 plateau/consistency 동작이면 강조
-    const issues = Array.isArray(reportObj?.top_issues) ? reportObj.top_issues : [];
-    if (!issues.length){
-      setText(`a${n}Issues`, "-");
-    } else {
-      const html = issues.slice(0,3).map((it)=>{
-        const joint = it?.joint ?? "-";
-        const deg = it?.error_deg ?? "-";
-        const interp = it?.interpretation ?? "";
-        return `• <b>${String(joint)}</b> (${String(deg)}°) ${interp ? `- ${String(interp)}` : ""}`;
-      }).join("<br/>");
-      setText(`a${n}Issues`, (isPlateau || isCons) ? `<div class="actionHi">${html}</div>` : html);
-    }
-
-    // checklist: 전체 체크리스트를 보여주되 plateau/consistency 동작이면 강조
-    const items = Array.isArray(reportObj?.quick_checklist) ? reportObj.quick_checklist : [];
-    const chk = items.length ? items.map((x)=>`• ${String(x)}`).join("<br/>") : "-";
-    setText(`a${n}Checklist`, (isPlateau || isCons) ? `<div class="actionHi">${chk}</div>` : chk);
-  }
+  setText(`a${n}Summary`, `<b>${title}</b>`);
+  setText(`a${n}Plateau`, problem);
+  setText(`a${n}Consistency`, fixText);
+  setText(`a${n}Wins`, "-");
+  setText(`a${n}Issues`, "-");
+  setText(`a${n}Checklist`, "-");
 }
 
 function wireActionCarousel(){
@@ -930,32 +887,19 @@ function renderLLMReport(reportObj) {
     console.groupEnd();
   }
 
+  // created_at, model
   const createdAtEl = document.getElementById("llmCreatedAt");
   const modelEl = document.getElementById("llmModel");
   if (createdAtEl) createdAtEl.textContent = reportObj?.created_at ?? "-";
   if (modelEl) modelEl.textContent = reportObj?.model ?? "-";
 
-  const sev = String(reportObj?.overall_severity ?? reportObj?.result ?? "low").toLowerCase();
-  const badge = document.getElementById("overallSeverity");
-  if (badge) {
-    badge.classList.remove("severityBadge--low", "severityBadge--medium", "severityBadge--high");
-    if (sev === "high") badge.classList.add("severityBadge--high");
-    else if (sev === "medium") badge.classList.add("severityBadge--medium");
-    else badge.classList.add("severityBadge--low");
-    badge.textContent = sev.toUpperCase();
-  }
-
+  // summary
   const summaryText = reportObj?.summary ? String(reportObj.summary) : "-";
   const sumEl = document.getElementById("llmSummary");
   if (sumEl) sumEl.textContent = summaryText;
 
-  // ===== 성장/정체/일관성/좋아진 점 섹션 =====
-  const growthEl = document.getElementById("llmGrowth");
-  const plateauEl = document.getElementById("llmPlateau");
-  const consEl = document.getElementById("llmConsistency");
-  const winsEl = document.getElementById("llmWins");
-
   // growth
+  const growthEl = document.getElementById("llmGrowth");
   if (growthEl) {
     const g = reportObj?.growth || null;
     const dir = g?.direction ? String(g.direction) : "-";
@@ -965,89 +909,22 @@ function renderLLMReport(reportObj) {
     growthEl.innerHTML = `방향: <b>${dir}</b><br/>변화(평균 오차): <b>${dltText}</b><br/>${msg}`;
   }
 
-  // plateau
-  if (plateauEl) {
-    const p = reportObj?.plateau || null;
-    const kf = p?.kf ? actionNameFromKfKey(p.kf) : "-";
-    const msg = p?.message ? String(p.message) : "-";
-    const why = p?.why ? String(p.why) : "";
-    const fixes = Array.isArray(p?.fix) ? p.fix : [];
-    const fixText = fixes.length ? fixes.map((x) => `• ${String(x)}`).join("<br/>") : "-";
-    plateauEl.innerHTML = `대상: <b>${kf}</b><br/>${msg}${why ? `<br/><br/><b>왜 중요?</b><br/>${why}` : ""}<br/><br/><b>추천 교정</b><br/>${fixText}`;
-  }
+  // ===== A안: 동작별 간단 구조 =====
+  const actions = reportObj?.actions || {};
+  window.__LLM_ACTIONS__ = actions; // for renderActionSimple
+  renderActionSimple(1, "kf1");
+  renderActionSimple(2, "kf2");
+  renderActionSimple(3, "kf3");
 
-  // consistency
-  if (consEl) {
-    const c = reportObj?.consistency || null;
-    const kf = c?.kf ? actionNameFromKfKey(c.kf) : "-";
-    const msg = c?.message ? String(c.message) : "-";
-    const how = Array.isArray(c?.how_to_practice) ? c.how_to_practice : [];
-    const howText = how.length ? how.map((x) => `• ${String(x)}`).join("<br/>") : "-";
-    consEl.innerHTML = `대상: <b>${kf}</b><br/>${msg}<br/><br/><b>연습 방법</b><br/>${howText}`;
-  }
-
-  // wins
-  if (winsEl) {
-    const wins = Array.isArray(reportObj?.wins) ? reportObj.wins : [];
-    if (!wins.length) {
-      winsEl.textContent = "-";
-    } else {
-      winsEl.innerHTML = wins
-        .map((w) => {
-          const kf = w?.kf ? actionNameFromKfKey(w.kf) : "-";
-          const msg = w?.message ? String(w.message) : "-";
-          return `• <b>${kf}</b>: ${msg}`;
-        })
-        .join("<br/>");
-    }
-  }
-
-  const headline =
-    sev === "high" ? "주의가 필요합니다" :
-    sev === "medium" ? "개선 여지가 있습니다" :
-    "잘 하고 있습니다";
-  setSummaryText({ headline: `${headline}<br/>(${sev.toUpperCase()})`, sub: summaryText });
-
-  const issuesEl = document.getElementById("llmIssues");
-  if (issuesEl) {
-    const issues = Array.isArray(reportObj?.top_issues) ? reportObj.top_issues : [];
-    if (issues.length === 0) {
-      issuesEl.innerHTML = `<div class="reportSection__body">-</div>`;
-    } else {
-      issuesEl.innerHTML = issues
-        .map((it) => {
-          const joint = it?.joint ?? "-";
-          const deg = it?.error_deg ?? "-";
-          const interp = it?.interpretation ?? "";
-          const why = it?.why_it_matters ?? "";
-          const fixArr = Array.isArray(it?.fix) ? it.fix : [];
-          const chips = fixArr.map((f) => `<span class="chip">${String(f)}</span>`).join("");
-          return `
-            <div class="issueItem">
-              <div class="issueItem__top">
-                <div class="issueItem__joint">${String(joint)}</div>
-                <div class="issueItem__deg">${String(deg)}°</div>
-              </div>
-              ${interp ? `<div class="issueItem__p"><b>해석</b>: ${String(interp)}</div>` : ""}
-              ${why ? `<div class="issueItem__p"><b>영향</b>: ${String(why)}</div>` : ""}
-              ${chips ? `<div class="issueItem__chips">${chips}</div>` : ""}
-            </div>
-          `;
-        })
-        .join("");
-    }
-  }
-
+  // 오늘 체크리스트
   const checklistEl = document.getElementById("llmChecklist");
   if (checklistEl) {
-    const items = Array.isArray(reportObj?.quick_checklist) ? reportObj.quick_checklist : [];
-    checklistEl.innerHTML = items.map((x) => `<li>${String(x)}</li>`).join("");
+    const items = Array.isArray(reportObj?.today_checklist) ? reportObj.today_checklist : [];
+    checklistEl.innerHTML = items.map((x)=>`<li>${String(x)}</li>`).join("");
   }
 
   // 추천 영상(썸네일 카드) 렌더
   renderYoutubeLinksFromReport(reportObj);
-  // 동작별 피드백 렌더
-  renderActionFeedback(reportObj);
 }
 
 // ====== 초기 로드: DB에서 JSON 가져오기 (실제 DB) ======
