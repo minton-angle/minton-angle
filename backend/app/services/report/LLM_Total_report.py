@@ -48,7 +48,7 @@ def _system_prompt(lang: str) -> str:
         "당신은 배드민턴 스윙 자세의 '성장(개선)'을 알려주는 코칭 어시스턴트입니다. "
         "입력은 키프레임(KF1~KF3)의 오차각도(도 단위)와 meta.insights(성장/정체/편차 지표)입니다. "
         "반드시 아래의 최상위 JSON 키를 정확히 사용해 반환하세요(키 이름 변경/한글 키 금지): "
-        "summary, overall_severity, growth, plateau, consistency, wins, top_issues, quick_checklist, notes. "
+        "summary, overall_severity, growth, plateau, consistency, wins, top_issues, quick_checklist. "
         "overall_severity 값은 low|medium|high 중 하나입니다. "
         "JSON 외 텍스트는 절대 포함하지 마세요."
     )
@@ -107,7 +107,7 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
     """Best-effort normalization.
 
     Frontend expects:
-      summary, overall_severity, growth, plateau, consistency, wins, top_issues, quick_checklist, notes
+      summary, overall_severity, growth, plateau, consistency, wins, top_issues, quick_checklist
 
     Some model outputs may come as Korean/nested, e.g. {"성장 리포트": {...}}.
     """
