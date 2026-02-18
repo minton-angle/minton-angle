@@ -7,9 +7,9 @@ const API_BASE = "http://localhost:8000"; // FastAPI 주소
 // ====== KF 키 → 사용자 친화 명칭 ======
 function actionNameFromKfKey(kfKey) {
   const k = String(kfKey || "").toLowerCase();
-  if (k.includes("kf1")) return "동작 1";
-  if (k.includes("kf2")) return "동작 2";
-  if (k.includes("kf3")) return "동작 3";
+  if (k.includes("kf1")) return "백스윙 동작 ";
+  if (k.includes("kf2")) return "임팩트 동작";
+  if (k.includes("kf3")) return "팔로스루 동작";
   return "-";
 }
 
