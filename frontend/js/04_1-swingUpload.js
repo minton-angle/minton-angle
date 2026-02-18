@@ -1,5 +1,7 @@
 const API_BASE_URL = 'http://localhost:8000';
-const USER_ID = 'user_001'; // 임시 사용자 ID
+// const USER_ID = 'user_001'; // 임시 사용자 ID
+// 로그인 시 생성된 토큰 임시로 넣기
+const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidGVzdDAwMyIsImV4cCI6MTc3MTk5ODYzNX0.Xl4QCQNB9_f0q6L8EeP_opx_oRfPIW7QhWrLLTB3mtE";
 
 let selectedFile = null;
 
@@ -51,10 +53,18 @@ async function startAnalysis() {
         formData.append('video', selectedFile);
         
         // API 호출
-        const response = await fetch(`${API_BASE_URL}/api/upload/video?user_id=${USER_ID}`, {
+        // const response = await fetch(`${API_BASE_URL}/api/upload/video?user_id=${USER_ID}`, {
+        //     method: 'POST',
+        //     body: formData
+        // });
+        // token
+        const response = await fetch(`${API_BASE_URL}/api/upload/video`, {
             method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${TOKEN}`  // ⭐ 추가!
+            },
             body: formData
-        });
+});
         
         if (!response.ok) {
             const error = await response.json();
