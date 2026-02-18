@@ -4,6 +4,113 @@ const API_BASE = "http://localhost:8000"; // FastAPI 주소
 // NOTE: 종합 페이지는 세션 히스토리 기반이므로, GT 범위는 서버/다른 페이지에서 처리하는 것을 권장합니다.
 
 
+// ====== KF 키 → 사용자 친화 명칭 ======
+function actionNameFromKfKey(kfKey) {
+  const k = String(kfKey || "").toLowerCase();
+  if (k.includes("kf1")) return "동작 1";
+  if (k.includes("kf2")) return "동작 2";
+  if (k.includes("kf3")) return "동작 3";
+  return "-";
+}
+
+// ====== Curated YouTube 추천 (검색이 아니라, 특정 영상 ID 기반) ======
+function youtubeWatchUrl(videoId) {
+  const id = String(videoId || "").trim();
+  if (!id) return null;
+  return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
+}
+
+function youtubeThumbUrl(videoId) {
+  const id = String(videoId || "").trim();
+  if (!id) return null;
+  return `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
+}
+
+// 제품에서 큐레이션한 목록만 사용 (채널/영상 ID 고정)
+const CURATED_YT = {
+  // 동작 1: 준비/그립/백스윙
+  action1: [
+    { videoId: "toQ7tOx7Tvs", title: "The 4 Grips In Badminton (올바른 그립 전환)", channel: "Badminton Insight" },
+    { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (준비/타이밍)", channel: "Badminton Insight" },
+  ],
+  // 동작 2: 임팩트/파워/타이밍
+  action2: [
+    { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (파워와 타이밍)", channel: "Badminton Insight" },
+  ],
+  // 동작 3: 팔로스루/회전/손가락-손목 사용
+  action3: [
+    { videoId: "zCq36gnqGdI", title: "How To Use Your Wrist In Badminton (손목이 아니라 손가락)", channel: "Badminton Insight" },
+  ],
+};
+
+function curatedListForKf(kfKey) {
+  const action = actionNameFromKfKey(kfKey);
+  if (action === "동작 1") return CURATED_YT.action1;
+  if (action === "동작 2") return CURATED_YT.action2;
+  if (action === "동작 3") return CURATED_YT.action3;
+  return [];
+}
+
+function uniqByVideoId(items) {
+  const seen = new Set();
+  const out = [];
+  for (const it of Array.isArray(items) ? items : []) {
+    const id = String(it?.videoId || "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(it);
+  }
+  return out;
+}
+
+function renderYoutubeLinksFromReport(reportObj) {
+  const wrap = document.getElementById("llmYoutubeLinks");
+  if (!wrap) return;
+
+  const plateauKf = reportObj?.plateau?.kf || null;
+  const consKf = reportObj?.consistency?.kf || null;
+
+  const picked = [];
+  if (plateauKf) picked.push(...curatedListForKf(plateauKf));
+  if (consKf) picked.push(...curatedListForKf(consKf));
+
+  // fallback: 대표 영상
+  if (!picked.length) {
+    picked.push(...CURATED_YT.action1, ...CURATED_YT.action2, ...CURATED_YT.action3);
+  }
+
+  const list = uniqByVideoId(picked).slice(0, 3);
+
+  if (!list.length) {
+    wrap.innerHTML = `<div class="ytEmpty">-</div>`;
+    return;
+  }
+
+  wrap.innerHTML = list
+    .map((v) => {
+      const url = youtubeWatchUrl(v.videoId);
+      const thumb = youtubeThumbUrl(v.videoId);
+      const title = String(v.title || "추천 영상");
+      const channel = String(v.channel || "");
+
+      return `
+        <a class="ytCard" href="${url}" target="_blank" rel="noopener noreferrer">
+          <div class="ytCard__thumbWrap">
+            <img class="ytCard__thumb" src="${thumb}" alt="${title}" loading="lazy" />
+            <div class="ytCard__badge">YouTube</div>
+          </div>
+          <div class="ytCard__body">
+            <div class="ytCard__title">${title}</div>
+            <div class="ytCard__meta">${channel}</div>
+          </div>
+        </a>
+      `;
+    })
+    .join("");
+}
+
+
+
 // ====== 유틸: 심각도(룰 기반) ======
 function severityOf(angle) {
   const v = Math.abs(Number(angle));
@@ -106,12 +213,12 @@ function renderTableFromSession(session) {
   const kf3 = session?.kf3_error;
 
   if ([kf1, kf2, kf3].some((v) => Number.isFinite(Number(v)))) {
-    rows.push(["KF1_ERROR", kf1]);
-    rows.push(["KF2_ERROR", kf2]);
-    rows.push(["KF3_ERROR", kf3]);
+    rows.push(["동작 1", kf1]);
+    rows.push(["동작 2", kf2]);
+    rows.push(["동작 3", kf3]);
   } else {
     // 우선순위 2) 종합 kf_error만 있으면 1줄로 표시
-    rows.push(["KF_ERROR(ALL)", session?.kf_error]);
+    rows.push(["평균(전체)", session?.kf_error]);
   }
 
   rows.forEach(([label, val]) => {
@@ -666,7 +773,7 @@ function renderLLMReport(reportObj) {
   // plateau
   if (plateauEl) {
     const p = reportObj?.plateau || null;
-    const kf = p?.kf ? String(p.kf) : "-";
+    const kf = p?.kf ? actionNameFromKfKey(p.kf) : "-";
     const msg = p?.message ? String(p.message) : "-";
     const why = p?.why ? String(p.why) : "";
     const fixes = Array.isArray(p?.fix) ? p.fix : [];
@@ -677,7 +784,7 @@ function renderLLMReport(reportObj) {
   // consistency
   if (consEl) {
     const c = reportObj?.consistency || null;
-    const kf = c?.kf ? String(c.kf) : "-";
+    const kf = c?.kf ? actionNameFromKfKey(c.kf) : "-";
     const msg = c?.message ? String(c.message) : "-";
     const how = Array.isArray(c?.how_to_practice) ? c.how_to_practice : [];
     const howText = how.length ? how.map((x) => `• ${String(x)}`).join("<br/>") : "-";
@@ -692,7 +799,7 @@ function renderLLMReport(reportObj) {
     } else {
       winsEl.innerHTML = wins
         .map((w) => {
-          const kf = w?.kf ? String(w.kf) : "-";
+          const kf = w?.kf ? actionNameFromKfKey(w.kf) : "-";
           const msg = w?.message ? String(w.message) : "-";
           return `• <b>${kf}</b>: ${msg}`;
         })
@@ -741,6 +848,8 @@ function renderLLMReport(reportObj) {
     const items = Array.isArray(reportObj?.quick_checklist) ? reportObj.quick_checklist : [];
     checklistEl.innerHTML = items.map((x) => `<li>${String(x)}</li>`).join("");
   }
+
+  renderYoutubeLinksFromReport(reportObj);
 }
 
 // ====== 초기 로드: DB에서 JSON 가져오기 (실제 DB) ======

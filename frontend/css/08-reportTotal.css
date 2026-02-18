@@ -381,3 +381,82 @@ canvas{
   color: rgba(17,24,39,.75);
   margin-bottom: 8px;
 }
+
+/* ===== Curated YouTube 썸네일 카드 ===== */
+.ytGrid{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+@media (max-width: 900px){
+  .ytGrid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px){
+  .ytGrid{ grid-template-columns: 1fr; }
+}
+
+.ytCard{
+  display: block;
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.ytCard:hover{
+  transform: translateY(-1px);
+}
+
+.ytCard__thumbWrap{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: rgba(0,0,0,0.25);
+}
+
+.ytCard__thumb{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ytCard__badge{
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+}
+
+.ytCard__body{
+  padding: 10px 12px 12px;
+}
+
+.ytCard__title{
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.35;
+  color: inherit;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ytCard__meta{
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.ytEmpty{
+  opacity: 0.7;
+}
