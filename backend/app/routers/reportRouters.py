@@ -189,50 +189,95 @@ def get_analysis_by_post_alias(
         if r not in ("7d", "1m", "3m", "all"):
             r = "7d"
 
-        start_dt = None
         now = datetime.utcnow()
+
+        # ---- current window ----
+        current_start = None
         if r == "7d":
-            start_dt = now - timedelta(days=7)
+            current_start = now - timedelta(days=7)
         elif r == "1m":
-            start_dt = now - timedelta(days=30)  # 근사
+            current_start = now - timedelta(days=30)
         elif r == "3m":
-            start_dt = now - timedelta(days=90)  # 근사
+            current_start = now - timedelta(days=90)
         elif r == "all":
-            start_dt = None
+            current_start = None
 
-        q = db.query(Analysis).filter(Analysis.post_idx == post_idx)
-        if start_dt is not None:
-            q = q.filter(Analysis.create_date >= start_dt)
+        base_q = db.query(Analysis).filter(Analysis.post_idx == post_idx)
 
-        analyses = q.order_by(Analysis.create_date.asc()).all()
+        # current analyses
+        q_current = base_q
+        if current_start is not None:
+            q_current = q_current.filter(Analysis.create_date >= current_start)
 
-        if not analyses:
+        current_analyses = q_current.order_by(Analysis.create_date.asc()).all()
+
+        if not current_analyses:
             raise HTTPException(status_code=404, detail="No analysis rows for this post_idx in the selected range")
 
-        sessions = []
-        for a in analyses:
-            mean_err = _mean_abs_kf_error(a)
-            score = round(max(0, min(100, 100 - (mean_err / 20) * 100)))
+        # ---- previous window (same length) ----
+        prev_analyses = []
+        if current_start is not None:
+            window_days = (now - current_start).days
+            prev_start = current_start - timedelta(days=window_days)
+            prev_end = current_start
 
-            sessions.append({
-                "idx": a.idx,
-                "created_at": a.create_date.isoformat() if a.create_date else None,
-                "frame": "ALL",
-                "score": score,
-                "kf_error": round(mean_err, 4),
+            q_prev = base_q.filter(
+                Analysis.create_date >= prev_start,
+                Analysis.create_date < prev_end,
+            )
+            prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
 
-                # ✅ 테이블용(프론트가 기대하는 필드)
-                "kf1_error": float(a.kf1_error or 0.0),
-                "kf2_error": float(a.kf2_error or 0.0),
-                "kf3_error": float(a.kf3_error or 0.0),
-            })
+        def to_sessions(analyses: list[Analysis]) -> list[Dict[str, Any]]:
+            out = []
+            for a in analyses:
+                mean_err = _mean_abs_kf_error(a)
+                score = round(max(0, min(100, 100 - (mean_err / 20) * 100)))
+                out.append({
+                    "idx": a.idx,
+                    "created_at": a.create_date.isoformat() if a.create_date else None,
+                    "frame": "ALL",
+                    "score": score,
+                    "kf_error": round(mean_err, 4),
+                    "kf1_error": float(a.kf1_error or 0.0),
+                    "kf2_error": float(a.kf2_error or 0.0),
+                    "kf3_error": float(a.kf3_error or 0.0),
+                })
+            return out
 
-        logger_api.info("[GET ANALYSIS] post_idx=%s range=%s row_count=%d", post_idx, r, len(sessions))
+        current_sessions = to_sessions(current_analyses)
+        prev_sessions = to_sessions(prev_analyses)
+
+        # ---- summary stats ----
+        def mean_kf(arr: list[Dict[str, Any]]) -> float:
+            vals = [abs(float(s.get("kf_error", 0.0))) for s in arr]
+            return sum(vals) / len(vals) if vals else 0.0
+
+        current_mean = mean_kf(current_sessions)
+        prev_mean = mean_kf(prev_sessions)
+        delta = round(current_mean - prev_mean, 4)
+
+        direction = "improved" if delta < 0 else ("worsened" if delta > 0 else "flat")
+
+        logger_api.info(
+            "[GET ANALYSIS] post_idx=%s range=%s current=%d prev=%d delta=%.4f",
+            post_idx,
+            r,
+            len(current_sessions),
+            len(prev_sessions),
+            delta,
+        )
 
         return {
             "post_idx": post_idx,
             "range": r,
-            "sessions": sessions,
+            "current_sessions": current_sessions,
+            "prev_sessions": prev_sessions,
+            "comparison": {
+                "current_mean_abs_kf_error": round(current_mean, 4),
+                "prev_mean_abs_kf_error": round(prev_mean, 4),
+                "delta_mean_abs_kf_error": delta,
+                "direction": direction,
+            },
         }
 
     except HTTPException:
