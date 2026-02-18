@@ -55,6 +55,92 @@ def _mean_abs_kf_error(a: Analysis) -> float:
         return 0.0
     return sum(vals) / len(vals)
 
+def _series_vals(analyses: list[Analysis], key: str) -> list[float]:
+    out: list[float] = []
+    for a in analyses:
+        v = getattr(a, key, None)
+        if v is None:
+            continue
+        try:
+            out.append(abs(float(v)))
+        except Exception:
+            continue
+    return out
+
+def _mean(arr: list[float]) -> float:
+    return sum(arr) / len(arr) if arr else 0.0
+
+def _std(arr: list[float]) -> float:
+    if not arr:
+        return 0.0
+    m = _mean(arr)
+    return (sum((x - m) ** 2 for x in arr) / len(arr)) ** 0.5
+
+def _compute_growth_insights(analyses: list[Analysis]) -> Dict[str, Any]:
+    if not analyses:
+        return {"growth": None, "plateau": None, "consistency": None, "wins": []}
+
+    keys = ["kf1_error", "kf2_error", "kf3_error"]
+
+    # consistency: std 가장 큰 KF
+    stds = {k: _std(_series_vals(analyses, k)) for k in keys}
+    volatile = max(stds.items(), key=lambda kv: kv[1])[0] if stds else None
+
+    # plateau: 최근 N mean vs 이전 N mean
+    N = min(10, max(4, len(analyses) // 3))
+    plateau_obj = None
+    plateau_scores = []
+    for k in keys:
+        arr = _series_vals(analyses, k)
+        if len(arr) < 2 * N:
+            continue
+        prev = arr[-2 * N : -N]
+        recent = arr[-N:]
+        prev_m = _mean(prev)
+        recent_m = _mean(recent)
+        delta = recent_m - prev_m
+        plateau_scores.append((k, delta, prev_m, recent_m))
+    if plateau_scores:
+        plateau_scores.sort(key=lambda t: t[1], reverse=True)
+        k, delta, prev_m, recent_m = plateau_scores[0]
+        plateau_obj = {
+            "kf": k,
+            "prev_mean": round(prev_m, 4),
+            "recent_mean": round(recent_m, 4),
+            "delta": round(delta, 4),
+            "window_n": N,
+        }
+
+    # growth: first vs last
+    first_mean = _mean_abs_kf_error(analyses[0])
+    last_mean = _mean_abs_kf_error(analyses[-1])
+    growth_delta = last_mean - first_mean
+    direction = "improved" if growth_delta < -1e-9 else ("worsened" if growth_delta > 1e-9 else "flat")
+
+    # wins: first-half vs second-half delta (가장 개선된 KF top3)
+    wins = []
+    for k in keys:
+        arr = _series_vals(analyses, k)
+        if len(arr) < 4:
+            continue
+        h = max(1, len(arr) // 2)
+        m0 = _mean(arr[:h])
+        m1 = _mean(arr[h:]) if arr[h:] else m0
+        wins.append({"kf": k, "delta": round(m1 - m0, 4), "first_half": round(m0, 4), "second_half": round(m1, 4)})
+    wins.sort(key=lambda w: w["delta"])  # most negative = best improvement
+
+    return {
+        "growth": {
+            "direction": direction,
+            "delta_mean_abs_kf_error": round(growth_delta, 4),
+            "first_mean_abs_kf_error": round(first_mean, 4),
+            "last_mean_abs_kf_error": round(last_mean, 4),
+        },
+        "plateau": plateau_obj,
+        "consistency": {"kf": volatile, "std": round(stds.get(volatile, 0.0), 4)} if volatile else None,
+        "wins": wins[:3],
+    }
+
 # --------------- POST /api/report/posture ---------------
 @router.post("/posture", response_model=PostureReportResponse)
 def posture_report(payload: PostureReportRequest):
@@ -165,7 +251,7 @@ class PostReportResponse(BaseModel):
 def posture_report_from_post(post_idx: str, lang: str = "ko", db: Session = Depends(get_db)):
     """
     post_idx 기준으로 Analysis 히스토리(여러 건)를 DB에서 조회한 뒤,
-    - 최신 1건(latest) + 5일치(history) 추세(개선/악화)를 meta에 포함하여
+        - 최신 1건(latest) + 히스토리 기반 요약지표(insights/추세)만 meta에 포함하여
     - kf1_error/kf2_error/kf3_error 기반 LLM 리포트를 생성합니다.
     """
     t0 = time.perf_counter()
@@ -205,38 +291,22 @@ def posture_report_from_post(post_idx: str, lang: str = "ko", db: Session = Depe
         delta = last_mean - first_mean  # 음수면 개선(오차 감소), 양수면 악화
         trend = "improved" if delta < -1e-9 else ("worsened" if delta > 1e-9 else "flat")
 
-        history = [
-            {
-                "idx": a.idx,
-                "created_at": a.create_date.isoformat() if a.create_date else None,
-                "kf1_error": float(a.kf1_error or 0.0),
-                "kf2_error": float(a.kf2_error or 0.0),
-                "kf3_error": float(a.kf3_error or 0.0),
-                "mean_abs_kf_error": round(_mean_abs_kf_error(a), 4),
-                "score_json": a.score_json or {},
-            }
-            for a in analyses
-        ]
+        insights = _compute_growth_insights(analyses)
 
         meta: Dict[str, Any] = {
             "post_idx": post_idx,
-            "latest": {
-                "idx": latest.idx,
-                "created_at": latest.create_date.isoformat() if latest.create_date else None,
-                "kf1": latest.kf1,
-                "kf2": latest.kf2,
-                "kf3": latest.kf3,
-                "score_json": latest.score_json or {},
-            },
-            "history": history,
-            "trend": {
+            "summary": {
+                "count": len(analyses),
                 "first_at": first.create_date.isoformat() if first.create_date else None,
                 "last_at": latest.create_date.isoformat() if latest.create_date else None,
+            },
+            "trend": {
                 "first_mean_abs_kf_error": round(first_mean, 4),
                 "last_mean_abs_kf_error": round(last_mean, 4),
                 "delta_mean_abs_kf_error": round(delta, 4),
-                "direction": trend,  # improved | worsened | flat
+                "direction": trend,
             },
+            "insights": insights,
         }
 
         logger_api.info(
