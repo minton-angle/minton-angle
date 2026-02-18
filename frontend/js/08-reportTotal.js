@@ -647,6 +647,59 @@ function renderLLMReport(reportObj) {
   const sumEl = document.getElementById("llmSummary");
   if (sumEl) sumEl.textContent = summaryText;
 
+  // ===== 성장/정체/일관성/좋아진 점 섹션 =====
+  const growthEl = document.getElementById("llmGrowth");
+  const plateauEl = document.getElementById("llmPlateau");
+  const consEl = document.getElementById("llmConsistency");
+  const winsEl = document.getElementById("llmWins");
+
+  // growth
+  if (growthEl) {
+    const g = reportObj?.growth || null;
+    const dir = g?.direction ? String(g.direction) : "-";
+    const dlt = Number(g?.delta_mean_abs_kf_error);
+    const dltText = Number.isFinite(dlt) ? `${dlt >= 0 ? "+" : ""}${dlt}°` : "-";
+    const msg = g?.message ? String(g.message) : "-";
+    growthEl.innerHTML = `방향: <b>${dir}</b><br/>변화(평균 오차): <b>${dltText}</b><br/>${msg}`;
+  }
+
+  // plateau
+  if (plateauEl) {
+    const p = reportObj?.plateau || null;
+    const kf = p?.kf ? String(p.kf) : "-";
+    const msg = p?.message ? String(p.message) : "-";
+    const why = p?.why ? String(p.why) : "";
+    const fixes = Array.isArray(p?.fix) ? p.fix : [];
+    const fixText = fixes.length ? fixes.map((x) => `• ${String(x)}`).join("<br/>") : "-";
+    plateauEl.innerHTML = `대상: <b>${kf}</b><br/>${msg}${why ? `<br/><br/><b>왜 중요?</b><br/>${why}` : ""}<br/><br/><b>추천 교정</b><br/>${fixText}`;
+  }
+
+  // consistency
+  if (consEl) {
+    const c = reportObj?.consistency || null;
+    const kf = c?.kf ? String(c.kf) : "-";
+    const msg = c?.message ? String(c.message) : "-";
+    const how = Array.isArray(c?.how_to_practice) ? c.how_to_practice : [];
+    const howText = how.length ? how.map((x) => `• ${String(x)}`).join("<br/>") : "-";
+    consEl.innerHTML = `대상: <b>${kf}</b><br/>${msg}<br/><br/><b>연습 방법</b><br/>${howText}`;
+  }
+
+  // wins
+  if (winsEl) {
+    const wins = Array.isArray(reportObj?.wins) ? reportObj.wins : [];
+    if (!wins.length) {
+      winsEl.textContent = "-";
+    } else {
+      winsEl.innerHTML = wins
+        .map((w) => {
+          const kf = w?.kf ? String(w.kf) : "-";
+          const msg = w?.message ? String(w.message) : "-";
+          return `• <b>${kf}</b>: ${msg}`;
+        })
+        .join("<br/>");
+    }
+  }
+
   const headline =
     sev === "high" ? "주의가 필요합니다" :
     sev === "medium" ? "개선 여지가 있습니다" :
@@ -768,14 +821,7 @@ async function loadFromDB(range = "7d") {
         renderLLMReport(report);
         // renderMonthlySummary(sessions); // (removed: no MONTHLY SUMMARY)
         
-        // ✅ (B) 버튼을 누를 때마다 "현재 angles" 기준으로 점수를 다시 계산해 반영
-        // 종합 리포트 페이지에서는 점수를 LLM이 아니라 프론트 규칙(computeScoreFromKfError)로 산출합니다.
-        const curLast2 = window.__LAST_SESSION__;
-        const refreshedScore = Number.isFinite(Number(curLast2?.score))
-          ? Number(curLast2.score)
-          : computeScoreFromKfError(curLast2?.kf_error);
-
-        setScore(refreshedScore);
+        // SCORE는 선택된 기간(range)의 최신 세션 기준으로 유지합니다. (LLM 버튼은 점수 링을 변경하지 않음)
 
         // 요약 문구는 LLM 결과를 그대로 사용(점수는 반영하지 않음)
         const extracted = extractScoreAndSummary(report);
