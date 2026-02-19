@@ -247,6 +247,22 @@ def get_analysis_by_post_alias(
         current_sessions = to_sessions(current_analyses)
         prev_sessions = to_sessions(prev_analyses)
 
+        # ---- latest LLM report (optional) ----
+        latest_llm = (
+            db.query(LLMReport)
+            .filter(LLMReport.post_idx == post_idx)
+            .order_by(LLMReport.create_date.desc())
+            .first()
+        )
+
+        latest_llm_payload = None
+        if latest_llm is not None:
+            latest_llm_payload = {
+                "idx": latest_llm.idx,
+                "created_at": latest_llm.create_date.isoformat() if latest_llm.create_date else None,
+                "report": latest_llm.feedback,
+            }
+
         # ---- summary stats ----
         def mean_kf(arr: list[Dict[str, Any]]) -> float:
             vals = [abs(float(s.get("kf_error", 0.0))) for s in arr]
@@ -272,6 +288,7 @@ def get_analysis_by_post_alias(
             "range": r,
             "current_sessions": current_sessions,
             "prev_sessions": prev_sessions,
+            "latest_llm_report": latest_llm_payload,
             "comparison": {
                 "current_mean_abs_kf_error": round(current_mean, 4),
                 "prev_mean_abs_kf_error": round(prev_mean, 4),

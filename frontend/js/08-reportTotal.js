@@ -1098,6 +1098,12 @@ async function refreshByRange(range){
     ? Number(last.score)
     : computeScoreFromKfError(last?.kf_error);
   setScore(initialScore);
+
+  // If server provides the latest LLM report, render it (doesn't affect charts)
+  const latestLLM = payload?.latest_llm_report?.report || null;
+  if (latestLLM) {
+    renderLLMReport(latestLLM);
+  }
 }
 
 // ====== LLM 리포트 생성 호출 (DB 기반) ======
@@ -1293,6 +1299,12 @@ async function loadFromDB(range = "7d") {
     : computeScoreFromKfError(last?.kf_error);
 
   setScore(initialScore);
+
+  // Render latest LLM report on first load if available
+  const latestLLM = payload?.latest_llm_report?.report || null;
+  if (latestLLM) {
+    renderLLMReport(latestLLM);
+  }
 
 })();
 
