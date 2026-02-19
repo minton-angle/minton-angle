@@ -567,12 +567,12 @@ function setScore(score) {
 
   const ring = document.querySelector(".scoreRing");
   if (ring) ring.setAttribute("aria-label", `점수 ${s}점`);
-}
+  }
 
 // ====== 기간 라벨/성장 요약/스코어 링 색상 헬퍼 ======
 function rangeLabelFromKey(r){
   const x = String(r || "").toLowerCase();
-  if (x === "7d") return "1주";
+  if (x === "7d") return "1주일";
   if (x === "1m") return "1개월";
   if (x === "3m") return "3개월";
   if (x === "all") return "전체";
