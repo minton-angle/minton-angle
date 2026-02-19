@@ -82,6 +82,21 @@ function std(values){
   return Math.sqrt(xs.reduce((a,x)=>a + (x-m)*(x-m), 0) / xs.length);
 }
 
+// 팔로우스윙(카드5) 패스 여부 시리즈 추출: prefers followswing_pass, fallback to stage_scores["5_FollowSwing_Total"]
+function extractFollowSwingPassSeries(sessions){
+  return (Array.isArray(sessions) ? sessions : []).map((s)=>{
+    // primary: boolean from backend
+    const v = s?.followswing_pass;
+    if (v === true) return true;
+    if (v === false) return false;
+
+    // fallback: infer from stage score total (0/100)
+    const t = Number(s?.stage_scores?.["5_FollowSwing_Total"]);
+    if (Number.isFinite(t)) return t >= 50; // 100=>true, 0=>false
+    return null;
+  });
+}
+
 function extractKfSeries(sessions, field){
   return (Array.isArray(sessions) ? sessions : []).map((s)=>s?.[field]);
 }
@@ -92,6 +107,25 @@ function buildActionInsightText(actionLabel, curMean, prevMean, curStd){
   const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
 
   return `평균 점수: <b>${cm}점</b> (이전 ${pm}점)<br/>변동성(표준편차): <b>${sd}점</b>`;
+}
+
+function followswingFeedbackFromFalseRate(falseRate){
+  // falseRate(0~1)
+  // - 40% 미만: 잘하고 있다
+  // - 40% 이상 ~ 80% 미만: 개선 필요
+  // - 80% 이상: 위험 부상이 있다
+  if (!Number.isFinite(falseRate)) return "-";
+  if (falseRate >= 0.80) return "위험 부상이 있다";
+  if (falseRate >= 0.40) return "팔로우 스윙에 개선이 필요하다";
+  return "잘하고 있다";
+}
+
+function followswingTrendPillText(direction, deltaPp){
+  const dp = Number(deltaPp);
+  const abs = Number.isFinite(dp) ? Math.abs(dp).toFixed(0) : "-";
+  if (direction === "improved") return `개선 (Δ ${abs}%p 감소)`;
+  if (direction === "worsened") return `악화 (Δ ${abs}%p 증가)`;
+  return `정체 (Δ ${abs}%p)`;
 }
 
 function renderActionCards(currentSessions, prevSessions){
@@ -138,14 +172,58 @@ function renderActionCards(currentSessions, prevSessions){
     }
 
     const pill = document.getElementById(`a${c.n}TrendPill`);
-    if (pill){
-      pill.textContent = trendPillText(direction, delta);
-      applyTrendPill(pill, direction);
-    }
-
+    // special case: card 5 (FollowSwing) feedback
     const body = document.getElementById(`a${c.n}Body`);
     if (body){
-      body.innerHTML = buildActionInsightText(c.label, curMean, prevMean, curStd);
+      // FollowSwing: boolean-based feedback (false rate) + previous period comparison
+      if (String(c.n) === "5"){
+        const curSeries = extractFollowSwingPassSeries(currentSessions);
+        const curValid = curSeries.filter((v)=> v === true || v === false);
+        const curTotalN = curValid.length;
+        const curFalseN = curValid.filter((v)=> v === false).length;
+        const curFalseRate = curTotalN ? (curFalseN / curTotalN) : NaN;
+
+        const prevSeries = extractFollowSwingPassSeries(prevSessions);
+        const prevValid = prevSeries.filter((v)=> v === true || v === false);
+        const prevTotalN = prevValid.length;
+        const prevFalseN = prevValid.filter((v)=> v === false).length;
+        const prevFalseRate = prevTotalN ? (prevFalseN / prevTotalN) : NaN;
+
+        const curPct = Number.isFinite(curFalseRate) ? Math.round(curFalseRate * 100) : null;
+        const prevPct = Number.isFinite(prevFalseRate) ? Math.round(prevFalseRate * 100) : null;
+
+        // delta in percentage points (current - previous)
+        const deltaPp = (Number.isFinite(curFalseRate) && Number.isFinite(prevFalseRate))
+          ? Math.round((curFalseRate - prevFalseRate) * 100)
+          : null;
+
+        // false rate is better when LOWER
+        let fsDir = "flat";
+        if (deltaPp != null){
+          if (deltaPp < 0) fsDir = "improved";
+          else if (deltaPp > 0) fsDir = "worsened";
+        }
+
+        const msg = followswingFeedbackFromFalseRate(curFalseRate);
+
+        body.innerHTML = `기간 내 실패(False) 비율: <b>${curPct == null ? "-" : curPct + "%"}</b> (False ${curFalseN}/${curTotalN})<br/>` +
+                         `이전 기간 실패 비율: <b>${prevPct == null ? "-" : prevPct + "%"}</b> (False ${prevFalseN}/${prevTotalN})<br/>` +
+                         `변화: <b>${deltaPp == null ? "-" : (deltaPp > 0 ? "+" : "") + deltaPp + "%p"}</b><br/>` +
+                         `피드백: <b>${msg}</b>`;
+
+        // pill: reflect false-rate delta
+        const pillEl = document.getElementById(`a${c.n}TrendPill`);
+        if (pillEl){
+          pillEl.textContent = followswingTrendPillText(fsDir, deltaPp == null ? NaN : deltaPp);
+          applyTrendPill(pillEl, fsDir);
+        }
+      } else {
+        body.innerHTML = buildActionInsightText(c.label, curMean, prevMean, curStd);
+        if (pill){
+          pill.textContent = trendPillText(direction, delta);
+          applyTrendPill(pill, direction);
+        }
+      }
     }
   }
 
