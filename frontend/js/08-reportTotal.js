@@ -1239,7 +1239,8 @@ function getPostIdxFallback() {
 
 // ====== LLM 리포트 생성 (기존 라우터: /api/report/post/{post_idx}) ======
 async function generateLLMReportByPostIdx(postIdx, lang = "ko") {
-  const url = `${API_BASE}/api/report/post/${encodeURIComponent(postIdx)}?lang=${encodeURIComponent(lang)}`;
+  const r = (__RANGE_FILTER__ || "7d");
+  const url = `${API_BASE}/api/report/post/${encodeURIComponent(postIdx)}?lang=${encodeURIComponent(lang)}&range=${encodeURIComponent(r)}`;
   const res = await fetch(url, { method: "POST" });
 
   if (!res.ok) {
