@@ -439,7 +439,8 @@ def posture_report_from_post(
             "2_Rotation_Total",
             "3_Backswing_Total",
             "4_Impact_Total",
-            "5_FollowSwing_Total",
+            # FollowSwing은 boolean 기반 → 성공률 점수로 meta에 제공
+            "5_FollowSwing_SuccessRate",
             "Average_Score",
         ]
 
@@ -462,12 +463,71 @@ def posture_report_from_post(
                 vals.append(v)
             return sum(vals) / len(vals) if vals else 0.0
 
+        # 팔로스윙 false rate / risk level 계산 함수 추가
+        def _followswing_false_rate(rows: list[Analysis]) -> float:
+            total = 0
+            false_n = 0
+            for rr in rows:
+                sj = getattr(rr, "score_json", None) or {}
+
+                v = sj.get("5_FollowSwing_Pass", None)
+                if v is None:
+                    # fallback: 기존 0/100 Total로 추정
+                    t = sj.get("5_FollowSwing_Total", None)
+                    try:
+                        if t is None:
+                            continue
+                        passed = float(t) >= 50.0
+                    except Exception:
+                        continue
+                else:
+                    passed = bool(v)
+
+                total += 1
+                if not passed:
+                    false_n += 1
+
+            return (false_n / total) if total else 0.0
+
+        def _followswing_risk_level(false_rate: float) -> str:
+            # <40%: ok, 40~<80%: improve, >=80%: risk
+            if false_rate >= 0.80:
+                return "risk"
+            if false_rate >= 0.40:
+                return "improve"
+            return "ok"
+
         score_stats: Dict[str, Any] = {}
+
         for k in SCORE_KEYS:
+            # FollowSwing: 성공률(=100 - false%) 기반으로 score_stats 구성
+            if k == "5_FollowSwing_SuccessRate":
+                cur_false = _followswing_false_rate(analyses)
+                prev_false = _followswing_false_rate(prev_analyses) if prev_analyses else cur_false
+
+                cur_sr = 100.0 - (cur_false * 100.0)
+                prev_sr = 100.0 - (prev_false * 100.0)
+
+                dlt = cur_sr - prev_sr
+                direction = "improved" if dlt > 1e-9 else ("worsened" if dlt < -1e-9 else "flat")
+
+                score_stats[k] = {
+                    "current_mean": round(cur_sr, 2),
+                    "prev_mean": round(prev_sr, 2),
+                    "delta": round(dlt, 2),
+                    "direction": direction,
+
+                    # LLM에게만 제공할 위험 신호(숫자/레벨)
+                    "false_rate_current": round(cur_false, 4),
+                    "false_rate_prev": round(prev_false, 4),
+                    "risk_level": _followswing_risk_level(cur_false),
+                }
+                continue
+
+            # (나머지 키는 기존 점수 평균 로직 그대로)
             cur_m = _mean_score(analyses, k)
             prev_m = _mean_score(prev_analyses, k) if prev_analyses else cur_m
             dlt = cur_m - prev_m
-            # 점수는 높을수록 개선
             direction = "improved" if dlt > 1e-9 else ("worsened" if dlt < -1e-9 else "flat")
             score_stats[k] = {
                 "current_mean": round(cur_m, 2),
