@@ -248,7 +248,6 @@ def get_analysis_by_post_alias(
             for a in analyses:
                 # legacy KF-based score
                 mean_err = _mean_abs_kf_error(a)
-                legacy_score = round(max(0, min(100, 100 - (mean_err / 20) * 100)))
 
                 # new stage scores from score_json
                 sj = getattr(a, "score_json", None) or {}
@@ -261,17 +260,15 @@ def get_analysis_by_post_alias(
                 except Exception:
                     avg_score_num = None
 
-                # prefer Average_Score if present for session score ring
-                session_score = legacy_score
-                if avg_score_num is not None:
-                    session_score = int(round(avg_score_num))
+                # session score: strictly use Average_Score (no KF fallback)
+                session_score = int(round(avg_score_num)) if avg_score_num is not None else 0
 
                 out.append({
                     "idx": a.idx,
                     "created_at": a.create_date.isoformat() if a.create_date else None,
                     "frame": "ALL",
 
-                    # score for ring/chart (prefer Average_Score)
+                    # score for ring/chart (strictly Average_Score)
                     "score": session_score,
 
                     # legacy fields (keep)
