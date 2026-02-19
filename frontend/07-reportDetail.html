@@ -20,266 +20,151 @@
         <div class="scroll-container">
             <main class="report-content">
                 
-            <section class="report-card overall-card">
-                                <div class="card-header">
-                                    <div class="header-text">
-                                        <p class="card-subtitle">스윙별 자세 확인하기 <span class="highlight">(*전문가와 동시 비교 가능)</span></p>
-                                    </div>
-                                    <div class="swing-tabs" id="swing-tabs" style="display: none;">
-                                        <button class="tab-btn active" data-index="0">1회</button>
-                                        <button class="tab-btn" data-index="1">2회</button>
-                                        <button class="tab-btn" data-index="2">3회</button>
-                                    </div>
-                                </div>
-                                
-                                <div class="card-body">
-                                    <div class="overall-info">
-                                        <h2 class="overall-grade" id="overall-grade">조금만 더 노력하면<br>선수 폼 나오겠어요!</h2>
-                                        <p class="overall-comment" id="overall-comment">종합 평가 내용이 로드됩니다.</p>
-                                    </div>
-                                    
-                                    <div class="chart-container">
-                                        <svg viewBox="0 0 100 100" class="score-svg">
-                                            <circle class="bg" cx="50" cy="50" r="45"></circle>
-                                            <circle class="meter" id="score-meter" cx="50" cy="50" r="45"></circle>
-                                        </svg>
-                                        <div class="score-text">
-                                            <span id="overall-score">0</span>
-                                            <span class="unit">점</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
+                <section class="report-card overall-card">
+                    <div class="card-header">
+                        <p class="card-subtitle">전문가와 비교한 내 스윙 분석 결과</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="overall-info">
+                            <h2 class="overall-grade" id="overall-grade">분석 중...</h2>
+                            <p class="overall-comment" id="overall-comment">잠시만 기다려주세요.</p>
+                        </div>
+                        <div class="chart-container">
+                            <svg viewBox="0 0 100 100" class="score-svg">
+                                <circle class="bg" cx="50" cy="50" r="45"></circle>
+                                <circle class="meter" id="score-meter" cx="50" cy="50" r="45"></circle>
+                            </svg>
+                            <div class="score-text">
+                                <span id="overall-score">0</span><span class="unit">점</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
-
-                <!-- 구간1: 준비자세 -->
                 <section class="phase-section">
                     <div class="phase-header">
                         <span class="phase-number">1</span>
                         <h3 class="phase-title">준비자세</h3>
-                        <span class="phase-badge" id="phase1-badge">비교</span>
+                        <span class="phase-badge" id="phase1-badge">--점</span>
                     </div>
-                    
-                    <div class="comparison-container">
-                        <div class="comparison-item">
-                            <span class="comparison-label">나의 자세</span>
-                            <div class="media-box">
-                                <img id="phase1-user-img" src="" alt="내 준비자세">
+                    <div class="phase-content">
+                        <div class="comparison-container">
+                            <div class="comparison-item">
+                                <span class="comparison-label">나의 자세</span>
+                                <div class="media-box"><img id="phase1-user-img" src="" alt="나의 자세"></div>
+                            </div>
+                            <div class="comparison-item">
+                                <span class="comparison-label">전문가</span>
+                                <div class="media-box"><img id="phase1-expert-img" src="assets/1_ready_hybrid.jpg" alt="전문가"></div>
                             </div>
                         </div>
-                        <div class="comparison-item">
-                            <span class="comparison-label">전문가</span>
-                            <div class="media-box">
-                                <img id="phase1-expert-img" src="assets/gt_1_ready.jpg" alt="전문가 준비자세">
-                            </div>
+                        <div class="eval-container">
+                            <div class="eval-item"><span class="eval-name">팔꿈치 높이</span><span class="eval-status" id="eval-1">--</span></div>
+                            <div class="eval-item"><span class="eval-name">보조 손</span><span class="eval-status" id="eval-2">--</span></div>
+                            <div class="eval-item"><span class="eval-name">상체 열림</span><span class="eval-status" id="eval-3">--</span></div>
                         </div>
                     </div>
-
-                    <!-- 준비자세 지표 (선택사항) -->
-                    <div class="metrics-container" id="phase1-metrics" style="display: none;">
-                        <!-- 준비자세 지표가 있으면 표시 -->
-                    </div>
-
-                    <p class="phase-tip" id="phase1-tip">
-                        📌 양발은 어깨너비로, 라켓은 가슴 앞에 위치시켜요.
-                    </p>
                 </section>
 
                 <section class="phase-section">
                     <div class="phase-header">
                         <span class="phase-number">2</span>
-                        <h3 class="phase-title">백스윙 ~ 임팩트</h3>
-                        <span class="phase-badge score" id="phase2-badge">--점</span>
+                        <h3 class="phase-title">스윙</h3>
+                        <span class="phase-badge" id="phase2-badge">--점</span>
                     </div>
-                    
-                    <div class="comparison-container">
-                        <div class="comparison-item">
-                            <span class="comparison-label">나의 스윙</span>
-                            <div class="media-box video-box">
-                                <video id="phase2-user-video" controls playsinline>
-                                    <source src="" type="video/mp4">
-                                </video>
-                            </div>
-                        </div>
-                        <div class="comparison-item">
-                            <span class="comparison-label">전문가</span>
-                            <div class="media-box video-box">
-                                <video id="phase2-expert-video" controls playsinline>
-                                    <source src="assets/gt_1_rotation_fixed.mp4" type="video/mp4">
-                                </video>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button class="sync-play-btn" onclick="syncPlayVideos('phase2')">
-                        ▶️ 동시에 재생하기
-                    </button>
-
-                    <div class="metrics-container single-metric">
-                        <div class="metric-item" id="metric-hip">
-                            <div class="metric-header">
-                                <span class="metric-name">🔄 골반 회전</span>
-                                <span class="metric-value" id="hip-value">--%</span>
-                            </div>
-                            <div class="metric-bar-container">
-                                <div class="metric-bar" id="hip-bar"></div>
-                                <div class="metric-range">
-                                    <span>0%</span>
-                                    <span class="good-range">15%~40%</span>
-                                    <span>50%+</span>
-                                </div>
-                            </div>
-                            <p class="metric-feedback" id="hip-feedback">분석 중...</p>
-                        </div>
-                    </div>
-
-                    <div class="impact-comparison">
-                        <h4 class="sub-title">⚡ 임팩트 순간 비교</h4>
-                        <div class="comparison-container small">
+                    <div class="phase-content">
+                        <div class="comparison-container">
                             <div class="comparison-item">
-                                <div class="media-box">
-                                    <img id="phase2-impact-img" src="" alt="나의 임팩트">
+                                <span class="comparison-label">나의 스윙</span>
+                                <div class="media-box video-box">
+                                    <video id="phase2-user-video" muted playsinline><source src="" type="video/mp4"></video>
                                 </div>
                             </div>
                             <div class="comparison-item">
-                                <div class="media-box">
-                                    <img id="phase2-expert-impact" src="assets/gt_1_impact.jpg" alt="전문가 임팩트">
+                                <span class="comparison-label">전문가</span>
+                                <div class="media-box video-box">
+                                    <video id="phase2-expert-video" muted playsinline><source src="assets/2_rotation_hybrid.mp4" type="video/mp4"></video>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        <button class="sync-play-btn" onclick="syncPlayVideos('phase2')">▶️ 동시에 재생하기</button>
 
-                    <div class="metrics-container single-metric">
-                        <div class="metric-item" id="metric-height">
-                            <div class="metric-header">
-                                <span class="metric-name">📏 임팩트 높이</span>
-                                <span class="metric-value" id="height-value">--</span>
-                            </div>
-                            <div class="metric-bar-container">
-                                <div class="metric-bar" id="height-bar"></div>
-                                <div class="metric-range">
-                                    <span>낮음</span>
-                                    <span class="good-range">적정</span>
-                                    <span>높음</span>
-                                </div>
-                            </div>
-                            <p class="metric-feedback" id="height-feedback">분석 중...</p>
+                        <div class="eval-container">
+                            <div class="eval-item"><span class="eval-name">🔄 어깨 회전</span><span class="eval-status" id="eval-4">--</span></div>
                         </div>
-                    </div>
 
-                    <div class="impact-comparison">
-                        <h4 class="sub-title">💪 팔꿈치 최대 신전 비교</h4>
-                        <div class="comparison-container small">
-                            <div class="comparison-item">
-                                <div class="media-box">
-                                    <img id="phase2-elbow-img" src="" alt="나의 팔꿈치 신전">
+                        <div class="sub-section">
+                            <h4 class="sub-title">📸 키프레임 상세 비교</h4>
+                            
+                            <div class="keyframe-group">
+                                <p class="keyframe-label-main">* 백스윙</p>
+                                <div class="comparison-container">
+                                    <div class="comparison-item">
+                                        <span class="comparison-label">나의 자세</span>
+                                        <div class="media-box small"><img id="phase2-backswing-img" src="" alt="나의 자세"></div>
+                                    </div>
+                                    <div class="comparison-item">
+                                        <span class="comparison-label">전문가</span>
+                                        <div class="media-box small"><img src="assets/3_backswing_hybrid.jpg" alt="전문가"></div>
+                                    </div>
+                                </div>
+                                <div class="eval-container mini">
+                                    <div class="eval-item" data-id="5"><span class="eval-name">💪 팔꿈치 L자</span><span class="eval-status" id="eval-5">--</span></div>
+                                    <div class="eval-item" data-id="6"><span class="eval-name">↩️ 백스윙 깊이</span><span class="eval-status" id="eval-6">--</span></div>
                                 </div>
                             </div>
-                            <div class="comparison-item">
-                                <div class="media-box">
-                                    <img id="phase2-expert-elbow" src="assets/gt_1_backswing.jpg" alt="전문가 팔꿈치 신전">
+
+                            <div class="keyframe-group">
+                                <p class="keyframe-label-main">* 임팩트</p>
+                                <div class="comparison-container">
+                                    <div class="comparison-item">
+                                        <span class="comparison-label">나의 자세</span>
+                                        <div class="media-box small"><img id="phase2-impact-img" src="" alt="나의 자세"></div>
+                                    </div>
+                                    <div class="comparison-item">
+                                        <span class="comparison-label">전문가</span>
+                                        <div class="media-box small"><img src="assets/4_impact_hybrid.jpg" alt="전문가"></div>
+                                    </div>
+                                </div>
+                                <div class="eval-container mini">
+                                    <div class="eval-item" data-id="7"><span class="eval-name">🦾 팔 펴짐</span><span class="eval-status" id="eval-7">--</span></div>
+                                    <div class="eval-item" data-id="8"><span class="eval-name">📍 타점 높이</span><span class="eval-status" id="eval-8">--</span></div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="metrics-container single-metric">
-                        <div class="metric-item" id="metric-elbow">
-                            <div class="metric-header">
-                                <span class="metric-name">💪 팔꿈치 신전 각도</span>
-                                <span class="metric-value" id="elbow-value">--°</span>
-                            </div>
-                            <div class="metric-bar-container">
-                                <div class="metric-bar" id="elbow-bar"></div>
-                                <div class="metric-range">
-                                    <span>140°</span>
-                                    <span class="good-range">155°~175°</span>
-                                    <span>190°</span>
-                                </div>
-                            </div>
-                            <p class="metric-feedback" id="elbow-feedback">분석 중...</p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 구간3: 팔로우스루 -->
-                <section class="phase-section">
+                        </div> </div> </section> <section class="phase-section">
                     <div class="phase-header">
                         <span class="phase-number">3</span>
                         <h3 class="phase-title">팔로우스루</h3>
-                        <span class="phase-badge score" id="phase3-badge">--점</span>
+                        <span class="phase-badge" id="phase3-badge">--점</span>
                     </div>
-                    
-                    <div class="comparison-container">
-                        <div class="comparison-item">
-                            <span class="comparison-label">나의 마무리</span>
-                            <div class="media-box video-box">
-                                <video id="phase3-user-video" controls playsinline>
-                                    <source src="" type="video/mp4">
-                                </video>
-                            </div>
-                        </div>
-                        <div class="comparison-item">
-                            <span class="comparison-label">전문가</span>
-                            <div class="media-box video-box">
-                                <video id="phase3-expert-video" controls playsinline>
-                                    <source src="assets/gt_1_follow_fixed.mp4" type="video/mp4">
-                                </video>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button class="sync-play-btn" onclick="syncPlayVideos('phase3')">
-                        ▶️ 동시에 재생하기
-                    </button>
-
-                    <!-- 구간3 지표 -->
-                    <div class="metrics-container" id="phase3-metrics">
-                        <div class="metric-item" id="metric-followthrough">
-                            <div class="metric-header">
-                                <span class="metric-name">🎯 팔로우스루</span>
-                                <span class="metric-value" id="followthrough-value">--%</span>
-                            </div>
-                            <div class="metric-bar-container">
-                                <div class="metric-bar" id="followthrough-bar"></div>
-                                <div class="metric-range">
-                                    <span>부족</span>
-                                    <span class="good-range">25%~60%</span>
-                                    <span>과함</span>
+                    <div class="phase-content">
+                        <div class="comparison-container">
+                            <div class="comparison-item">
+                                <span class="comparison-label">나의 영상</span>
+                                <div class="media-box video-box">
+                                    <video id="phase3-user-video" muted playsinline><source src="" type="video/mp4"></video>
                                 </div>
                             </div>
-                            <p class="metric-feedback" id="followthrough-feedback">분석 중...</p>
+                            <div class="comparison-item">
+                                <span class="comparison-label">전문가</span>
+                                <div class="media-box video-box">
+                                    <video id="phase3-expert-video" muted playsinline><source src="assets/5_follow_hybrid.mp4" type="video/mp4"></video>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="sync-play-btn" onclick="syncPlayVideos('phase3')">▶️ 동시에 재생하기</button>
+                        <div class="eval-container">
+                            <div class="eval-item"><span class="eval-name">🎯 팔로우스루</span><span class="eval-status" id="eval-9">--</span></div>
                         </div>
                     </div>
                 </section>
-                <div class="bottom-notice-box">
-                    <p class="notice-text">
-                        위 내용은 <span class="highlight">기록 섹션</span>에서 언제든지<br>다시 확인하실 수 있습니다.
-                    </p>
-                </div>
 
+                <div class="bottom-notice-box">
+                    <p class="notice-text">위 내용은 <span class="highlight">기록 섹션</span>에서 언제든지 다시 확인하실 수 있습니다.</p>
+                </div>
             </main>
         </div>
     </div>
-
     <script src="js/07-reportDetail.js"></script>
 </body>
 </html>
-
-<script>
-// 페이지 로드 후 실행
-window.addEventListener('DOMContentLoaded', () => {
-    const video = document.getElementById('phase2-expert-video');
-    
-    video.addEventListener('error', (e) => {
-        console.error('❌ 비디오 로드 실패:', e);
-        console.error('Video src:', video.src);
-        console.error('Error code:', video.error.code);
-        console.error('Error message:', video.error.message);
-    });
-    
-    video.addEventListener('loadeddata', () => {
-        console.log('✅ 비디오 로드 성공!');
-    });
-});
-</script>
