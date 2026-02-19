@@ -422,6 +422,27 @@ def posture_report_from_post(
         # 점수 기반 리포트에서는 kf_stats 대신 score_stats 사용
         kf_stats = {}
 
+        # ===== KF별 평균 비교 =====
+        def _mean_of(rows, attr):
+            if not rows:
+                return 0.0
+            vals = [float(getattr(r, attr) or 0.0) for r in rows]
+            return sum(vals) / len(vals)
+
+        kf_stats = {}
+        for key in ["kf1_error", "kf2_error", "kf3_error"]:
+            cur_kf_mean = _mean_of(analyses, key)
+            prev_kf_mean = _mean_of(prev_analyses, key) if prev_analyses else cur_kf_mean
+            kf_delta = cur_kf_mean - prev_kf_mean
+            kf_direction = "improved" if kf_delta < -1e-9 else ("worsened" if kf_delta > 1e-9 else "flat")
+
+            kf_stats[key] = {
+                "current_mean": round(cur_kf_mean, 4),
+                "prev_mean": round(prev_kf_mean, 4),
+                "delta": round(kf_delta, 4),
+                "direction": kf_direction,
+            }
+
         insights = _compute_growth_insights(analyses)
 
         meta: Dict[str, Any] = {
