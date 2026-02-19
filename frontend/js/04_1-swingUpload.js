@@ -67,8 +67,6 @@ async function startAnalysis() {
             headers: {
                 'Authorization': `Bearer ${TOKEN}`  // ⭐ 추가!
             },
-            body: formData
-});
             body: formData,
             signal: controller.signal
         });

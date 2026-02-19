@@ -1,7 +1,7 @@
 """
 회원가입/로그인 API
 """
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -10,13 +10,14 @@ from app.db.session import get_db
 from app.models.userModels import User
 from app.schemas.auth import (
     RegisterRequest, RegisterResponse,
-    LoginRequest, LoginResponse,
+    LoginResponse,
     UserInfoResponse
 )
 from app.core.security import (
-    hash_password, verify_password,
+    verify_password,
     create_access_token, decode_access_token
 )
+from app.crud import userCrud
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -45,8 +46,8 @@ async def get_current_user(
             detail="토큰이 유효하지 않습니다."
         )
     
-    # DB에서 유저 조회
-    user = db.query(User).filter(User.id == user_id).first()
+    # ✅ CRUD 사용!
+    user = userCrud.get_user_by_id(db, user_id)
     
     if not user:
         raise HTTPException(
@@ -61,38 +62,51 @@ async def get_current_user(
 # API 엔드포인트
 # ========================================
 
-@router.post("/register", response_model=RegisterResponse)
-async def register(
+@router.get("/check-id")
+async def check_id_duplicate(
+    id: str = Query(..., description="확인할 아이디"),
+    db: Session = Depends(get_db)
+):
+    """아이디 중복 확인"""
+    
+    is_duplicate = userCrud.check_id_exists(db, id)
+    
+    if is_duplicate:
+        return {
+            "available": False,
+            "message": "이미 사용중인 아이디입니다."
+        }
+    
+    return {
+        "available": True,
+        "message": "사용 가능한 아이디입니다."
+    }
+
+
+@router.post("/signup", response_model=RegisterResponse)
+async def signup(
     request: RegisterRequest,
     db: Session = Depends(get_db)
 ):
     """회원가입"""
     
-    # 1. ID 중복 확인
-    existing_user = db.query(User).filter(User.id == request.id).first()
-    if existing_user:
+    # ✅ CRUD 사용!
+    if userCrud.check_id_exists(db, request.id):
         raise HTTPException(
             status_code=400,
             detail="이미 사용중인 아이디입니다."
         )
     
-    # 2. 비밀번호 해싱
-    hashed_pw = hash_password(request.password)
-    
-    # 3. DB 저장
-    new_user = User(
-        id=request.id,
-        password=hashed_pw,
+    # ✅ CRUD 사용!
+    new_user = userCrud.create_user(
+        db=db,
+        user_id=request.id,
+        password=request.password,
         name=request.name,
         sex=request.sex,
         hand=request.hand
     )
     
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    # 4. RegisterResponse만 반환 (토큰 없음!)
     return RegisterResponse(
         success=True,
         message="회원가입이 완료되었습니다!",
@@ -105,14 +119,13 @@ async def register(
 # ========================================
 @router.post("/login", response_model=LoginResponse)
 async def login(
-    form: OAuth2PasswordRequestForm = Depends(),  # ← form-data!
+    form: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
     """로그인 (OAuth2 표준 방식)"""
     
-    # form.username = 아이디
-    # form.password = 비밀번호
-    user = db.query(User).filter(User.id == form.username).first()
+    # ✅ CRUD 사용!
+    user = userCrud.get_user_by_id(db, form.username)
     
     if not user:
         raise HTTPException(
@@ -137,9 +150,10 @@ async def login(
         name=user.name
     )
 
+
 @router.get("/me", response_model=UserInfoResponse)
 async def get_my_info(
-    current_user = Depends(get_current_user)  # ← Security 클래스 활용!
+    current_user = Depends(get_current_user)
 ):
     """내 정보 조회 (토큰 필요)"""
     

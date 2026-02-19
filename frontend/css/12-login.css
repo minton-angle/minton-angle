@@ -1,0 +1,99 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #fff; /* 흰 페이지 */
+    font-family: 'Pretendard', sans-serif;
+    display: flex;
+    justify-content: center;
+}
+
+.mobile-container {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 15dvh; /* 로고가 중앙쯤 오도록 상단 여백 */
+}
+
+/* 1. 민턴각 로고 (CSS에서 경로 지정) */
+.logo-box {
+    width: 200px;
+    height: 20dvh;
+    background-image: url('../assets/images/logo2.png'); /* 경로에 맞춰 수정하세요! */
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    margin-bottom: 50px;
+}
+
+.login-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 2. 가로형 입력 박스 */
+.input-row-box {
+    width: 90%;
+    display: flex;
+    align-items: center;
+    background-color: #f9f9f9; /* 입력 덩어리 박스 배경색 (선택사항) */
+    padding: 10px 15px;
+    border-radius: 30px;
+    margin-bottom: 15px;
+    border: 1px solid #eee;
+}
+
+.input-label {
+    width: 90px; /* 텍스트 박스 너비 고정으로 정렬 맞춤 */
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+}
+
+.input-row-box input {
+    flex: 1; /* 남은 공간 모두 차지 */
+    border: none;
+    background: transparent;
+    padding: 10px;
+    font-size: 15px;
+    outline: none;
+}
+
+/* 3. 로그인 버튼 */
+.login-submit-btn {
+    width: 80%;
+    padding: 15px;
+    background-color: #3E6D4F; /* 민턴각 메인 컬러 */
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+/* 4. 하단 회원가입 안내 */
+.signup-guide {
+    margin-top: 40px;
+    text-align: center;
+}
+
+.signup-guide p {
+    font-size: 14px;
+    color: #999;
+    margin-bottom: 5px;
+}
+
+.goto-signup-btn {
+    background: none;
+    border: none; /* 보더 없음 */
+    color: #888; /* 회색 글씨 */
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: underline; /* 클릭 가능해 보이게 밑줄 추가 (선택) */
+    cursor: pointer;
+}
