@@ -21,8 +21,8 @@ main {
 
 .logo-box {
     background-image: url('../assets/images/logo2.png');
-    width: 280px;
-    height: 190px;
+    width: 40dvw;
+    height: 17dvw;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
@@ -30,5 +30,5 @@ main {
     display: flex;
     justify-content: center;
     margin: auto;
-    margin-top: 80%;
+    margin-top: 50%;
 }

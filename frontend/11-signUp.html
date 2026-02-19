@@ -25,9 +25,10 @@
 
                 <div class="field-group">
                     <label>성별</label>
-                    <div class="gender-buttons">
-                        <button type="button" class="gender-btn">여성</button>
-                        <button type="button" class="gender-btn">남성</button>
+                    <div class="gender-toggle-container">
+                        <div class="selection-slider"></div>
+                        <button type="button" class="gender-btn active" data-gender="female">여성</button>
+                        <button type="button" class="gender-btn" data-gender="male">남성</button>
                     </div>
                 </div>
 
@@ -52,5 +53,6 @@
                 <button type="submit" class="submit-btn">회원가입</button>
             </form>
         </div>
-    </div>    
+    </div>
+    <script src="js/11-signUp.js"></script>     
 </body>
