@@ -629,3 +629,30 @@ canvas{
 #ytTable a:hover{
   text-decoration: underline;
 }
+/* ===== LLM generate button ===== */
+.btnLLM{
+  width: 100%;
+  border: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.btnLLM:hover{ filter: brightness(0.98); }
+.btnLLM:active{ transform: translateY(1px); }
+
+.btnLLM.btnLLM--big{
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 900;
+  border-radius: 14px;
+  min-width: 160px;
+}
+
+.btnLLM:disabled{
+  opacity: 0.6;
+  cursor: not-allowed;
+}
