@@ -1,259 +1,108 @@
-"""
-점수 계산: GT 기반 평가
-"""
-
 import pandas as pd
 import numpy as np
-import math
-from typing import Dict, Optional
-
+import json
+import os
+from typing import Dict, List
 
 class ScoreCalculator:
-    """GT 기반 점수 계산"""
-    
-    def __init__(self, gt_metrics_path: str):
-        """
-        Args:
-            gt_metrics_path: GT 평균 메트릭 CSV 파일 경로
-                예: "backend/data/standard/GT_angle/gt_total_metrics2.csv"
-        """
-        # GT 평균값 로드
-        gt_df = pd.read_csv(gt_metrics_path)
-        self.gt_avg = gt_df[gt_df['GT_Name'] == 'FILTERED_AVERAGE'].iloc[0].to_dict()
-        
-        print(f"✅ GT 기준값 로드 완료: {gt_metrics_path}")
-    
-    def get_angle_3pt(self, p1, p2, p3) -> float:
-        """
-        3점 각도 계산 (p2가 꼭지점)
-        
-        Args:
-            p1, p2, p3: [x, y] 좌표
-            
-        Returns:
-            각도 (degree)
-        """
-        a = np.array(p1)
-        b = np.array(p2)
-        c = np.array(p3)
-        
-        ba = a - b
-        bc = c - b
-        
-        norm = np.linalg.norm(ba) * np.linalg.norm(bc)
-        if norm == 0:
-            return 0
-        
-        cos_angle = np.dot(ba, bc) / norm
-        cos_angle = np.clip(cos_angle, -1.0, 1.0)
-        
-        return np.degrees(np.arccos(cos_angle))
-    
-    def get_line_angle(self, p1, p2) -> float:
-        """
-        2점 직선 각도 계산
-        
-        Args:
-            p1, p2: [x, y] 좌표
-            
-        Returns:
-            각도 (degree, 0~180)
-        """
-        dx = float(p2[0]) - float(p1[0])
-        dy = float(p1[1]) - float(p2[1])  # y축 반전
-        
-        return abs(math.degrees(math.atan2(dy, dx)))
-    
-    def calculate_scores(
-        self, 
-        keypoints_df: pd.DataFrame, 
-        keyframes: Dict
-    ) -> Dict:
-        """
-        점수 계산
-        
-        Args:
-            keypoints_df: 사용자 keypoints DataFrame
-            keyframes: {'ready': 30, 'backswing': 48, 'impact': 60}
-            
-        Returns:
-            {
-                "user_evaluation": [
-                    {"단계": "ready", "점수": 85.5, "부여 사유": "..."},
-                    {"단계": "backswing", "점수": 72.3, "부여 사유": "..."},
-                    {"단계": "impact", "점수": 90.1, "부여 사유": "..."}
-                ],
-                "overall_average": 82.6,
-                "standard_used": "FILTERED_AVERAGE"
-            }
-        """
-        results = []
-        
-        # --- [1] READY 점수 ---
-        ready_idx = int(keyframes['ready'])
-        ready_row = keypoints_df.iloc[ready_idx]
-        
-        ready_elbow_height = (
-            ready_row['right_shoulder_y'] - ready_row['right_elbow_y']
-        )
-        
-        err_h = abs(ready_elbow_height - self.gt_avg['Ready_Elbow_Height'])
-        ready_score = max(0, 100 - err_h * 10000)
-        
-        results.append({
-            '단계': 'ready',
-            '점수': round(float(ready_score), 1),
-            '부여 사유': f"팔꿈치 높이 오차 {err_h:.4f}"
-        })
-        
-        # --- [2] BACKSWING 점수 ---
-        backswing_idx = int(keyframes['backswing'])
-        bs_row = keypoints_df.iloc[backswing_idx]
-        
-        bs_angle = self.get_angle_3pt(
-            [bs_row['right_shoulder_x'], bs_row['right_shoulder_y']],
-            [bs_row['right_elbow_x'], bs_row['right_elbow_y']],
-            [bs_row['right_wrist_x'], bs_row['right_wrist_y']]
-        )
-        
-        err_bs = abs(bs_angle - self.gt_avg['Backswing_Angle'])
-        backswing_score = max(0, 100 - err_bs * 200)
-        
-        results.append({
-            '단계': 'backswing',
-            '점수': round(float(backswing_score), 1),
-            '부여 사유': f"백스윙 각도 오차 {err_bs:.2f}도"
-        })
-        
-        # --- [3] IMPACT 점수 ---
-        impact_idx = int(keyframes['impact'])
-        impact_row = keypoints_df.iloc[impact_idx]
-        
-        # 골반 회전량 계산
-        bs_hip_angle = self.get_line_angle(
-            [bs_row['left_hip_x'], bs_row['left_hip_y']],
-            [bs_row['right_hip_x'], bs_row['right_hip_y']]
-        )
-        
-        impact_hip_angle = self.get_line_angle(
-            [impact_row['left_hip_x'], impact_row['left_hip_y']],
-            [impact_row['right_hip_x'], impact_row['right_hip_y']]
-        )
-        
-        rotation_delta = abs(impact_hip_angle - bs_hip_angle)
-        rotation_threshold = self.gt_avg['Impact_Rotation_Delta'] * 0.3
-        
-        if rotation_delta < rotation_threshold:
-            impact_score = 0.0
-            impact_reason = f"골반 회전 부족 ({rotation_delta:.2f}도 < {rotation_threshold:.2f}도)"
+    """GDR 3단계 (9개 항목) 통합 채점 엔진 - 최종 보정판"""
+    def __init__(self, gt_json_path: str = None):
+        if gt_json_path and os.path.exists(gt_json_path):
+            with open(gt_json_path, 'r', encoding='utf-8') as f:
+                self.gt = json.load(f)
+            print(f"✅ [Brain] 전문가 기준 로드 완료")
         else:
-            # 팔 각도 계산
-            impact_arm_angle = self.get_line_angle(
-                [impact_row['right_shoulder_x'], impact_row['right_shoulder_y']],
-                [impact_row['right_wrist_x'], impact_row['right_wrist_y']]
-            )
+            self.gt = None
+            print(f"⚠️ [Brain] GT 파일 없음, 기본 임계값 사용")
+
+    def calc_angle(self, p1, p2, p3):
+        a, b, c = np.array(p1), np.array(p2), np.array(p3)
+        ba, bc = a - b, c - b
+        norm = np.linalg.norm(ba) * np.linalg.norm(bc)
+        if norm == 0: return 0.0
+        return float(np.degrees(np.arccos(np.clip(np.dot(ba, bc) / (norm + 1e-6), -1.0, 1.0))))
+
+    def evaluate_user(self, df: pd.DataFrame, keyframes: Dict) -> Dict:
+        try:
+            # 모든 좌표를 float으로 미리 변환하여 numpy 타입 에러 방지
+            e1 = df.iloc[int(keyframes['ready'])].apply(float)
+            e2 = df.iloc[int(keyframes['backswing'])].apply(float)
+            e3 = df.iloc[int(keyframes['impact'])].apply(float)
+        except (IndexError, KeyError, TypeError):
+            return {"evaluation": [], "stage_scores": {"stage1": 0, "stage2": 0, "stage3": 0}, "total_score": 0}
+
+        results = []
+
+        # --- 1단계: 준비자세 (3개 항목) ---
+        p1 = 1 if abs(e1['right_elbow_y'] - e1['right_shoulder_y']) < 0.15 else 0
+        results.append({"id": 1, "stage": 1, "name": "팔꿈치 높이", "pass": p1, "status": "PASS" if p1 else "낮음"})
+
+        p2 = 1 if (e1['left_shoulder_y'] - e1['left_wrist_y']) > 0 else 0
+        results.append({"id": 2, "stage": 1, "name": "보조 손", "pass": p2, "status": "PASS" if p2 else "내려감"})
+
+        p3 = 1 if abs(e1['left_shoulder_x'] - e1['right_shoulder_x']) > 0.12 else 0
+        results.append({"id": 3, "stage": 1, "name": "상체 열림", "pass": p3, "status": "PASS" if p3 else "닫힘"})
+
+        # --- 2단계: 스윙 (5개 항목) ---
+        # 4. 어깨 회전 (개선: 너비 변화량의 절대값 기준)
+        e1_width = abs(e1['left_shoulder_x'] - e1['right_shoulder_x'])
+        e3_width = abs(e3['left_shoulder_x'] - e3['right_shoulder_x'])
+        rot_val = abs(e1_width - e3_width)
+        p4 = 1 if rot_val > 0.02 else 0 
+        results.append({"id": 4, "stage": 2, "name": "어깨 회전", "pass": p4, "status": "PASS" if p4 else "안함"})
+
+        # 5. 팔꿈치 L자
+        ang_e2 = self.calc_angle([e2['right_shoulder_x'], e2['right_shoulder_y']], [e2['right_elbow_x'], e2['right_elbow_y']], [e2['right_wrist_x'], e2['right_wrist_y']])
+        p5 = 1 if 60 <= ang_e2 <= 135 else 0
+        results.append({"id": 5, "stage": 2, "name": "팔꿈치 L자", "pass": p5, "status": "PASS" if p5 else "펴짐", "value": float(round(ang_e2, 1))})
+
+        # 6. 백스윙 깊이
+        p6 = 1 if (e2['right_shoulder_x'] - e2['right_wrist_x']) > -0.05 else 0
+        results.append({"id": 6, "stage": 2, "name": "백스윙 깊이", "pass": p6, "status": "PASS" if p6 else "얕음"})
+
+        # 7. 팔 펴짐
+        ang_e3 = self.calc_angle([e3['right_shoulder_x'], e3['right_shoulder_y']], [e3['right_elbow_x'], e3['right_elbow_y']], [e3['right_wrist_x'], e3['right_wrist_y']])
+        p7 = 1 if ang_e3 >= 150 else 0
+        results.append({"id": 7, "stage": 2, "name": "팔 펴짐", "pass": p7, "status": "PASS" if p7 else "굽힘", "value": float(round(ang_e3, 1))})
+
+        # 8. 타점 높이
+        p8 = 1 if (e3['nose_y'] - e3['right_wrist_y']) > -0.15 else 0
+        results.append({"id": 8, "stage": 2, "name": "타점 높이", "pass": p8, "status": "PASS" if p8 else "낮음"})
+
+        # --- 3단계: 팔로우스루 (방향 중립적 알고리즘) ---
+        f_score = 0
+        status_9 = "안함"
+        # 임팩트 이후 60프레임(약 2초)까지 넉넉하게 추적
+        search_range = min(int(keyframes['impact']) + 60, len(df))
+        
+        start_x = float(e3['right_wrist_x'])
+        center_x = float(e3['nose_x'])
+        started_left = start_x < center_x
+        
+        for i in range(int(keyframes['impact']), search_range):
+            curr_x = float(df.iloc[i]['right_wrist_x'])
+            curr_y = float(df.iloc[i]['right_wrist_y'])
             
-            err_impact = abs(impact_arm_angle - self.gt_avg['Impact_Arm_Angle'])
-            impact_score = max(0, 100 - err_impact * 200)
-            impact_reason = f"임팩트 팔 각도 오차 {err_impact:.2f}도"
-        
-        results.append({
-            '단계': 'impact',
-            '점수': round(float(impact_score), 1),
-            '부여 사유': impact_reason
-        })
-        
-        # --- 평균 점수 ---
-        overall_avg = round(sum(item['점수'] for item in results) / len(results), 1)
+            # 코(중심선)를 기준으로 반대편으로 넘어갔는지 체크
+            crossed = (started_left and curr_x > center_x + 0.05) or (not started_left and curr_x < center_x - 0.05)
+            
+            if crossed:
+                f_score = 100
+                status_9 = "PASS"
+                break
+            elif curr_y > float(e3['right_shoulder_y']):
+                f_score = 50
+                status_9 = "중간"
+
+        results.append({"id": 9, "stage": 3, "name": "팔로우", "pass": 1 if f_score >= 50 else 0, "status": status_9})
+
+        # --- 최종 점수 합산 (표준 타입 강제 변환) ---
+        s1 = int(sum(r['pass'] for r in results if r['stage'] == 1) / 3 * 100)
+        s2 = int(sum(r['pass'] for r in results if r['stage'] == 2) / 5 * 100)
+        s3 = int(f_score)
         
         return {
-            "user_evaluation": results,
-            "overall_average": overall_avg,
-            "standard_used": "FILTERED_AVERAGE"
+            "evaluation": results,
+            "stage_scores": {"stage1": s1, "stage2": s2, "stage3": s3},
+            "total_score": int((s1 + s2 + s3) / 3)
         }
-    
-    def calculate_detailed_metrics(
-        self,
-        keypoints_df: pd.DataFrame,
-        keyframes: Dict
-    ) -> Dict:
-        """
-        상세 메트릭 계산 (LLM 피드백용)
-        
-        Args:
-            keypoints_df: 사용자 keypoints DataFrame
-            keyframes: {'ready': 30, 'backswing': 48, 'impact': 60}
-            
-        Returns:
-            {
-                'ready': {
-                    'elbow_height': 0.15,
-                    'gt_elbow_height': 0.18,
-                    'error': 0.03
-                },
-                'backswing': {...},
-                'impact': {...}
-            }
-        """
-        metrics = {}
-        
-        # Ready
-        ready_idx = int(keyframes['ready'])
-        ready_row = keypoints_df.iloc[ready_idx]
-        
-        ready_elbow_height = (
-            ready_row['right_shoulder_y'] - ready_row['right_elbow_y']
-        )
-        
-        metrics['ready'] = {
-            'elbow_height': float(ready_elbow_height),
-            'gt_elbow_height': float(self.gt_avg['Ready_Elbow_Height']),
-            'error': float(abs(ready_elbow_height - self.gt_avg['Ready_Elbow_Height']))
-        }
-        
-        # Backswing
-        backswing_idx = int(keyframes['backswing'])
-        bs_row = keypoints_df.iloc[backswing_idx]
-        
-        bs_angle = self.get_angle_3pt(
-            [bs_row['right_shoulder_x'], bs_row['right_shoulder_y']],
-            [bs_row['right_elbow_x'], bs_row['right_elbow_y']],
-            [bs_row['right_wrist_x'], bs_row['right_wrist_y']]
-        )
-        
-        metrics['backswing'] = {
-            'angle': float(bs_angle),
-            'gt_angle': float(self.gt_avg['Backswing_Angle']),
-            'error': float(abs(bs_angle - self.gt_avg['Backswing_Angle']))
-        }
-        
-        # Impact
-        impact_idx = int(keyframes['impact'])
-        impact_row = keypoints_df.iloc[impact_idx]
-        
-        impact_arm_angle = self.get_line_angle(
-            [impact_row['right_shoulder_x'], impact_row['right_shoulder_y']],
-            [impact_row['right_wrist_x'], impact_row['right_wrist_y']]
-        )
-        
-        bs_hip_angle = self.get_line_angle(
-            [bs_row['left_hip_x'], bs_row['left_hip_y']],
-            [bs_row['right_hip_x'], bs_row['right_hip_y']]
-        )
-        
-        impact_hip_angle = self.get_line_angle(
-            [impact_row['left_hip_x'], impact_row['left_hip_y']],
-            [impact_row['right_hip_x'], impact_row['right_hip_y']]
-        )
-        
-        rotation_delta = abs(impact_hip_angle - bs_hip_angle)
-        
-        metrics['impact'] = {
-            'arm_angle': float(impact_arm_angle),
-            'gt_arm_angle': float(self.gt_avg['Impact_Arm_Angle']),
-            'rotation_delta': float(rotation_delta),
-            'gt_rotation_delta': float(self.gt_avg['Impact_Rotation_Delta']),
-            'error': float(abs(impact_arm_angle - self.gt_avg['Impact_Arm_Angle']))
-        }
-        
-        return metrics
