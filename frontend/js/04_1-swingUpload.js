@@ -51,6 +51,10 @@ async function startAnalysis() {
         // FormData 생성
         const formData = new FormData();
         formData.append('video', selectedFile);
+
+        // 타임아웃을 2분으로 설정
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000); // 120초
         
         // API 호출
         // const response = await fetch(`${API_BASE_URL}/api/upload/video?user_id=${USER_ID}`, {
@@ -65,6 +69,11 @@ async function startAnalysis() {
             },
             body: formData
 });
+            body: formData,
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
             const error = await response.json();
@@ -84,7 +93,12 @@ async function startAnalysis() {
         
     } catch (error) {
         console.error('❌ 에러 발생:', error);
-        alert(`분석 실패: ${error.message}`);
+        // 타임아웃 에러 구분
+        if (error.name === 'AbortError') {
+            alert('분석 시간이 너무 오래 걸립니다. 다시 시도해주세요.');
+        } else {
+            alert(`분석 실패: ${error.message}`);
+        }
         
         // 버튼 복구
         submitBtn.classList.remove('loading');
