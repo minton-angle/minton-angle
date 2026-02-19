@@ -158,9 +158,25 @@ function renderActionCards(currentSessions, prevSessions){
       else if (delta < -1e-9) direction = "worsened";
     }
 
-    // stage scores are already 0~100
-    const actionScore = Number.isFinite(curMean) ? Math.round(clamp(curMean, 0, 100)) : 0;
-    setHalfGauge(c.n, actionScore, direction);
+    // 카드 5: 성공률 기반 게이지, 그 외는 기존대로 stage mean 사용
+    let actionScore;
+    if (String(c.n) === "5"){
+      // success rate = 100 - falseRate%
+      const curSeries = extractFollowSwingPassSeries(currentSessions);
+      const curValid = curSeries.filter((v)=> v === true || v === false);
+      const curTotalN = curValid.length;
+      const curFalseN = curValid.filter((v)=> v === false).length;
+      const curFalseRate = curTotalN ? (curFalseN / curTotalN) : 0;
+
+      const successRate = 100 - Math.round(curFalseRate * 100);
+      actionScore = clamp(successRate, 0, 100);
+
+      // 성공률은 높을수록 좋으므로 direction은 기존 점수 direction 유지
+      setHalfGauge(c.n, actionScore, direction);
+    } else {
+      actionScore = Number.isFinite(curMean) ? Math.round(clamp(curMean, 0, 100)) : 0;
+      setHalfGauge(c.n, actionScore, direction);
+    }
 
     // worst: lowest mean score
     if (Number.isFinite(curMean) && (worst.mean < 0 || curMean < worst.mean)){
