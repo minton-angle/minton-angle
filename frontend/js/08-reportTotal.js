@@ -745,7 +745,7 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
 
         // previous (dashed overlay)
         {
-          label: `SCORE(${prevLabel})`,
+          label: `SCORE(${prevLabel}전)`,
           data: prevScore,
           pointRadius: 0,
           tension: 0.25,
