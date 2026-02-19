@@ -10,9 +10,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const pwConfirmInput = inputs[3];
     
     const genderBtns = document.querySelectorAll('.gender-btn');
+    const handBtns = document.querySelectorAll('.hand-btn');
     const checkBtn = document.querySelector('.check-btn');
 
     let isGenderSelected = false;
+    let isHandSelected = false;
     let isIdChecked = false;
 
     // --- 정규 표현식 규칙 ---
@@ -36,19 +38,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. 성별 버튼 선택 로직
     genderBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            genderBtns.forEach(b => {
-                b.classList.remove('active');
-                b.style.backgroundColor = 'white';
-                b.style.color = 'black';
-            });
+            genderBtns.forEach(b =>
+                b.classList.remove('active'));
+                /*b.style.backgroundColor = 'white';
+                b.style.color = 'black';*/
             btn.classList.add('active');
-            btn.style.backgroundColor = '#3e5d4f';
-            btn.style.color = 'white';
+            /*btn.style.backgroundColor = '#3e5d4f';
+            btn.style.color = 'white';*/
             isGenderSelected = true;
         });
     });
 
-    // 3. 아이디 중복 확인 시 유효성 검사
+    // 3. 주로 사용하는 손(Hand) 토글 로직 [추가]
+    handBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            handBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active'); // CSS에서 z-index와 색상을 처리함
+            isHandSelected = true;
+        });
+    });
+
+    // 4. 아이디 중복 확인 시 유효성 검사
     checkBtn.addEventListener('click', () => {
         if (idInput.value.trim() === '') {
             alert('아이디를 입력해주세요.');
@@ -64,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isIdChecked = true;
     });
 
-    // 4. 회원가입 제출 시 검사 (빈칸 -> 형식 -> 일치 여부 순서)
+    // 5. 회원가입 제출 시 검사 (빈칸 -> 형식 -> 일치 여부 순서)
     signupForm.addEventListener('submit', (e) => {
         e.preventDefault();
 

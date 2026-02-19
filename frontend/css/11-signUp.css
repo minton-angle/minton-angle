@@ -74,7 +74,7 @@ body {
 /* 폼 스타일 */
 .field-group {
     width: 85%;
-    margin-bottom: 2dvh;
+    margin-bottom: 2.2dvh;
 }
 
 .field-group label {
@@ -96,87 +96,150 @@ input {
     background-color: white;
 }
 
-/* 오른손 왼손 버튼 */
-.hand-buttons {
-    width: 100%;
+.row-group {
+    width: 85%;
     display: flex;
-    gap: 25px;
-    justify-content: center;
-    align-items: center;
+    justify-content: space-between;
+    gap: 1dvw;
+    /*margin-bottom: 2dvh;*/
     margin: 0 auto;
 }
 
-.hand-btn {
-    flex: 1;
-    max-width: 130px;
-    height: 6.5dvh;
-    background: white;
-    border: 1px solid #000;
-    border-radius: 25px;
-    cursor: pointer;
-    font-size: 17px;
-    transition: all 0.2s;
-    color: black;
+.field-group.half {
+    width: 48%;
+    margin-bottom: 2dvh;
+    display: flex;
+    flex-direction: column;
 }
 
-.hand-btn.active {
-    background-color: #3e5d4f;
+.field-group.half label {
+    padding-left: 15px;
+    text-align: left;
+}
+
+* {
+    box-sizing: border-box;
 }
 
 /* 성별 버튼 */
 /* 성별 토글 컨테이너 (바깥 긴 타원) */
-/* 11-signUp.css */
-
-/* 전체 토글 컨테이너 (바깥쪽 회색 알약 배경) */
 .gender-toggle-container {
     position: relative;
     width: 100%;
-    max-width: 300px; /* 원하는 너비로 조절 */
-    height: 55px;     /* 원하는 높이로 조절 */
-    background-color: #f0f0f0; /* 이미지의 회색 배경색 */
-    border-radius: 30px;       /* 전체를 둥근 알약 모양으로 */
+    max-width: 320px; /* 60% 버튼들이 겹치기에 적당한 너비 */
+    height: 55px;
+    background-color: #f0f0f0;
+    border-radius: 25px;
     display: flex;
     align-items: center;
     margin: 0 auto;
-    padding: 5px;              /* 테두리와 내부 슬라이더 사이의 간격 */
-    /* box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); 살짝 안으로 들어간 느낌을 주고 싶으면 주석 해제 */
-    overflow: hidden;
+    overflow: hidden; /* 삐져나가는 부분 컷 */
 }
-
-/* 버튼 스타일 (글자만 담당) */
 .gender-btn {
-    flex: 1;          /* 공간을 반반씩 차지 */
-    height: 100%;
-    border: none;     /* 테두리 없음 */
-    border-radius: 25px;
-    background: none; /* 배경 투명 */
-    padding: 0;
+    /* 기존 속성 초기화 */
+    flex: none !important; 
+    max-width: none !important;
+    
+    position: absolute; /* 겹치기 위해 필수 */
+    width: 55%;         
+    height: calc(100% - 10px); /* 위아래 여백 5px씩 제외 */
+    top: 5px;
+    border: none;
+    background: transparent; /* 초기엔 배경 투명 */
+    color: #000;            /* 초기엔 글자 검정 */
     font-size: 16px;
     font-weight: 700;
-    color: #555;      /* 선택 안 됐을 때의 어두운 글자색 */
     cursor: pointer;
-    z-index: 2;       /* 슬라이더 위에 위치 */
-    transition: color 0.3s;
-    outline: none !important; /* 포커스 테두리 제거 */
-    -webkit-tap-highlight-color: transparent; /* 모바일 터치 하이라이트 제거 */
-    /* 중요: 버튼 자체에는 border-radius를 주지 않습니다! */
-}
-
-/* 버튼 클릭 시 포커스 스타일 제거 */
-.gender-btn:focus {
+    border-radius: 20px;    /* 알약 모양 */
+    transition: all 0.3s ease;
+    z-index: 1;             /* 기본 깊이 */
+    
+    /* 텍스트 중앙 정렬 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
     outline: none !important;
-    border: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
-/* 활성화된 버튼의 글자색 */
+/* 왼쪽 버튼 위치 */
+.gender-btn.female {
+    left: 5px;
+}
+
+/* 오른쪽 버튼 위치 */
+.gender-btn.male {
+    right: 5px;
+}
+
+/* [클릭 시 활성화 상태] */
 .gender-btn.active {
-    color: white; /* 선택됐을 때 글자색 흰색 */
+    background-color: #3E6D4F; /* 초록색 배경 */
+    color: #fff;              /* 흰색 글씨 */
+    z-index: 10;               /* 클릭한 버튼이 위로 올라옴 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); /* 살짝 튀어나와 보이게 */
 }
 
-/* '남성' 선택 시 슬라이더 이동 */
-.gender-toggle-container.right .selection-slider {
-    /* 자기 자신의 너비만큼 오른쪽으로 이동 */
-    transform: translateX(100%);
+/* 손 버튼 */
+/* 손 토글 컨테이너 (바깥 긴 타원) */
+.hand-toggle-container {
+    position: relative;
+    width: 100%;
+    max-width: 320px; /* 60% 버튼들이 겹치기에 적당한 너비 */
+    height: 55px;
+    background-color: #f0f0f0;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    margin: 0 auto;
+    overflow: hidden; /* 삐져나가는 부분 컷 */
+}
+
+.hand-btn {
+    /* 기존 속성 초기화 */
+    flex: none !important; 
+    max-width: none !important;
+    
+    position: absolute; /* 겹치기 위해 필수 */
+    width: 55%;         /* 요구하신 60% 너비 */
+    height: calc(100% - 10px); /* 위아래 여백 5px씩 제외 */
+    top: 5px;
+    border: none;
+    background: transparent; /* 초기엔 배경 투명 */
+    color: #000;            /* 초기엔 글자 검정 */
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 20px;    /* 알약 모양 */
+    transition: all 0.3s ease;
+    z-index: 1;             /* 기본 깊이 */
+    
+    /* 텍스트 중앙 정렬 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 왼쪽 버튼 위치 */
+.hand-btn.left {
+    left: 5px;
+}
+
+/* 오른쪽 버튼 위치 */
+.hand-btn.right {
+    right: 5px;
+}
+
+/* [클릭 시 활성화 상태] */
+.hand-btn.active {
+    background-color: #3E6D4F; /* 초록색 배경 */
+    color: #fff;              /* 흰색 글씨 */
+    z-index: 10;               /* 클릭한 버튼이 위로 올라옴 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); /* 살짝 튀어나와 보이게 */
 }
 
 /* 아이디 입력창 내 중복확인 버튼 */
@@ -207,12 +270,12 @@ input {
 
 /* 하단 회원가입 제출 버튼 */
 .submit-btn {
-    width: 90%;
+    width: 85%;
     padding: 18px;
     background-color: #3E6D4F;
     color: white;
     border: none;
-    border-radius: 30px;
+    border-radius: 25px;
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;
