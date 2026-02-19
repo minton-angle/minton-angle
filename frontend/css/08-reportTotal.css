@@ -1,3 +1,142 @@
+/* ===== 동작별 분석 카드(세로 카드) ===== */
+.actionCards{
+  display:flex;
+  flex-direction: row;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 2px 2px 10px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.actionCards::-webkit-scrollbar{ height: 8px; }
+.actionCards::-webkit-scrollbar-thumb{ background: rgba(17,24,39,.15); border-radius: 999px; }
+
+.actionCard{
+  background: var(--card);
+  border-radius: 18px;
+  border: 1px solid rgba(17,24,39,.08);
+  box-shadow: 0 18px 40px rgba(0,0,0,.08);
+  padding: 14px;
+  min-width: 300px;
+  max-width: 340px;
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+}
+.actionCard__right{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+
+/* ===== Half score gauge (per action) ===== */
+.halfGauge{
+  width: 110px;
+  height: 62px;
+  position: relative;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+.halfGauge__svg{
+  width: 110px;
+  height: 62px;
+}
+.halfGauge__bg{
+  fill:none;
+  stroke: rgba(17,24,39,.16);
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+.halfGauge__fg{
+  fill:none;
+  stroke: #22c55e;
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: 157;
+  stroke-dashoffset: 157;
+  transition: stroke-dashoffset .35s ease, stroke .25s ease;
+}
+.halfGauge__text{
+  position:absolute;
+  bottom: 6px;
+  display:flex;
+  align-items:baseline;
+  gap: 4px;
+  font-weight: 900;
+  color: rgba(17,24,39,.92);
+}
+.halfGauge__unit{
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(17,24,39,.70);
+}
+
+.actionCard__top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.actionCard__title{
+  font-weight: 900;
+  font-size: 14px;
+  color: rgba(17,24,39,.92);
+}
+
+.actionCard__pill{
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid rgba(17,24,39,.10);
+  background: rgba(243,244,246,.75);
+  color: rgba(17,24,39,.75);
+  white-space: nowrap;
+}
+
+.actionCard__pill.is-good{
+  background: rgba(34,197,94,.12);
+  border-color: rgba(34,197,94,.25);
+  color:#16a34a;
+}
+.actionCard__pill.is-bad{
+  background: rgba(239,68,68,.12);
+  border-color: rgba(239,68,68,.22);
+  color:#b91c1c;
+}
+.actionCard__pill.is-flat{
+  background: rgba(107,114,128,.10);
+  border-color: rgba(107,114,128,.22);
+  color:#6b7280;
+}
+
+.actionCard__meta{
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(17,24,39,.70);
+  margin-bottom: 10px;
+}
+
+.actionCard__body{
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 800;
+  color: rgba(17,24,39,.85);
+  background: rgba(243,244,246,.70);
+  border: 1px solid rgba(17,24,39,.06);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.actionCard__body ul{
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.actionCard__body li{ margin: 4px 0; }
+
 :root{
   --card:#ffffff;
   --text:#111827;
@@ -131,20 +270,13 @@ h2{ font-size: 15px; margin: 0 0 8px; font-weight: 900; }
   margin-bottom: 6px;
 }
 
-
-.kfTabsWrap{
-  display:flex;
-  justify-content:center;
-  margin-top: 10px;
-}
-
-.kfTabs{
+.rangeTabs{
   display:flex;
   gap: 8px;
   justify-content:center;
 }
 
-.kfTab{
+.rangeTab{
   height: 26px;
   padding: 0 10px;
   border-radius: 999px;
@@ -156,15 +288,16 @@ h2{ font-size: 15px; margin: 0 0 8px; font-weight: 900; }
   cursor: pointer;
 }
 
-.kfTab.is-active{
+.rangeTab.is-active{
   background: rgba(32,201,151,.14);
   border-color: rgba(32,201,151,.35);
   color: rgba(17,24,39,.9);
 }
 
-.kfTab:active{
+.rangeTab:active{
   transform: translateY(1px);
 }
+
 .miniCard__hint{
   margin-top: 10px;
   font-size: 12px;
@@ -386,4 +519,113 @@ canvas{
   font-weight: 900;
   color: rgba(17,24,39,.75);
   margin-bottom: 8px;
+}
+
+/* ===== Curated YouTube 썸네일 카드 ===== */
+.ytGrid{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+@media (max-width: 900px){
+  .ytGrid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px){
+  .ytGrid{ grid-template-columns: 1fr; }
+}
+
+.ytCard{
+  display: block;
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.ytCard:hover{
+  transform: translateY(-1px);
+}
+
+.ytCard__thumbWrap{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: rgba(0,0,0,0.25);
+}
+
+.ytCard__thumb{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ytCard__badge{
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+}
+
+.ytCard__body{
+  padding: 10px 12px 12px;
+}
+
+.ytCard__title{
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.35;
+  color: inherit;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ytCard__meta{
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.ytEmpty{
+  opacity: 0.7;
+}
+
+/* ===== 추천 영상 테이블 ===== */
+#ytTable{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  border: 1px solid rgba(17,24,39,.08);
+  border-radius: 12px;
+  overflow:hidden;
+}
+#ytTable th, #ytTable td{
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(17,24,39,.06);
+  text-align:left;
+  white-space: nowrap;
+  overflow:hidden;
+  text-overflow: ellipsis;
+}
+#ytTable th{
+  color: rgba(17,24,39,.65);
+  background: rgba(243,244,246,.8);
+}
+#ytTable a{
+  color: rgba(32,201,151,1);
+  font-weight: 900;
+  text-decoration: none;
+}
+#ytTable a:hover{
+  text-decoration: underline;
 }

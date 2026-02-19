@@ -1,0 +1,202 @@
+/* 1. 배경 및 레이아웃 설정 */
+.history-bg {
+    background-image: url('../assets/images/background2.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 100%;
+    height: 100%;
+}
+
+.header {
+    width: 100%;
+    padding: 1.5dvh 20px;
+    background-color: transparent !important;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.logo-box-left {
+    background-image: url('../assets/images/logo2.png');
+    width: 140px;
+    height: 45px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left center;
+}
+
+/* 요청사항: 제목 섹션 투명 유리 배경 추가 */
+.glass-title-unit {
+    background: rgba(255, 255, 255, 0.5); /* 투명도 */
+    backdrop-filter: blur(10px); /* 유리 블러 */
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50px;
+    padding: 10px 30px;
+    margin: 10px 0 20px 0;
+    display: inline-block;
+}
+
+.section-title {
+    text-align: center;
+    color: #014E0B;
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* 2. 글래스모피즘 캘린더 */
+.calendar-card {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    border-radius: 25px;
+    padding: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* 기본 오늘 날짜 노란 배경 제거 */
+.fc-day-today {
+    background-color: transparent !important;
+}
+
+.fc { font-family: inherit !important; border: none !important; }
+.fc-theme-standard td, .fc-theme-standard th { border: none !important; }
+.fc-scrollgrid { border: none !important; }
+
+/* 초록색 화살표 버튼 */
+.fc .fc-button-primary {
+    background-color: transparent !important;
+    border: none !important;
+    color: #014E0B !important; 
+    box-shadow: none !important;
+    font-size: 1.4rem !important;
+}
+
+.fc-toolbar-title { font-size: 1.2rem !important; font-weight: 800 !important; }
+
+/* 19일 파란 원형 활성화 */
+.fc-daygrid-day-number {
+    color: #333 !important;
+    width: 35px;
+    height: 35px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto !important;
+    font-size: 14px;
+    text-decoration: none !important;
+    position: relative;
+    z-index: 1;
+}
+
+.active-dot {
+    background-color: rgba(33, 150, 243, 0.15) !important;
+    color: #2196F3 !important;
+    border-radius: 50% !important;
+    font-weight: 700;
+}
+
+.fc-day-disabled, .fc-day-other { background-color: transparent !important; }
+
+.calendar-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.time-value {
+    background: rgba(255, 255, 255, 0.5);
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* 3. 토글 버튼 및 가이드 */
+.guide-text {
+    text-align: center;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    font-size: 13px;
+    font-weight: 600;
+    margin: 20px 0;
+    line-height: 1.4;
+}
+
+.toggle-wrapper {
+    margin-top: 20px;
+    position: relative;
+    display: flex;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 40px;
+    padding: 4px;
+    height: 54px;
+    width: 100%;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background-color: #6BCB77; /* 활성화 배경색 */
+    border-radius: 35px;
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 1;
+}
+
+.toggle-btn {
+    flex: 1;
+    position: relative;
+    z-index: 2;
+    border: none;
+    background: transparent;
+    font-weight: 700;
+    font-size: 14px;
+    color: #444;
+    cursor: pointer;
+}
+
+.toggle-btn.active { color: #014E0B; }
+.sub-txt { font-size: 9px; display: block; margin-top: 2px; }
+
+/* 4. 하단바 */
+.navbar-section {
+    position: absolute;
+    bottom: 24px;
+    left: 15px;
+    right: 15px;
+    height: 70px;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(15px);
+    border-radius: 35px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.nav-item { display: flex; flex-direction: column; align-items: center; }
+
+.nav-btn { width: 28px; height: 28px; background: transparent; background-size: contain; background-repeat: no-repeat; border: none; cursor: pointer; }
+
+.nav-text { font-size: 10px; color: #4D876E; margin-top: 4px; font-weight: 600; }
+
+
+
+.nav-home { background-image: url('../assets/images/home.png'); }
+
+.nav-gym { background-image: url('../assets/images/gym.png'); }
+
+.nav-history { background-image: url('../assets/images/history.png'); }
+
+.nav-settings { background-image: url('../assets/images/settings.png'); }

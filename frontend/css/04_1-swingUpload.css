@@ -1,24 +1,33 @@
 html, body {
     height: 100%;
     margin: 0;
+    padding: 0;
     overflow: hidden;
+}
+
+.mobile-container {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+}
+
+.scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+body {
     font-family: 'Pretendard', sans-serif;
 }
 
-.app-wrapper {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-}
-
-/* 1. 헤더 영역 (기존 유지) */
 .header {
     display: flex;
     align-items: center;
-    padding: 1.5dvh;
+    padding: 1.5dvh 3dvh;
     background-color: #fff;
     position: sticky;
-    top: 0px;
+    top: 0;
     z-index: 10;
 }
 

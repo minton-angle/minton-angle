@@ -4,6 +4,395 @@ const API_BASE = "http://localhost:8000"; // FastAPI 주소
 // NOTE: 종합 페이지는 세션 히스토리 기반이므로, GT 범위는 서버/다른 페이지에서 처리하는 것을 권장합니다.
 
 
+// ====== KF 키 → 사용자 친화 명칭 ======
+function actionNameFromKfKey(kfKey) {
+  const k = String(kfKey || "").toLowerCase();
+  if (k.includes("kf1")) return "백스윙 동작";
+  if (k.includes("kf2")) return "임팩트 동작";
+  if (k.includes("kf3")) return "팔로스루 동작";
+  return "-";
+}
+
+// KF 키 → 동작 번호 (1,2,3) 매핑
+function kfFieldFromActionIndex(n){
+  if (String(n) === "1") return "kf1_error";
+  if (String(n) === "2") return "kf2_error";
+  if (String(n) === "3") return "kf3_error";
+  return null;
+}
+
+function trendPillText(direction, delta){
+  const dir = String(direction || "flat");
+  const d = Number(delta);
+  const abs = Number.isFinite(d) ? Math.abs(d).toFixed(2) : "-";
+  if (dir === "improved") return `개선 (${abs}°↓)`;
+  if (dir === "worsened") return `악화 (${abs}°↑)`;
+  return `정체 (${abs}°)`;
+}
+
+function applyTrendPill(el, direction){
+  if (!el) return;
+  el.classList.remove("is-good","is-bad","is-flat");
+  const dir = String(direction || "flat");
+  if (dir === "improved") el.classList.add("is-good");
+  else if (dir === "worsened") el.classList.add("is-bad");
+  else el.classList.add("is-flat");
+}
+
+function meanAbs(values){
+  const xs = (Array.isArray(values) ? values : [])
+    .map((v)=>Math.abs(Number(v)))
+    .filter(Number.isFinite);
+  if (!xs.length) return null;
+  return xs.reduce((a,b)=>a+b,0) / xs.length;
+}
+
+function std(values){
+  const xs = (Array.isArray(values) ? values : [])
+    .map((v)=>Math.abs(Number(v)))
+    .filter(Number.isFinite);
+  if (xs.length < 2) return 0;
+  const m = xs.reduce((a,b)=>a+b,0) / xs.length;
+  return Math.sqrt(xs.reduce((a,x)=>a + (x-m)*(x-m), 0) / xs.length);
+}
+
+function extractKfSeries(sessions, field){
+  return (Array.isArray(sessions) ? sessions : []).map((s)=>s?.[field]);
+}
+
+function buildActionInsightText(actionLabel, curMean, prevMean, curStd){
+  const cm = Number.isFinite(curMean) ? curMean.toFixed(2) : "-";
+  const pm = Number.isFinite(prevMean) ? prevMean.toFixed(2) : "-";
+  const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
+
+  return `평균 오차: <b>${cm}°</b> (이전 ${pm}°)<br/>재현성(편차): <b>${sd}°</b>
+  <ul>
+    <li>평균 오차는 낮을수록 좋습니다.</li>
+    <li>편차가 크면 같은 동작을 반복했을 때 결과가 흔들린다는 의미입니다.</li>
+  </ul>`;
+}
+
+function renderActionCards(currentSessions, prevSessions){
+  const cards = [
+    { n: 1, label: "백스윙 동작" },
+    { n: 2, label: "임팩트 동작" },
+    { n: 3, label: "팔로스루 동작" },
+  ];
+
+  let worst = { n: 1, mean: -1 };
+  let volatile = { n: 1, std: -1 };
+
+  for (const c of cards){
+    const field = kfFieldFromActionIndex(c.n);
+    const curArr = extractKfSeries(currentSessions, field);
+    const prevArr = extractKfSeries(prevSessions, field);
+
+    const curMean = meanAbs(curArr);
+    const prevMean = meanAbs(prevArr);
+    const curStd = std(curArr);
+
+    let direction = "flat";
+    let delta = null;
+    if (Number.isFinite(curMean) && Number.isFinite(prevMean)){
+      delta = curMean - prevMean;
+      if (delta < -1e-9) direction = "improved";
+      else if (delta > 1e-9) direction = "worsened";
+    }
+
+    // per-action score gauge (0~100)
+    const actionScore = Number.isFinite(curMean) ? computeActionScoreFromMean(curMean) : 0;
+    setHalfGauge(c.n, actionScore, direction);
+
+    if (Number.isFinite(curMean) && curMean > worst.mean){
+      worst = { n: c.n, mean: curMean };
+    }
+    if (Number.isFinite(curStd) && curStd > volatile.std){
+      volatile = { n: c.n, std: curStd };
+    }
+
+    const pill = document.getElementById(`a${c.n}TrendPill`);
+    if (pill){
+      pill.textContent = trendPillText(direction, delta);
+      applyTrendPill(pill, direction);
+    }
+
+    const meta = document.getElementById(`a${c.n}Meta`);
+    if (meta){
+      const cm = Number.isFinite(curMean) ? curMean.toFixed(2) : "-";
+      const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
+      meta.innerHTML = `최근 평균 오차 <b>${cm}°</b> · 편차 <b>${sd}°</b>`;
+    }
+
+    const body = document.getElementById(`a${c.n}Body`);
+    if (body){
+      body.innerHTML = buildActionInsightText(c.label, curMean, prevMean, curStd);
+    }
+  }
+
+  // 추천 영상: 평균 오차 worst + 편차 worst 기반 자동 큐레이션
+  const worstField = kfFieldFromActionIndex(worst.n);
+  const volField = kfFieldFromActionIndex(volatile.n);
+  renderYoutubeLinksByKfKeys([worstField, volField]);
+}
+// ====== Half gauge helpers (per action card) ======
+const HALF_GAUGE_DASH = 157; // approx half circumference for the SVG arc
+
+function setHalfGauge(n, score, direction){
+  const v = clamp(Math.round(Number(score) || 0), 0, 100);
+  const fg = document.getElementById(`a${n}GaugeFg`);
+  const num = document.getElementById(`a${n}GaugeValue`);
+  if (num) num.textContent = String(v);
+
+  if (fg){
+    // 0 -> full offset (empty), 100 -> 0 (full)
+    const off = HALF_GAUGE_DASH * (1 - v / 100);
+    fg.style.strokeDashoffset = String(off);
+
+    const dir = String(direction || "flat").toLowerCase();
+    if (dir === "improved") fg.style.stroke = "#22c55e";
+    else if (dir === "worsened") fg.style.stroke = "#ef4444";
+    else fg.style.stroke = "#6b7280";
+  }
+}
+
+function computeActionScoreFromMean(meanErr){
+  // meanErr is degrees (already absolute mean). Reuse existing KF score mapping.
+  return computeScoreFromKfError(meanErr);
+}
+
+// ====== 동작별 피드백 카드 렌더 ======
+function kfKeyOfAction(actionNum){
+  if (String(actionNum) === "1") return "kf1_error";
+  if (String(actionNum) === "2") return "kf2_error";
+  if (String(actionNum) === "3") return "kf3_error";
+  return null;
+}
+
+function setText(id, html){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = (html == null || html === "") ? "-" : String(html);
+}
+
+// ===== A안: 동작별 간단 구조 =====
+// 새 actions 필드 기반 간단 카드 렌더링
+function renderActionSimple(n, key) {
+  const actions = window.__LLM_ACTIONS__ || {};
+  const a = actions[key] || {};
+  const title = a?.title || "-";
+  const problem = a?.problem_one || "-";
+  const fixes = Array.isArray(a?.fix_two) ? a.fix_two : [];
+  const fixText = fixes.length ? fixes.map((x)=>`• ${String(x)}`).join("<br/>") : "-";
+
+  setText(`a${n}Summary`, `<b>${title}</b>`);
+  setText(`a${n}Plateau`, problem);
+  setText(`a${n}Consistency`, fixText);
+  setText(`a${n}Wins`, "-");
+  setText(`a${n}Issues`, "-");
+  setText(`a${n}Checklist`, "-");
+}
+
+
+
+// ====== 동작 카드 가로 캐러셀(스냅) 보조 ======
+function wireActionCarousel(){
+  const carousel = document.querySelector(".actionCards");
+  if (!carousel) return;
+
+  // 카드 폭(스크롤 스냅 기준) 추정: 첫 카드의 bounding box 사용
+  function panelWidth(){
+    const first = carousel.querySelector(".actionCard");
+    if (!first) return 0;
+    const rect = first.getBoundingClientRect();
+    // gap 포함을 위해 다음 카드의 left 차이를 우선 사용
+    const second = first.nextElementSibling;
+    if (second && second.classList.contains("actionCard")){
+      const r2 = second.getBoundingClientRect();
+      const w = Math.abs(r2.left - rect.left);
+      if (Number.isFinite(w) && w > 0) return w;
+    }
+    return rect.width;
+  }
+
+  function getCurrentAction(){
+    const w = panelWidth();
+    if (!w) return 1;
+    const idx = Math.round(carousel.scrollLeft / w);
+    return idx + 1;
+  }
+
+  // (선택) 현재 카드 인덱스를 body에 data로만 남겨둠 — UI 토글 로직이 따로 없어도 에러 없이 동작
+  function setActive(n){
+    carousel.dataset.active = String(n);
+  }
+
+  // update active on swipe/scroll end
+  let t = null;
+  carousel.addEventListener("scroll", ()=>{
+    if (t) clearTimeout(t);
+    t = setTimeout(()=>{
+      const n = getCurrentAction();
+      setActive(n);
+    }, 120);
+  }, { passive: true });
+
+  // 초기 active 설정
+  setActive(1);
+}
+
+
+// ====== Curated YouTube 추천 (검색이 아니라, 특정 영상 ID 기반) ======
+function youtubeWatchUrl(videoId) {
+  const id = String(videoId || "").trim();
+  if (!id) return null;
+  return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
+}
+
+function youtubeThumbUrl(videoId) {
+  const id = String(videoId || "").trim();
+  if (!id) return null;
+  return `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
+}
+
+// 제품에서 큐레이션한 목록만 사용 (채널/영상 ID 고정)
+const CURATED_YT = {
+  // 동작 1: 준비/그립/백스윙
+  action1: [
+    { videoId: "toQ7tOx7Tvs", title: "The 4 Grips In Badminton (올바른 그립 전환)", channel: "Badminton Insight" },
+    { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (준비/타이밍)", channel: "Badminton Insight" },
+  ],
+  // 동작 2: 임팩트/파워/타이밍
+  action2: [
+    { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (파워와 타이밍)", channel: "Badminton Insight" },
+  ],
+  // 동작 3: 팔로스루/회전/손가락-손목 사용
+  action3: [
+    { videoId: "zCq36gnqGdI", title: "How To Use Your Wrist In Badminton (손목이 아니라 손가락)", channel: "Badminton Insight" },
+  ],
+};
+
+function curatedListForKf(kfKey) {
+  const k = String(kfKey || "").toLowerCase();
+  if (k.includes("kf1")) return CURATED_YT.action1;
+  if (k.includes("kf2")) return CURATED_YT.action2;
+  if (k.includes("kf3")) return CURATED_YT.action3;
+  return [];
+}
+
+function uniqByVideoId(items) {
+  const seen = new Set();
+  const out = [];
+  for (const it of Array.isArray(items) ? items : []) {
+    const id = String(it?.videoId || "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(it);
+  }
+  return out;
+}
+
+function renderYoutubeLinksByKfKeys(kfKeys) {
+  const wrap = document.getElementById("llmYoutubeLinks");
+  if (!wrap) return;
+
+  const keys = Array.isArray(kfKeys) ? kfKeys : [];
+  const picked = [];
+  keys.forEach((k)=> picked.push(...curatedListForKf(k)));
+
+  if (!picked.length) {
+    picked.push(...CURATED_YT.action1, ...CURATED_YT.action2, ...CURATED_YT.action3);
+  }
+
+  const list = uniqByVideoId(picked).slice(0, 3);
+
+  if (!list.length) {
+    wrap.innerHTML = `<div class="ytEmpty">-</div>`;
+    return;
+  }
+
+  wrap.innerHTML = list
+    .map((v) => {
+      const url = youtubeWatchUrl(v.videoId);
+      const thumb = youtubeThumbUrl(v.videoId);
+      const title = String(v.title || "추천 영상");
+      const channel = String(v.channel || "");
+
+      return `
+        <a class="ytCard" href="${url}" target="_blank" rel="noopener noreferrer">
+          <div class="ytCard__thumbWrap">
+            <img class="ytCard__thumb" src="${thumb}" alt="${title}" loading="lazy" />
+            <div class="ytCard__badge">YouTube</div>
+          </div>
+          <div class="ytCard__body">
+            <div class="ytCard__title">${title}</div>
+            <div class="ytCard__meta">${channel}</div>
+          </div>
+        </a>
+      `;
+    })
+    .join("");
+}
+
+function renderYoutubeTableFromReport(reportObj) {
+  const tbody = document.querySelector("#ytTable tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const plateauKf = reportObj?.plateau?.kf || null;
+  const consKf = reportObj?.consistency?.kf || null;
+
+  const picked = [];
+  if (plateauKf) picked.push({ kf: plateauKf, list: curatedListForKf(plateauKf) });
+  if (consKf && consKf !== plateauKf) picked.push({ kf: consKf, list: curatedListForKf(consKf) });
+
+  // fallback: 대표 세트
+  if (!picked.length) {
+    picked.push({ kf: "kf1_error", list: CURATED_YT.action1 });
+    picked.push({ kf: "kf2_error", list: CURATED_YT.action2 });
+    picked.push({ kf: "kf3_error", list: CURATED_YT.action3 });
+  }
+
+  const rows = [];
+  for (const group of picked) {
+    for (const v of Array.isArray(group.list) ? group.list : []) {
+      rows.push({
+        action: actionNameFromKfKey(group.kf),
+        title: String(v?.title || "추천 영상"),
+        channel: String(v?.channel || ""),
+        url: youtubeWatchUrl(v?.videoId),
+      });
+    }
+  }
+
+  const uniq = [];
+  const seen = new Set();
+  for (const r of rows) {
+    if (!r.url || seen.has(r.url)) continue;
+    seen.add(r.url);
+    uniq.push(r);
+  }
+
+  const top = uniq.slice(0, 6);
+  if (!top.length) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="4">-</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  for (const r of top) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.action}</td>
+      <td title="${r.title}">${r.title}</td>
+      <td title="${r.channel}">${r.channel || "-"}</td>
+      <td><a href="${r.url}" target="_blank" rel="noopener noreferrer">열기</a></td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+
 // ====== 유틸: 심각도(룰 기반) ======
 function severityOf(angle) {
   const v = Math.abs(Number(angle));
@@ -42,6 +431,52 @@ function setScore(score) {
 
   const ring = document.querySelector(".scoreRing");
   if (ring) ring.setAttribute("aria-label", `점수 ${s}점`);
+}
+
+// ====== 기간 라벨/성장 요약/스코어 링 색상 헬퍼 ======
+function rangeLabelFromKey(r){
+  const x = String(r || "").toLowerCase();
+  if (x === "7d") return "1주";
+  if (x === "1m") return "1개월";
+  if (x === "3m") return "3개월";
+  if (x === "all") return "전체";
+  return "기간";
+}
+
+// 성장 방향에 따라 Score Ring 색상 변경
+function setScoreRingColor(direction){
+  const dir = String(direction || "").toLowerCase();
+  const fg = document.getElementById("scoreRingFg");
+  if (!fg) return;
+
+  // 기존 컬러 톤 유지: 개선=초록, 악화=빨강, 정체=회색
+  if (dir === "improved") fg.style.stroke = "#22c55e";
+  else if (dir === "worsened") fg.style.stroke = "#ef4444";
+  else fg.style.stroke = "#6b7280";
+}
+
+// comparison 기반 “지난 기간 대비” 문구 렌더
+function renderGrowthSummary(comparison, rangeKey){
+  const el = document.getElementById("summarySub");
+  if (!el) return;
+
+  const label = rangeLabelFromKey(rangeKey);
+  if (!comparison) {
+    el.textContent = `${label} 기준 분석 결과입니다.`;
+    return;
+  }
+
+  const dir = String(comparison.direction || "flat");
+  const dlt = Number(comparison.delta_mean_abs_kf_error);
+  const abs = Number.isFinite(dlt) ? Math.abs(dlt).toFixed(2) : null;
+
+  if (dir === "improved" && abs != null) {
+    el.innerHTML = `지난 ${label} 대비 평균 오차가 <b style="color:#16a34a">${abs}° 감소</b>했습니다.`;
+  } else if (dir === "worsened" && abs != null) {
+    el.innerHTML = `지난 ${label} 대비 평균 오차가 <b style="color:#b91c1c">${abs}° 증가</b>했습니다.`;
+  } else {
+    el.textContent = `지난 ${label} 대비 변화가 거의 없습니다.`;
+  }
 }
 
 function setSummaryText({ headline, sub } = {}) {
@@ -106,12 +541,12 @@ function renderTableFromSession(session) {
   const kf3 = session?.kf3_error;
 
   if ([kf1, kf2, kf3].some((v) => Number.isFinite(Number(v)))) {
-    rows.push(["KF1_ERROR", kf1]);
-    rows.push(["KF2_ERROR", kf2]);
-    rows.push(["KF3_ERROR", kf3]);
+    rows.push(["동작 1", kf1]);
+    rows.push(["동작 2", kf2]);
+    rows.push(["동작 3", kf3]);
   } else {
     // 우선순위 2) 종합 kf_error만 있으면 1줄로 표시
-    rows.push(["KF_ERROR(ALL)", session?.kf_error]);
+    rows.push(["평균(전체)", session?.kf_error]);
   }
 
   rows.forEach(([label, val]) => {
@@ -192,49 +627,109 @@ function destroyChart(key) {
   }
 }
 
-function renderScoreKfHistoryChart(sessions) {
+function renderScoreKfHistoryChart(currentSessions, prevSessions) {
   const ctx = document.getElementById("scoreKfHistoryChart");
   if (!ctx) return;
   destroyChart("scoreKfHistory");
 
-  const xs = getFilteredSessions(sessions);
+  const cur = getFilteredSessions(currentSessions);
+  const prev = getFilteredSessions(prevSessions);
 
-  const labels = xs.map((s) => s.created_at ?? `#${s.idx ?? "-"}`);
+  // ---- Build unified X labels using ISO date strings (stable), format on ticks as M.D ----
+  function isoDay(x){
+    const d = safeDate(x);
+    if (!d) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
 
-  const scoreValues = xs.map((s) => {
+  const labelSet = new Set();
+  cur.forEach((s)=>{ const k = isoDay(s.created_at); if (k) labelSet.add(k); });
+  prev.forEach((s)=>{ const k = isoDay(s.created_at); if (k) labelSet.add(k); });
+
+  // If no valid dates, fallback to original month.day labels (current only)
+  const labelsISO = Array.from(labelSet).sort((a,b)=> a.localeCompare(b));
+  const useISO = labelsISO.length > 0;
+
+  const labels = useISO ? labelsISO : cur.map((s)=> formatMonthDay(s.created_at ?? null));
+
+  function mapSeries(xs, pick){
+    const map = new Map();
+    xs.forEach((s)=>{
+      const k = useISO ? isoDay(s.created_at) : formatMonthDay(s.created_at ?? null);
+      if (!k) return;
+      map.set(k, pick(s));
+    });
+    return labels.map((k)=> (map.has(k) ? map.get(k) : null));
+  }
+
+  const curScore = mapSeries(cur, (s)=>{
     const direct = Number(s.score);
     if (Number.isFinite(direct)) return direct;
     return computeScoreFromKfError(s?.kf_error);
   });
 
-  // 세션별 KF error(평균 |error|) - kf_error 필드가 있으면 우선 사용
-  const kfErrValues = xs.map((s) => {
-    if (Number.isFinite(Number(s?.kf_error))) return Number(s.kf_error);
-    return 0;
+  const curErr = mapSeries(cur, (s)=> (Number.isFinite(Number(s?.kf_error)) ? Number(s.kf_error) : null));
+
+  const prevScore = mapSeries(prev, (s)=>{
+    const direct = Number(s.score);
+    if (Number.isFinite(direct)) return direct;
+    return computeScoreFromKfError(s?.kf_error);
   });
+
+  const prevErr = mapSeries(prev, (s)=> (Number.isFinite(Number(s?.kf_error)) ? Number(s.kf_error) : null));
 
   charts.scoreKfHistory = new Chart(ctx, {
     type: "line",
     data: {
       labels,
       datasets: [
+        // current
         {
           label: "SCORE",
-          data: scoreValues,
+          data: curScore,
           pointRadius: 2,
           tension: 0.25,
           yAxisID: "y",
-          borderColor: "#10b981", // ✅ 초록색
+          borderColor: "#10b981",
           backgroundColor: "#10b981",
+          spanGaps: true,
         },
         {
           label: "KF ERROR",
-          data: kfErrValues,
+          data: curErr,
           pointRadius: 2,
           tension: 0.25,
           yAxisID: "y1",
-          borderColor: "#f59e0b", // ✅ 주황색
+          borderColor: "#f59e0b",
           backgroundColor: "#f59e0b",
+          spanGaps: true,
+        },
+
+        // previous (dashed overlay)
+        {
+          label: "SCORE (prev)",
+          data: prevScore,
+          pointRadius: 0,
+          tension: 0.25,
+          yAxisID: "y",
+          borderColor: "#10b981",
+          backgroundColor: "#10b981",
+          borderDash: [6, 4],
+          spanGaps: true,
+        },
+        {
+          label: "KF ERROR (prev)",
+          data: prevErr,
+          pointRadius: 0,
+          tension: 0.25,
+          yAxisID: "y1",
+          borderColor: "#f59e0b",
+          backgroundColor: "#f59e0b",
+          borderDash: [6, 4],
+          spanGaps: true,
         },
       ],
     },
@@ -246,7 +741,8 @@ function renderScoreKfHistoryChart(sessions) {
         tooltip: {
           callbacks: {
             label: (c) => {
-              if (c.dataset.label === "KF ERROR") return ` ${c.parsed.y}°`;
+              const name = String(c.dataset.label || "");
+              if (name.includes("KF ERROR")) return ` ${c.parsed.y}°`;
               return ` ${c.parsed.y} 점`;
             },
           },
@@ -267,7 +763,16 @@ function renderScoreKfHistoryChart(sessions) {
           grid: { drawOnChartArea: false },
           title: { display: true, text: "KF ERROR (°)" },
         },
-        x: { ticks: { font: { size: 10 } } },
+        x: {
+          ticks: {
+            font: { size: 10 },
+            callback: (val, idx) => {
+              // labels[idx] is ISO day string or already formatted
+              const raw = labels[idx];
+              return useISO ? formatMonthDay(raw) : raw;
+            }
+          }
+        },
       },
     },
   });
@@ -332,6 +837,15 @@ function renderAnglesRadarChart(angles) {
 function safeDate(d){
   const x = new Date(d);
   return Number.isFinite(x.getTime()) ? x : null;
+}
+
+// created_at이 유효한 날짜면 "M.D" 형식으로, 아니면 원래 문자열 그대로 반환
+function formatMonthDay(x){
+  const d = safeDate(x);
+  if (!d) return String(x ?? "-");
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${m}.${day}`;
 }
 
 // ✅ 평균 |오차| 계산
@@ -528,81 +1042,20 @@ function renderMonthlySummary(sessions){
   `;
 }
 
-// ====== GT_profile 범위 내에서 가장 안정적인 KeyFrame 표시 ======
-function readGTProfile(){
-  // 1) window 전역 주입
-  if (window.__GT_PROFILE__ && typeof window.__GT_PROFILE__ === "object") return window.__GT_PROFILE__;
+// (removed) GT_profile-based best KF feature was removed per product decision.
+function renderBestKFInRange(){ /* intentionally removed */ }
 
-  // 2) localStorage (선택)
-  try{
-    const raw = localStorage.getItem("gt_profile");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object") return parsed;
-  }catch(_){ /* ignore */ }
+let __RANGE_FILTER__ = "7d";
+window.__LAST_SESSION__ = null;
 
-  return null;
-}
-
-function isWithinGT(angles, gtProfile){
-  if (!gtProfile) return false;
-  const a = angles || {};
-  // gtProfile: { jointName: { min: number, max: number }, ... }
-  for (const [joint, range] of Object.entries(gtProfile)){
-    const v = Number(a[joint]);
-    if (!Number.isFinite(v)) return false;
-    const mn = Number(range?.min);
-    const mx = Number(range?.max);
-    if (!Number.isFinite(mn) || !Number.isFinite(mx)) return false;
-    if (v < mn || v > mx) return false;
-  }
-  return true;
-}
-
-function renderBestKFInRange(sessions){
-  const el = document.getElementById("bestKFInRange");
-  if (!el) return;
-
-  const gt = readGTProfile();
-  if (!gt){
-    el.textContent = "GT_profile 미설정: 범위 내 최적 KF를 계산할 수 없습니다.";
-    return;
-  }
-
-  const xs = Array.isArray(sessions) ? sessions : [];
-
-  let best = null; // { frame, idx, created_at, meanErr }
-  for (const s of xs){
-    const angles = s?.angles || {};
-    if (!isWithinGT(angles, gt)) continue;
-    const m = meanAbsFromAngles(angles);
-    if (m == null) continue;
-    if (!best || m < best.meanErr){
-      best = {
-        frame: s?.frame ?? "-",
-        idx: s?.idx ?? "-",
-        created_at: s?.created_at ?? "-",
-        meanErr: +m.toFixed(2),
-      };
-    }
-  }
-
-  if (!best){
-    el.textContent = "GT_profile 범위 내 세션이 없습니다.";
-    return;
-  }
-
-  el.textContent = `GT 범위 내 최적 KeyFrame: ${best.frame} (avg |error| ${best.meanErr}°, session #${best.idx}, ${best.created_at})`;
-}
-
-function wireKFTabs(onChange){
-  const tabs = Array.from(document.querySelectorAll(".kfTab"));
+function wireRangeTabs(onChange){
+  const tabs = Array.from(document.querySelectorAll(".rangeTab"));
   if (!tabs.length) return;
 
   tabs.forEach((btn)=>{
     btn.addEventListener("click", ()=>{
-      const kf = String(btn.dataset.kf || "ALL").toUpperCase();
-      __KF_FILTER__ = (kf === "KF1" || kf === "KF2" || kf === "KF3") ? kf : "ALL";
+      const v = String(btn.dataset.range || "7d").toLowerCase();
+      __RANGE_FILTER__ = (v === "7d" || v === "1m" || v === "3m" || v === "all") ? v : "7d";
 
       tabs.forEach((b)=>{
         const active = (b === btn);
@@ -610,10 +1063,43 @@ function wireKFTabs(onChange){
         b.setAttribute("aria-selected", active ? "true" : "false");
       });
 
-      if (typeof onChange === "function") onChange(__KF_FILTER__);
+      if (typeof onChange === "function") onChange(__RANGE_FILTER__);
     });
   });
 }
+
+async function refreshByRange(range){
+  const payload = await loadFromDB(range);
+
+  const current = Array.isArray(payload?.current_sessions) ? payload.current_sessions : [];
+  const prev = Array.isArray(payload?.prev_sessions) ? payload.prev_sessions : [];
+  const comp = payload?.comparison || null;
+
+  __ALL_SESSIONS__ = current;
+  const last = current.length ? current[current.length - 1] : null;
+  window.__LAST_SESSION__ = last;
+
+  // 상단 성장 문구 + 링 색상
+  renderGrowthSummary(comp, payload?.range || range);
+  setScoreRingColor(comp?.direction);
+
+  // 차트: current + prev(점선)
+  renderScoreKfHistoryChart(current, prev);
+
+  // KF별 분석 차트
+  renderActionCards(current, prev);
+
+  // 스냅샷(기간 내 마지막)
+  window.__CURRENT_FRAME__ = last?.frame ?? "ALL";
+  const meta = last?.meta || {};
+  renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
+
+  const initialScore = Number.isFinite(Number(last?.score))
+    ? Number(last.score)
+    : computeScoreFromKfError(last?.kf_error);
+  setScore(initialScore);
+}
+
 // ====== LLM 리포트 생성 호출 (DB 기반) ======
 function getPostIdxFromURL() {
   try {
@@ -632,6 +1118,7 @@ function getPostIdxFallback() {
   }
 }
 
+// ====== LLM 리포트 생성 (기존 라우터: /api/report/post/{post_idx}) ======
 async function generateLLMReportByPostIdx(postIdx, lang = "ko") {
   const url = `${API_BASE}/api/report/post/${encodeURIComponent(postIdx)}?lang=${encodeURIComponent(lang)}`;
   const res = await fetch(url, { method: "POST" });
@@ -641,11 +1128,62 @@ async function generateLLMReportByPostIdx(postIdx, lang = "ko") {
     throw new Error(`LLM report failed: ${res.status} ${text}`);
   }
 
-  const data = await res.json(); // { report: { ... } }
+  const data = await res.json(); // { report: { ... } } 또는 { ... }
   return data?.report ?? data;
 }
 
-function renderLLMReport(reportObj) {
+// LLM report -> 추천 영상 선택(plateau/consistency 기반)
+function renderYoutubeLinksFromReport(reportObj){
+  const plateauKf = reportObj?.plateau?.kf || reportObj?.plateau?.key || null;
+  const consKf = reportObj?.consistency?.kf || reportObj?.consistency?.key || null;
+
+  const keys = [];
+  if (plateauKf) keys.push(plateauKf);
+  if (consKf && consKf !== plateauKf) keys.push(consKf);
+
+  // fallback: 전체 대표
+  if (!keys.length) keys.push("kf1_error", "kf2_error", "kf3_error");
+
+  renderYoutubeLinksByKfKeys(keys);
+}
+
+// LLM report -> 동작 카드(기존 actionCard UI)에 요약/피드백 반영
+function renderActionCardsFromLLM(reportObj){
+  const actions = reportObj?.actions || {};
+
+  // actions는 { kf1: {...}, kf2: {...}, kf3: {...} } 형태를 기대
+  const map = [
+    { n: 1, key: "kf1" },
+    { n: 2, key: "kf2" },
+    { n: 3, key: "kf3" },
+  ];
+
+  for (const m of map){
+    const a = actions?.[m.key] || {};
+
+    const title = a?.title ? String(a.title) : "-";
+    const problem = a?.problem_one ? String(a.problem_one) : "-";
+    const fixes = Array.isArray(a?.fix_two) ? a.fix_two : [];
+    const fixHtml = fixes.length ? `<ul>${fixes.map((x)=>`<li>${String(x)}</li>`).join("")}</ul>` : "-";
+
+    const body = document.getElementById(`a${m.n}Body`);
+    if (body){
+      body.innerHTML = `
+        <div><b>${title}</b></div>
+        <div style="margin-top:6px;"><b>개선 포인트</b><br/>${problem}</div>
+        <div style="margin-top:6px;"><b>추천 루틴</b><br/>${fixHtml}</div>
+      `;
+    }
+
+    // meta에 간단 라벨
+    const meta = document.getElementById(`a${m.n}Meta`);
+    if (meta){
+      meta.innerHTML = `LLM 요약 반영됨`;
+    }
+  }
+}
+
+function renderLLMReport(reportObj){
   const DEV = location.hostname === "localhost";
   if (DEV) {
     console.groupCollapsed("[LLM REPORT RAW JSON]");
@@ -653,79 +1191,29 @@ function renderLLMReport(reportObj) {
     console.groupEnd();
   }
 
-  const createdAtEl = document.getElementById("llmCreatedAt");
-  const modelEl = document.getElementById("llmModel");
-  if (createdAtEl) createdAtEl.textContent = reportObj?.created_at ?? "-";
-  if (modelEl) modelEl.textContent = reportObj?.model ?? "-";
-
-  const sev = String(reportObj?.overall_severity ?? reportObj?.result ?? "low").toLowerCase();
-  const badge = document.getElementById("overallSeverity");
-  if (badge) {
-    badge.classList.remove("severityBadge--low", "severityBadge--medium", "severityBadge--high");
-    if (sev === "high") badge.classList.add("severityBadge--high");
-    else if (sev === "medium") badge.classList.add("severityBadge--medium");
-    else badge.classList.add("severityBadge--low");
-    badge.textContent = sev.toUpperCase();
+  // 상단 요약 텍스트(있으면)
+  const summaryText = reportObj?.summary ? String(reportObj.summary) : null;
+  if (summaryText){
+    const sub = document.getElementById("summarySub");
+    if (sub) sub.textContent = summaryText;
   }
 
-  const summaryText = reportObj?.summary ? String(reportObj.summary) : "-";
-  const sumEl = document.getElementById("llmSummary");
-  if (sumEl) sumEl.textContent = summaryText;
+  // A안: 동작별 간단 구조 -> actionCard에 반영
+  renderActionCardsFromLLM(reportObj);
 
-  const headline =
-    sev === "high" ? "주의가 필요합니다" :
-    sev === "medium" ? "개선 여지가 있습니다" :
-    "잘 하고 있습니다";
-  setSummaryText({ headline: `${headline}<br/>(${sev.toUpperCase()})`, sub: summaryText });
-
-  const issuesEl = document.getElementById("llmIssues");
-  if (issuesEl) {
-    const issues = Array.isArray(reportObj?.top_issues) ? reportObj.top_issues : [];
-    if (issues.length === 0) {
-      issuesEl.innerHTML = `<div class="reportSection__body">-</div>`;
-    } else {
-      issuesEl.innerHTML = issues
-        .map((it) => {
-          const joint = it?.joint ?? "-";
-          const deg = it?.error_deg ?? "-";
-          const interp = it?.interpretation ?? "";
-          const why = it?.why_it_matters ?? "";
-          const fixArr = Array.isArray(it?.fix) ? it.fix : [];
-          const chips = fixArr.map((f) => `<span class="chip">${String(f)}</span>`).join("");
-          return `
-            <div class="issueItem">
-              <div class="issueItem__top">
-                <div class="issueItem__joint">${String(joint)}</div>
-                <div class="issueItem__deg">${String(deg)}°</div>
-              </div>
-              ${interp ? `<div class="issueItem__p"><b>해석</b>: ${String(interp)}</div>` : ""}
-              ${why ? `<div class="issueItem__p"><b>영향</b>: ${String(why)}</div>` : ""}
-              ${chips ? `<div class="issueItem__chips">${chips}</div>` : ""}
-            </div>
-          `;
-        })
-        .join("");
-    }
-  }
-
-  const checklistEl = document.getElementById("llmChecklist");
-  if (checklistEl) {
-    const items = Array.isArray(reportObj?.quick_checklist) ? reportObj.quick_checklist : [];
-    checklistEl.innerHTML = items.map((x) => `<li>${String(x)}</li>`).join("");
-  }
-
-  const notesEl = document.getElementById("llmNotes");
-  if (notesEl) notesEl.textContent = reportObj?.notes ? String(reportObj.notes) : "-";
+  // 추천 영상(썸네일 카드) 렌더
+  renderYoutubeLinksFromReport(reportObj);
 }
 
 // ====== 초기 로드: DB에서 JSON 가져오기 (실제 DB) ======
-async function loadFromDB() {
+async function loadFromDB(range = "7d") {
   const postIdx = getPostIdxFromURL() || getPostIdxFallback();
   if (!postIdx) {
     throw new Error("post_idx가 없습니다. URL에 ?post_idx=... 를 붙이세요.");
   }
 
-  const url = `${API_BASE}/api/report/analysis/post/${encodeURIComponent(postIdx)}`;
+  const r = (range || "7d").toLowerCase();
+  const url = `${API_BASE}/api/report/analysis/post/${encodeURIComponent(postIdx)}?range=${encodeURIComponent(r)}`;
   console.log("[DB FETCH REQUEST]", url);
 
   const res = await fetch(url, { method: "GET" });
@@ -741,21 +1229,37 @@ async function loadFromDB() {
 
 // ====== 부트스트랩 ======
 (async function init() {
-  const payload = await loadFromDB();
+  const payload = await loadFromDB(__RANGE_FILTER__);
 
-  const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
-  const last = sessions.length ? sessions[sessions.length - 1] : null;
+  const current = Array.isArray(payload?.current_sessions) ? payload.current_sessions : [];
+  const prev = Array.isArray(payload?.prev_sessions) ? payload.prev_sessions : [];
+  const comp = payload?.comparison || null;
 
-  // KF 탭 필터링을 위해 세션을 전역 상태에 저장
-  __ALL_SESSIONS__ = sessions;
+  const last = current.length ? current[current.length - 1] : null;
+
+  // 세션 히스토리 전역 상태 (현재 기간 기준)
+  __ALL_SESSIONS__ = current;
+
+  // 상단 성장 문구 + 링 색상 (초기)
+  renderGrowthSummary(comp, payload?.range || __RANGE_FILTER__);
+  setScoreRingColor(comp?.direction);
 
   // KF 탭 클릭 시 차트를 현재 필터 기준으로 재렌더
-  wireKFTabs(() => {
-    renderScoreKfHistoryChart(__ALL_SESSIONS__);
+  wireRangeTabs(async (r) => {
+    try {
+      await refreshByRange(r);
+    } catch (e) {
+      alert(e.message);
+    }
   });
 
   // 종합 리포트 페이지: 세션 히스토리(여러 번의 평가)를 시각화
-  renderScoreKfHistoryChart(__ALL_SESSIONS__);
+  renderScoreKfHistoryChart(current, prev);
+
+  // KF별 분석 차트
+  renderActionCards(current, prev);
+  // 동작 카드 캐러셀 스크롤 감지(에러 방지)
+  wireActionCarousel();
 
   // 현재 세션(가장 최근) 스냅샷
   window.__CURRENT_FRAME__ = last?.frame ?? "ALL";
@@ -764,8 +1268,8 @@ async function loadFromDB() {
   // 메타/스냅샷 렌더
   renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
 
-  // 테이블: KF 오차 기반
-  renderTableFromSession(last);
+  // LLM 생성 버튼 wiring (LLM 섹션을 숨겨도 버튼은 유지)
+  wireLLMGenerateButton();
 
   // 초기 점수: 최근 세션의 score 또는 kf_error 기반
   const initialScore = Number.isFinite(Number(last?.score))
@@ -774,34 +1278,34 @@ async function loadFromDB() {
 
   setScore(initialScore);
 
-  // ===== LLM 버튼 =====
-  const btn = document.getElementById("btnGenerate");
-  if (btn) {
-    btn.addEventListener("click", async () => {
-      try {
-        const postIdx = getPostIdxFromURL() || getPostIdxFallback();
-        if (!postIdx) {
-          throw new Error("post_idx가 없습니다. URL에 ?post_idx=... 를 붙이거나 localStorage.post_idx를 설정하세요.");
-        }
-
-        const report = await generateLLMReportByPostIdx(postIdx, "ko");
-        renderLLMReport(report);
-        // renderMonthlySummary(sessions); // (removed: no MONTHLY SUMMARY)
-        
-        // ✅ (B) 버튼을 누를 때마다 "현재 angles" 기준으로 점수를 다시 계산해 반영
-        // 종합 리포트 페이지에서는 점수를 LLM이 아니라 프론트 규칙(computeScoreFromKfError)로 산출합니다.
-        const refreshedScore = Number.isFinite(Number(last?.score))
-          ? Number(last.score)
-          : computeScoreFromKfError(last?.kf_error);
-
-        setScore(refreshedScore);
-
-        // 요약 문구는 LLM 결과를 그대로 사용(점수는 반영하지 않음)
-        const extracted = extractScoreAndSummary(report);
-        if (extracted.sub || extracted.headline) setSummaryText(extracted);
-      } catch (e) {
-        alert(e.message);
-      }
-    });
-  }
 })();
+
+// ====== LLM 리포트 생성/갱신 버튼 ======
+function wireLLMGenerateButton(){
+  const btn = document.getElementById("btnGenerateLLM");
+  if (!btn) return;
+
+  btn.addEventListener("click", async ()=>{
+    try{
+      btn.disabled = true;
+      btn.classList.add("is-active");
+      btn.textContent = "생성 중...";
+      console.log("[LLM GENERATE] post_idx=", (getPostIdxFromURL() || getPostIdxFallback()), "range=", __RANGE_FILTER__);
+      const postIdx = getPostIdxFromURL() || getPostIdxFallback();
+      const report = await generateLLMReportByPostIdx(postIdx, "ko");
+      renderLLMReport(report);
+
+      // (선택) 생성 후 분석 데이터도 다시 로딩해서 차트/트렌드 갱신
+      await refreshByRange(__RANGE_FILTER__);
+
+      btn.textContent = "LLM 리포트 생성";
+      btn.classList.remove("is-active");
+      btn.disabled = false;
+    }catch(e){
+      btn.textContent = "LLM 리포트 생성";
+      btn.classList.remove("is-active");
+      btn.disabled = false;
+      alert(e.message);
+    }
+  });
+}
