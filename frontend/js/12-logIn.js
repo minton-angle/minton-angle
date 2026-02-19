@@ -49,6 +49,16 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = '11-signUp.html';
         });
     }
+
+    // login.js 의 로그인 처리 부분
+    if (response.success) {
+        // 세션 저장소에 로그인 상태 기록 (창 닫으면 자동 소멸)
+        sessionStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('userName', response.userName);
+
+        alert(`${response.userName}님, 환영합니다!`);
+        window.location.href = '01-home.html'; // 메인 페이지로 이동
+    }
 });
 
 /**
@@ -69,6 +79,6 @@ function mockLoginDB(id, pw) {
                     message: "아이디 또는 비밀번호가 잘못되었습니다. (DB에 없는 정보)" 
                 });
             }
-        }, 800); // 0.8초간 서버 응답을 기다리는 척 함
+        }, 500); // 0.5초간 서버 응답을 기다리는 척 함
     });
 }
