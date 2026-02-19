@@ -607,11 +607,11 @@ function renderGrowthSummary(comparison, rangeKey){
   const abs = Number.isFinite(dlt) ? Math.abs(dlt).toFixed(2) : null;
 
   if (dir === "improved" && abs != null) {
-    el.innerHTML = `지난 ${label} 대비 평균 오차가 <b style="color:#16a34a">${abs}° 감소</b>했습니다.`;
+    el.innerHTML = `지난 ${label} 대비 평균 오차가 </br> <b style="color:#16a34a">${abs}° 감소</b>했습니다.<br/>꾸준한 훈련이 유지되고 있어요!`;
   } else if (dir === "worsened" && abs != null) {
-    el.innerHTML = `지난 ${label} 대비 평균 오차가 <b style="color:#b91c1c">${abs}° 증가</b>했습니다.`;
+    el.innerHTML = `지난 ${label} 대비 평균 오차가 </br> <b style="color:#b91c1c">${abs}° 증가</b>했습니다.<br/> 훈련에 좀더 집중해 보아요!`;
   } else {
-    el.textContent = `지난 ${label} 대비 변화가 거의 없습니다.`;
+    el.textContent = `지난 ${label} 대비 변화가 거의 없군요. 유지하는 것도 좋은 현상입니다!`;
   }
 }
 
@@ -1335,8 +1335,6 @@ function renderActionCardsFromLLM(reportObj){
       const existing = body.querySelector(".llmActionBlock");
       const html = `
         <div class="llmActionBlock" style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(17,24,39,.18);">
-          <div style="font-weight:900; font-size:12px; margin-bottom:6px;">LLM 피드백</div>
-          <div style="font-weight:900;">${String(title || "-")}</div>
           <div style="margin-top:6px;"><b>이전 기간 대비 변화</b><br/>${String(changeOne || "-")}</div>
           <div style="margin-top:6px;"><b>관찰 포인트</b><br/>${focusHtml}</div>
         </div>
