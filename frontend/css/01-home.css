@@ -199,6 +199,6 @@
 }
 
 .nav-home { background-image: url('../assets/images/home.png'); }
-.nav-gym { background-image: url('../assets/images/gym.png'); }
+.nav-play { background-image: url('../assets/images/play.png'); }
 .nav-history { background-image: url('../assets/images/history.png'); }
-.nav-settings { background-image: url('../assets/images/settings.png'); }
+.nav-myPage { background-image: url('../assets/images/myPage.png'); }

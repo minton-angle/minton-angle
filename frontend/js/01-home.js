@@ -30,11 +30,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // (참고) 네비게이션 바 버튼들도 필요하다면 아래와 같이 추가 가능합니다.
+    // 홈 버튼
+    const navHome = document.querySelector('.nav-home');
+    if (navHome) {
+        navHome.addEventListener('click', () => {
+            window.location.href = '01-home.html';
+        });
+    }
+
+    // 연습/체육관 버튼 (13-play.html)
+    const navGym = document.querySelector('.nav-play');
+    if (navGym) {
+        navGym.addEventListener('click', () => {
+            window.location.href = '13-playMode.html'; // 실제 파일명으로 수정하세요!
+        });
+    }
+
+    // 기록 버튼 (08-history.html)
     const navHistory = document.querySelector('.nav-history');
     if (navHistory) {
         navHistory.addEventListener('click', () => {
-            // 기록 페이지가 있다면 해당 경로로 이동
-            // window.location.href = '08-history.html';
+            window.location.href = '09-reportHistory.html'; // 실제 파일명으로 수정하세요!
+        });
+    }
+
+    // 설정 버튼 (10-myPage.html)
+    const navMyPage = document.querySelector('.nav-myPage');
+    if (navMyPage) {
+        navMyPage.addEventListener('click', () => {
+            window.location.href = '10-myPage.html'; // 실제 파일명으로 수정하세요!
         });
     }
 });
