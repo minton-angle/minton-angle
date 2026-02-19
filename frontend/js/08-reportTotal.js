@@ -677,6 +677,9 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
   const cur = getFilteredSessions(currentSessions);
   const prev = getFilteredSessions(prevSessions);
 
+  const rangeKey = (__RANGE_FILTER__ || "7d");
+  const prevLabel = rangeLabelFromKey(rangeKey);
+
   // ---- Build unified X labels using ISO date strings (stable), format on ticks as M.D ----
   function isoDay(x){
     const d = safeDate(x);
@@ -742,7 +745,7 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
 
         // previous (dashed overlay)
         {
-          label: "SCORE (prev)",
+          label: `SCORE(${prevLabel})`,
           data: prevScore,
           pointRadius: 0,
           tension: 0.25,
@@ -771,7 +774,7 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
           min: 0,
           max: 100,
           ticks: { font: { size: 10 } },
-          title: { display: true, text: "SCORE" },
+          title: { display: false, text: "" },
           grid: { display: false },
         },
         x: {
