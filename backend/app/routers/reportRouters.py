@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional
 import logging
 import time
+import json
 
 import uuid
 from datetime import datetime
@@ -310,7 +311,12 @@ class PostReportResponse(BaseModel):
 
 
 @router.post("/post/{post_idx}", response_model=PostReportResponse)
-def posture_report_from_post(post_idx: str, lang: str = "ko", db: Session = Depends(get_db)):
+def posture_report_from_post(
+    post_idx: str,
+    lang: str = "ko",
+    range: str = "7d",
+    db: Session = Depends(get_db),
+):
     """
     post_idx 기준으로 Analysis 히스토리(여러 건)를 DB에서 조회한 뒤,
         - 최신 1건(latest) + 히스토리 기반 요약지표(insights/추세)만 meta에 포함하여
@@ -320,62 +326,121 @@ def posture_report_from_post(post_idx: str, lang: str = "ko", db: Session = Depe
     logger_api.info("POST /api/report/post/%s start lang=%s", post_idx, lang)
 
     try:
-        analyses = (
-            db.query(Analysis)
-            .filter(Analysis.post_idx == post_idx)
-            .order_by(Analysis.create_date.asc())
-            .all()
-        )
-        if not analyses:
-            raise HTTPException(status_code=404, detail="No analysis rows for this post_idx")
+        r = (range or "7d").lower().strip()
+        if r not in ("7d", "1m", "3m", "all"):
+            r = "7d"
 
-        logger_api.info(
-            "[DB FETCH] post_idx=%s row_count=%d first_date=%s last_date=%s",
-            post_idx,
-            len(analyses),
-            analyses[0].create_date.isoformat() if analyses[0].create_date else None,
-            analyses[-1].create_date.isoformat() if analyses[-1].create_date else None,
-        )
+        now = datetime.utcnow()
+        base_q = db.query(Analysis).filter(Analysis.post_idx == post_idx)
+
+        current_start = None
+        if r == "7d":
+            current_start = now - timedelta(days=7)
+        elif r == "1m":
+            current_start = now - timedelta(days=30)
+        elif r == "3m":
+            current_start = now - timedelta(days=90)
+        elif r == "all":
+            current_start = None
+
+        q_current = base_q
+        if current_start is not None:
+            q_current = q_current.filter(Analysis.create_date >= current_start)
+
+        analyses = q_current.order_by(Analysis.create_date.asc()).all()
+
+        if not analyses:
+            raise HTTPException(status_code=404, detail="No analysis rows for this post_idx in the selected range")
+
+        # previous window (same length)
+        prev_analyses = []
+        if current_start is not None:
+            window_days = (now - current_start).days
+            prev_start = current_start - timedelta(days=window_days)
+            prev_end = current_start
+
+            q_prev = base_q.filter(
+                Analysis.create_date >= prev_start,
+                Analysis.create_date < prev_end,
+            )
+            prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
 
         latest = analyses[-1]
-        first = analyses[0]
 
-        # 최신값을 angles로 구성 (LLM 입력)
+        # angles = 최신 세션 값 (현재 기간 기준)
         angles = {
             "kf1_error": float(latest.kf1_error or 0.0),
             "kf2_error": float(latest.kf2_error or 0.0),
             "kf3_error": float(latest.kf3_error or 0.0),
         }
 
-        # history(전체) + trend(처음 vs 최신) 구성
-        first_mean = _mean_abs_kf_error(first)
-        last_mean = _mean_abs_kf_error(latest)
-        delta = last_mean - first_mean  # 음수면 개선(오차 감소), 양수면 악화
+        # ===== current vs previous 평균 비교 (전체 평균) =====
+        current_mean = sum(_mean_abs_kf_error(a) for a in analyses) / len(analyses)
+
+        if prev_analyses:
+            prev_mean = sum(_mean_abs_kf_error(a) for a in prev_analyses) / len(prev_analyses)
+        else:
+            prev_mean = current_mean
+
+        delta = current_mean - prev_mean
         trend = "improved" if delta < -1e-9 else ("worsened" if delta > 1e-9 else "flat")
+
+        # ===== KF별 평균 비교 =====
+        def _mean_of(rows, attr):
+            if not rows:
+                return 0.0
+            vals = [float(getattr(r, attr) or 0.0) for r in rows]
+            return sum(vals) / len(vals)
+
+        kf_stats = {}
+        for key in ["kf1_error", "kf2_error", "kf3_error"]:
+            cur_kf_mean = _mean_of(analyses, key)
+            prev_kf_mean = _mean_of(prev_analyses, key) if prev_analyses else cur_kf_mean
+            kf_delta = cur_kf_mean - prev_kf_mean
+            kf_direction = "improved" if kf_delta < -1e-9 else ("worsened" if kf_delta > 1e-9 else "flat")
+
+            kf_stats[key] = {
+                "current_mean": round(cur_kf_mean, 4),
+                "prev_mean": round(prev_kf_mean, 4),
+                "delta": round(kf_delta, 4),
+                "direction": kf_direction,
+            }
 
         insights = _compute_growth_insights(analyses)
 
         meta: Dict[str, Any] = {
             "post_idx": post_idx,
+            "range": r,
             "summary": {
-                "count": len(analyses),
-                "first_at": first.create_date.isoformat() if first.create_date else None,
-                "last_at": latest.create_date.isoformat() if latest.create_date else None,
+                "current_count": len(analyses),
+                "prev_count": len(prev_analyses),
             },
             "trend": {
-                "first_mean_abs_kf_error": round(first_mean, 4),
-                "last_mean_abs_kf_error": round(last_mean, 4),
+                "current_mean_abs_kf_error": round(current_mean, 4),
+                "prev_mean_abs_kf_error": round(prev_mean, 4),
                 "delta_mean_abs_kf_error": round(delta, 4),
                 "direction": trend,
             },
+            "kf_stats": kf_stats,  # 🔥 LLM이 동작별 평균 비교를 쓸 수 있도록 추가
             "insights": insights,
         }
 
         logger_api.info(
-            "[LLM INPUT] post_idx=%s angles=%s trend=%s",
+            "[LLM INPUT] post_idx=%s range=%s",
             post_idx,
-            angles,
-            meta.get("trend"),
+            r,
+        )
+        logger_api.info(
+            "[LLM INPUT] summary=%s",
+            json.dumps(meta.get("summary", {}), ensure_ascii=False),
+        )
+        logger_api.info(
+            "[LLM INPUT] kf_stats=%s",
+            json.dumps(meta.get("kf_stats", {}), ensure_ascii=False),
+        )
+        logger_api.info(
+            "[LLM INPUT] trend=%s",
+            json.dumps(meta.get("trend", {}), ensure_ascii=False),
         )
         # (2) LLM 호출
         report = generate_report(angles=angles, meta=meta, lang=lang)
