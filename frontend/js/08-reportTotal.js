@@ -115,9 +115,9 @@ function followswingFeedbackFromFalseRate(falseRate){
   // - 40% 이상 ~ 80% 미만: 개선 필요
   // - 80% 이상: 위험 부상이 있다
   if (!Number.isFinite(falseRate)) return "-";
-  if (falseRate >= 0.80) return "위험 부상이 있다";
-  if (falseRate >= 0.40) return "팔로우 스윙에 개선이 필요하다";
-  return "잘하고 있다";
+  if (falseRate >= 0.80) return "위험 부상이 있어요!";
+  if (falseRate >= 0.40) return "팔로우 스윙에 개선이 필요해요!";
+  return "자세가 좋으시네요! 그대로 유지해주세요!";
 }
 
 function followswingTrendPillText(direction, deltaPp){
@@ -222,10 +222,10 @@ function renderActionCards(currentSessions, prevSessions){
 
         const msg = followswingFeedbackFromFalseRate(curFalseRate);
 
-        body.innerHTML = `기간 내 실패(False) 비율: <b>${curPct == null ? "-" : curPct + "%"}</b> (False ${curFalseN}/${curTotalN})<br/>` +
-                         `이전 기간 실패 비율: <b>${prevPct == null ? "-" : prevPct + "%"}</b> (False ${prevFalseN}/${prevTotalN})<br/>` +
+        body.innerHTML = `기간 내 팔로우 스윙을 못한 비율: <b>${curPct == null ? "-" : curPct + "%"}</b> (False ${curFalseN}/${curTotalN})<br/>` +
+                         `이전 기간내 못한 비율: <b>${prevPct == null ? "-" : prevPct + "%"}</b> (False ${prevFalseN}/${prevTotalN})<br/>` +
                          `변화: <b>${deltaPp == null ? "-" : (deltaPp > 0 ? "+" : "") + deltaPp + "%p"}</b><br/>` +
-                         `피드백: <b>${msg}</b>`;
+                         `<b>${msg}</b>`;
 
         // pill: reflect false-rate delta
         const pillEl = document.getElementById(`a${c.n}TrendPill`);
