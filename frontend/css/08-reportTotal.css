@@ -327,13 +327,33 @@ h2{ font-size: 15px; margin: 0 0 8px; font-weight: 900; }
   padding: 10px;
 }
 
-/* 카드별 캔버스 높이(기존 컬러/스타일 유지) */
+/* ===== Action card mini charts (stage score history) ===== */
+.actionMiniChartWrap{
+  margin-top: 10px;
+  padding: 10px 10px 6px;
+  background: rgba(243,244,246,.70);
+  border: 1px solid rgba(17,24,39,.06);
+  border-radius: 14px;
+  height: 92px;
+  display:flex;
+  flex-direction: column;
+  justify-content:center;
+}
+.actionMiniChart{
+  width: 100% !important;
+  height: 70px !important;
+  display:block;
+}
 
+/* 카드별 캔버스 높이(기존 컬러/스타일 유지) */
 canvas{
   display:block;
   width: 100% !important;
   height: 140px !important;
 }
+
+canvas.actionMiniChart{ height: 70px !important; }
+
 
 /* 큰 카드(히스토리)는 더 큰 캔버스 높이 */
 #scoreKfHistoryChart{ height: 180px !important; }
