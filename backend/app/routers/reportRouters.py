@@ -229,19 +229,60 @@ def get_analysis_by_post_alias(
             prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
 
         def to_sessions(analyses: list[Analysis]) -> list[Dict[str, Any]]:
+            SCORE_KEYS = [
+                "1_Ready_Total",
+                "2_Rotation_Total",
+                "3_Backswing_Total",
+                "4_Impact_Total",
+                "5_FollowSwing_Total",
+            ]
+
+            def _clamp_score(v: Any) -> float:
+                try:
+                    x = float(v)
+                except Exception:
+                    return 0.0
+                return max(0.0, min(100.0, x))
+
             out = []
             for a in analyses:
+                # legacy KF-based score
                 mean_err = _mean_abs_kf_error(a)
-                score = round(max(0, min(100, 100 - (mean_err / 20) * 100)))
+                legacy_score = round(max(0, min(100, 100 - (mean_err / 20) * 100)))
+
+                # new stage scores from score_json
+                sj = getattr(a, "score_json", None) or {}
+                stage_scores = {k: _clamp_score(sj.get(k)) for k in SCORE_KEYS}
+                avg_score = sj.get("Average_Score", None)
+                avg_score_num = None
+                try:
+                    if avg_score is not None:
+                        avg_score_num = _clamp_score(avg_score)
+                except Exception:
+                    avg_score_num = None
+
+                # prefer Average_Score if present for session score ring
+                session_score = legacy_score
+                if avg_score_num is not None:
+                    session_score = int(round(avg_score_num))
+
                 out.append({
                     "idx": a.idx,
                     "created_at": a.create_date.isoformat() if a.create_date else None,
                     "frame": "ALL",
-                    "score": score,
+
+                    # score for ring/chart (prefer Average_Score)
+                    "score": session_score,
+
+                    # legacy fields (keep)
                     "kf_error": round(mean_err, 4),
                     "kf1_error": float(a.kf1_error or 0.0),
                     "kf2_error": float(a.kf2_error or 0.0),
                     "kf3_error": float(a.kf3_error or 0.0),
+
+                    # new fields
+                    "stage_scores": stage_scores,
+                    "average_score": avg_score_num,
                 })
             return out
 
@@ -295,6 +336,28 @@ def get_analysis_by_post_alias(
                 "prev_mean_abs_kf_error": round(prev_mean, 4),
                 "delta_mean_abs_kf_error": delta,
                 "direction": direction,
+
+                # score-based (Average_Score) comparison for UI
+                "current_mean_average_score": round(
+                    sum([float(s.get("average_score") or s.get("score") or 0.0) for s in current_sessions]) / max(1, len(current_sessions)),
+                    2,
+                ),
+                "prev_mean_average_score": round(
+                    sum([float(s.get("average_score") or s.get("score") or 0.0) for s in prev_sessions]) / max(1, len(prev_sessions)) if prev_sessions else 0.0,
+                    2,
+                ),
+                "delta_average_score": round(
+                    (sum([float(s.get("average_score") or s.get("score") or 0.0) for s in current_sessions]) / max(1, len(current_sessions))) -
+                    (sum([float(s.get("average_score") or s.get("score") or 0.0) for s in prev_sessions]) / max(1, len(prev_sessions)) if prev_sessions else 0.0),
+                    2,
+                ),
+                "score_direction": (
+                    "improved" if ((sum([float(s.get("average_score") or s.get("score") or 0.0) for s in current_sessions]) / max(1, len(current_sessions))) -
+                                   (sum([float(s.get("average_score") or s.get("score") or 0.0) for s in prev_sessions]) / max(1, len(prev_sessions)) if prev_sessions else 0.0)) > 1e-9
+                    else ("worsened" if ((sum([float(s.get("average_score") or s.get("score") or 0.0) for s in current_sessions]) / max(1, len(current_sessions))) -
+                                         (sum([float(s.get("average_score") or s.get("score") or 0.0) for s in prev_sessions]) / max(1, len(prev_sessions)) if prev_sessions else 0.0)) < -1e-9
+                          else "flat")
+                ),
             },
         }
 
