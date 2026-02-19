@@ -19,7 +19,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
 DEFAULT_MAX_TOKENS = int(os.getenv("GROQ_MAX_TOKENS", "800"))
-DEFAULT_TEMPERATURE = float(os.getenv("GROQ_TEMPERATURE", "0.4"))
+DEFAULT_TEMPERATURE = float(os.getenv("GROQ_TEMPERATURE", "0.8"))
 
 
 # ------------------------------------------------------------------
@@ -40,6 +40,12 @@ def _system_prompt(lang: str) -> str:
    - risk_level=ok인 경우에는 부상 위험 언급을 하지 마십시오.
    - 각 키별 사용 가능 값: current_mean, prev_mean, delta, direction
    - 사용 금지: angles(단일 세션 값), raw angle, 임의로 만든 수치/예시 수치
+1-2) 각 섹션은 서로 다른 신체/동작 관찰 영역을 다뤄야 합니다.
+   - ready(준비): 스탠스, 상체 높이, 팔 위치, 준비 타이밍 중 최소 2개 포함
+   - rotation(회전): 골반 회전, 체간 분리, 중심축 유지, 하체-상체 연결 중 최소 2개 포함
+   - backswing(백스윙): 팔꿈치 위치, 손목 각도, 라켓 준비 경로 중 최소 2개 포함
+   - impact(임팩트): 타점 위치, 라켓 각도, 임팩트 순간 체중 이동 중 최소 2개 포함
+   - followswing(팔로스윙): 스윙 마무리 높이, 어깨/팔꿈치 부담 여부, 과회전 여부 중 최소 2개 포함
 2) 각 섹션(ready/rotation/backswing/impact/followswing)의 내용은 서로 달라야 합니다. (같은 문장/같은 수치 반복 금지)
 3) direction 판정은 입력의 direction 값을 그대로 따르십시오.
    - improved: delta > 0 (점수 상승)
