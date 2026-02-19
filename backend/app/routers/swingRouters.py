@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from typing import Union
 
 from app.db.session import get_db
+from app.models.userModels import User
 from app.schemas.swing import (
     SwingAnalysisRequest,
     QuickFeedbackResponse,
@@ -35,14 +36,18 @@ router = APIRouter(prefix="/api/realtime", tags=["realtime"])
 )
 async def analyze_swing(
     request: SwingAnalysisRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # ⭐ User 객체로 받음!
 ):
     """실시간 스윙 분석 - Service에 위임"""
     
     try:
-        request.user_id = get_current_user.id
-
-        result = await swing_service.analyze_realtime(request, db)
+        # ⭐ user_id를 current_user에서 추출하여 서비스로 전달
+        result = await swing_service.analyze_realtime(
+            request=request,
+            db=db,
+            user_id=current_user.id  # ⭐ 여기서 전달!
+        )
         return result
         
     except ValueError as e:
@@ -51,10 +56,10 @@ async def analyze_swing(
             detail=str(e)
         )
     except Exception as e:
+        print(f"❌ 분석 에러: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"분석 실패: {str(e)}"
         )
-    
-
-

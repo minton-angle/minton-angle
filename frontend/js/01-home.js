@@ -1,28 +1,61 @@
-// 페이지 로드 완료 후 실행
+// ========================================
+// 홈 페이지
+// ========================================
+
 document.addEventListener('DOMContentLoaded', () => {
+    // ⭐ common.js 함수 사용!
+    const userName = getUserName();
     
-    // 1. 그립 교정 버튼 클릭 시 이동
+    // 사용자 이름 표시
+    const userNameElement = document.querySelector('.user-name');
+    if (userName && userNameElement) {
+        userNameElement.textContent = `${userName} 님`;
+    }
+    
+    // 1. 그립 교정 버튼
     const gripBtn = document.querySelector('.btn-grib');
     if (gripBtn) {
         gripBtn.addEventListener('click', () => {
             window.location.href = '02-gripMode.html';
         });
     }
-
-    // 2. 기본 스윙 교정 버튼 클릭 시 이동
+    
+    // 2. 기본 스윙 교정 버튼
     const swingBtn = document.querySelector('.btn-pose');
     if (swingBtn) {
         swingBtn.addEventListener('click', () => {
             window.location.href = '03-swingMode.html';
         });
     }
-
-    // (참고) 네비게이션 바 버튼들도 필요하다면 아래와 같이 추가 가능합니다.
+    
+    // 네비게이션 바
+    const navHome = document.querySelector('.nav-home');
+    if (navHome) {
+        navHome.addEventListener('click', () => {
+            window.location.href = '01-home.html';
+        });
+    }
+    
+    const navGym = document.querySelector('.nav-play');
+    if (navGym) {
+        navGym.addEventListener('click', () => {
+            window.location.href = '13-playMode.html';
+        });
+    }
+    
     const navHistory = document.querySelector('.nav-history');
     if (navHistory) {
         navHistory.addEventListener('click', () => {
-            // 기록 페이지가 있다면 해당 경로로 이동
-            // window.location.href = '08-history.html';
+            window.location.href = '09-reportHistory.html';
+        });
+    }
+    
+    const navMyPage = document.querySelector('.nav-myPage');
+    if (navMyPage) {
+        navMyPage.addEventListener('click', () => {
+            window.location.href = '10-myPage.html';
         });
     }
 });
+
+console.log('📄 01-home.js 로드 완료');

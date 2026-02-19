@@ -11,27 +11,12 @@ from fastapi.staticfiles import StaticFiles
 current_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(current_dir))
 
-from app.db.base import Base
-from app.db.session import engine
-
-# 라우터 import
-from app.routers import swingRouters, uploadRouters
-from app.routers import swingRouters, uploadRouters, calendarRouters
-from app.routers.reportRouters import router as report_router
-from app.routers.authRouters import router as auth_router
-
-# 모델 import (테이블 생성용)
-from app.models.userModels import User
-from app.models.postModels import Post
-from app.models.fileModels import File
-from app.models.analysisModels import Analysis
-from app.models.llmReportModels import LLMReport  # 🔧 수정! LlmReport → LLMReport
-
-from dotenv import load_dotenv
-load_dotenv() # 환경 변수 로드
-
-import logging
+# ⭐ 먼저 서버 시작 메시지 출력 (import 전!)
 import os
+import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
@@ -40,6 +25,31 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 
+# ⭐ 서버 시작 메시지 (import 전에 출력)
+if __name__ == "__main__":
+    print("\n" + "=" * 60)
+    print("🚀 MINTON-ANGLE API Server 시작")
+    print("=" * 60)
+    print(f"📁 작업 디렉토리: {current_dir}")
+    print(f"🌐 서버 주소: http://localhost:8000")
+    print(f"📚 API 문서: http://localhost:8000/docs")
+    print("=" * 60 + "\n")
+
+# ⭐ 이제 모듈 import (여기서 GT 로드 메시지 출력됨)
+from app.db.base import Base
+from app.db.session import engine
+
+# 라우터 import
+from app.routers import swingRouters, uploadRouters, calendarRouters
+from app.routers.reportRouters import router as report_router
+from app.routers.authRouters import router as auth_router
+
+# 모델 import
+from app.models.userModels import User
+from app.models.postModels import Post
+from app.models.fileModels import File
+from app.models.analysisModels import Analysis
+from app.models.llmReportModels import LLMReport
 
 # 데이터베이스 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -67,12 +77,14 @@ app.include_router(calendarRouters.router)
 app.include_router(report_router)
 app.include_router(auth_router)
 
+# 정적 파일 서빙
 app.mount("/backend/data", StaticFiles(directory="data"), name="data")
 
 
 @app.get("/")
 def read_root():
     return {"message": "MINTON-ANGLE API Server"}
+
 
 @app.get("/health")
 def health_check():
@@ -83,17 +95,9 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
     
-    print("=" * 60)
-    print("🚀 MINTON-ANGLE API Server 시작")
-    print("=" * 60)
-    print(f"📁 작업 디렉토리: {current_dir}")
-    print(f"🌐 서버 주소: http://localhost:8000")
-    print(f"📚 API 문서: http://localhost:8000/docs")
-    print("=" * 60 + "\n")
-    
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True
+        reload=False
     )

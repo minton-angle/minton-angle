@@ -1,8 +1,3 @@
-const API_BASE_URL = 'http://localhost:8000';
-// const USER_ID = 'user_001'; // 임시 사용자 ID
-// 로그인 시 생성된 토큰 임시로 넣기
-const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidGVzdDAwMyIsImV4cCI6MTc3MTk5ODYzNX0.Xl4QCQNB9_f0q6L8EeP_opx_oRfPIW7QhWrLLTB3mtE";
-
 let selectedFile = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -10,10 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     videoInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
-            // 파일 저장
             selectedFile = file;
             
-            // 미리보기 표시
             const videoURL = URL.createObjectURL(file);
             const previewVideo = document.getElementById('preview-video');
             const placeholder = document.getElementById('upload-placeholder');
@@ -21,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const submitBtn = document.getElementById('submit-btn');
 
             previewVideo.src = videoURL;
-            previewVideo.play(); // 자동 재생
+            previewVideo.play();
             
             placeholder.style.display = 'none';
             previewContainer.style.display = 'block';
@@ -48,25 +41,16 @@ async function startAnalysis() {
     try {
         console.log('🚀 분석 시작...');
         
-        // FormData 생성
         const formData = new FormData();
         formData.append('video', selectedFile);
 
-        // 타임아웃을 2분으로 설정
+        // 타임아웃 2분
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000); // 120초
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
         
-        // API 호출
-        // const response = await fetch(`${API_BASE_URL}/api/upload/video?user_id=${USER_ID}`, {
-        //     method: 'POST',
-        //     body: formData
-        // });
-        // token
-        const response = await fetch(`${API_BASE_URL}/api/upload/video`, {
+        // ⭐ authFetch 사용!
+        const response = await authFetch(`${API_BASE_URL}/api/upload/video`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${TOKEN}`  // ⭐ 추가!
-            },
             body: formData,
             signal: controller.signal
         });
@@ -81,7 +65,6 @@ async function startAnalysis() {
         const result = await response.json();
         console.log('✅ 분석 완료:', result);
         
-        // ⭐ URL 파라미터로 전달 (localStorage 사용 안 함!)
         const postId = result.post_idx;
         
         // 결과 페이지로 이동
@@ -91,7 +74,7 @@ async function startAnalysis() {
         
     } catch (error) {
         console.error('❌ 에러 발생:', error);
-        // 타임아웃 에러 구분
+        
         if (error.name === 'AbortError') {
             alert('분석 시간이 너무 오래 걸립니다. 다시 시도해주세요.');
         } else {

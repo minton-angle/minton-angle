@@ -41,7 +41,7 @@ body {
     align-items: center;
     background-color: #f9f9f9; /* 입력 덩어리 박스 배경색 (선택사항) */
     padding: 10px 15px;
-    border-radius: 30px;
+    border-radius: 25px;
     margin-bottom: 15px;
     border: 1px solid #eee;
 }
@@ -64,12 +64,12 @@ body {
 
 /* 3. 로그인 버튼 */
 .login-submit-btn {
-    width: 80%;
+    width: 90%;
     padding: 15px;
     background-color: #3E6D4F; /* 민턴각 메인 컬러 */
     color: white;
     border: none;
-    border-radius: 30px;
+    border-radius: 20px;
     font-size: 16px;
     font-weight: 700;
     cursor: pointer;

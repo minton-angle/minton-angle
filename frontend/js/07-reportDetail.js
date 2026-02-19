@@ -3,8 +3,6 @@
  * 전 단계 사용자-전문가 1:1 비교 강화 버전
  */
 
-const API_BASE_URL = 'http://localhost:8000';
-
 document.addEventListener('DOMContentLoaded', () => {
     loadAnalysisResult();
 });

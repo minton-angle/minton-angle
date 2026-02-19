@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000"; // FastAPI 주소
+// const API_BASE = "http://localhost:8000"; // FastAPI 주소
 
 // ====== GT Profile (종합 리포트 페이지에서는 사용 안 함) ======
 // NOTE: 종합 페이지는 세션 히스토리 기반이므로, GT 범위는 서버/다른 페이지에서 처리하는 것을 권장합니다.

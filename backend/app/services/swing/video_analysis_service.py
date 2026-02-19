@@ -21,29 +21,33 @@ from app.services.swing.engine.analyze_single_user_overlay import OverlayGenerat
 class VideoAnalysisService:
     """영상 분석 서비스 - 컨트롤 타워 (GDR 스타일)"""
     
+    _initialized = False    
+
     def __init__(self):
-        # 1. 상대 경로를 사용하여 프로젝트 루트(backend) 폴더 탐색 (협업용)
-        # 현재 파일 위치: backend/app/services/swing/video_analysis_service.py
         current_file_path = os.path.abspath(__file__)
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file_path))))
         
         self.upload_dir = os.path.join(project_root, "data", "upload")
         self.keyframe_dir = os.path.join(project_root, "data", "upload_keyframes")
         
-        # 2. 엔진 도구 초기화
         self.pose_detector = PoseDetector()
         self.keyframe_detector = KeyframeDetector()
         self.overlay_generator = OverlayGenerator()
         
-        # 3. 통합된 두뇌(ScoreCalculator) 초기화 (GT JSON 경로 설정)
         gt_json_path = os.path.join(project_root, "data", "standard", "gt_evaluation.json")
         
         if os.path.exists(gt_json_path):
             self.score_calculator = ScoreCalculator(gt_json_path)
-            print(f"✅ [VideoService] 전문가 기준 로드 성공: {gt_json_path}")
+            
+            # ⭐ 클래스 변수로 체크!
+            if not VideoAnalysisService._initialized:
+                print(f"✅ [VideoService] 전문가 기준 로드 성공: {gt_json_path}")
+                VideoAnalysisService._initialized = True
         else:
-            self.score_calculator = ScoreCalculator()  # 파일 없을 시 기본 임계값 사용
-            print(f"⚠️ [VideoService] GT 파일 없음: {gt_json_path}")
+            self.score_calculator = ScoreCalculator()
+            if not VideoAnalysisService._initialized:
+                print(f"⚠️ [VideoService] GT 파일 없음: {gt_json_path}")
+                VideoAnalysisService._initialized = True
     
     async def analyze_video(self, user_id: str, video: UploadFile, db: Session):
         """영상 업로드 및 3단계 9개 항목 종합 분석 실행"""

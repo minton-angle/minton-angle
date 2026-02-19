@@ -163,3 +163,5 @@ async def get_my_info(
         sex=current_user.sex,
         hand=current_user.hand
     )
+
+
