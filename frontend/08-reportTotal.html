@@ -43,6 +43,7 @@
         <div class="miniGrid">
           <div class="miniCard miniCard--wide">
             <div class="miniCard__head">
+              <button type="button" id="btnGenerateLLM" class="rangeTab" aria-label="LLM 리포트 생성/갱신">LLM 리포트 생성</button>
               <!-- <div class="miniCard__label"> 성장곡선 </div> -->
             </div>
             <canvas id="scoreKfHistoryChart"></canvas>
@@ -59,117 +60,64 @@
       </section>
 
       <section class="card">
-        <h2>LLM 리포트</h2>
-
-        <div class="reportBox">
-          <div class="reportTop">
-            <div id="overallSeverity" class="severityBadge severityBadge--low">LOW</div>
-            <div class="reportMeta">
-              <div class="reportMeta__row"><b>모델</b>: <span id="llmModel">-</span></div>
-              <div class="reportMeta__row"><b>생성</b>: <span id="llmCreatedAt">-</span></div>
+        <h2>동작별 분석</h2>
+      
+        <div class="actionCards" aria-label="동작별 분석 카드">
+          <article class="actionCard" id="actionCard1">
+            <div class="actionCard__top">
+              <div class="actionCard__title">백스윙 동작</div>
+              <div class="actionCard__right">
+                <div class="actionCard__pill" id="a1TrendPill">-</div>
+                <div class="halfGauge" aria-label="백스윙 점수">
+                  <svg class="halfGauge__svg" viewBox="0 0 120 70" role="img" aria-hidden="true">
+                    <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
+                    <path id="a1GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" />
+                  </svg>
+                  <div class="halfGauge__text"><span id="a1GaugeValue">-</span><span class="halfGauge__unit">점</span></div>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div class="reportSection">
-            <div class="reportSection__title">요약</div>
-            <div id="llmSummary" class="reportSection__body">-</div>
-          </div>
-
-          <div class="reportSection">
-            <div class="reportSection__title">성장</div>
-            <div id="llmGrowth" class="reportSection__body">-</div>
-          </div>
-
-          <div class="reportSection">
-            <div class="reportSection__title">개선이 필요해요!</div>
-            <div id="llmPlateau" class="reportSection__body">-</div>
-          </div>
-
-          <div class="reportSection">
-            <div class="reportSection__title">일관성(편차/재현성)</div>
-            <div id="llmConsistency" class="reportSection__body">-</div>
-          </div>
-
-          <div class="reportSection">
-            <div class="reportSection__title">좋아진 점</div>
-            <div id="llmWins" class="reportSection__body">-</div>
-          </div>
-
-          <div class="reportSection">
-            <div class="reportSection__title">핵심 이슈</div>
-            <div id="llmIssues" class="issuesList"></div>
-          </div>
-
-          <div class="reportSection">
-            <div class="reportSection__title">빠른 체크리스트</div>
-            <ul id="llmChecklist" class="checkList"></ul>
-          </div>
-
-          <div class="row actions" style="margin-top:12px;">
-            <button id="btnGenerate">LLM 리포트 생성</button>
-          </div>
-
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>동작별 피드백</h2>
-
-        <div class="actionNav" aria-label="동작별 피드백 네비게이션">
-          <button type="button" class="actionNav__btn" id="actionPrev" aria-label="이전 동작">‹</button>
-          <div class="actionNav__dots" role="tablist" aria-label="동작 선택">
-            <button type="button" class="actionDot is-active" data-action="1" aria-selected="true">백스윙 동작 </button>
-            <button type="button" class="actionDot" data-action="2" aria-selected="false">임팩트 동작</button>
-            <button type="button" class="actionDot" data-action="3" aria-selected="false">팔로스루 동작</button>
-          </div>
-          <button type="button" class="actionNav__btn" id="actionNext" aria-label="다음 동작">›</button>
-        </div>
-
-        <div id="actionCarousel" class="actionCarousel" aria-label="동작별 피드백 슬라이더">
-          <article class="actionPanel" data-action="1">
-            <div class="actionPanel__title">백스윙 동작</div>
-            <table class="actionTable">
-              <tbody>
-                <tr><th>요약</th><td id="a1Summary">-</td></tr>
-                <tr><th>개선이 필요해요</th><td id="a1Plateau">-</td></tr>
-                <tr><th>일관성</th><td id="a1Consistency">-</td></tr>
-                <tr><th>좋아진 점</th><td id="a1Wins">-</td></tr>
-                <tr><th>핵심 이슈</th><td id="a1Issues">-</td></tr>
-                <tr><th>체크리스트</th><td id="a1Checklist">-</td></tr>
-              </tbody>
-            </table>
+            <div class="actionCard__meta" id="a1Meta">-</div>
+            <div class="actionCard__body" id="a1Body">-</div>
           </article>
-
-          <article class="actionPanel" data-action="2">
-            <div class="actionPanel__title">임팩트 동작</div>
-            <table class="actionTable">
-              <tbody>
-                <tr><th>요약</th><td id="a2Summary">-</td></tr>
-                <tr><th>개선이 필요해요</th><td id="a2Plateau">-</td></tr>
-                <tr><th>일관성</th><td id="a2Consistency">-</td></tr>
-                <tr><th>좋아진 점</th><td id="a2Wins">-</td></tr>
-                <tr><th>핵심 이슈</th><td id="a2Issues">-</td></tr>
-                <tr><th>체크리스트</th><td id="a2Checklist">-</td></tr>
-              </tbody>
-            </table>
+      
+          <article class="actionCard" id="actionCard2">
+            <div class="actionCard__top">
+              <div class="actionCard__title">임팩트 동작</div>
+              <div class="actionCard__right">
+                <div class="actionCard__pill" id="a2TrendPill">-</div>
+                <div class="halfGauge" aria-label="임팩트 점수">
+                  <svg class="halfGauge__svg" viewBox="0 0 120 70" role="img" aria-hidden="true">
+                    <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
+                    <path id="a2GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" />
+                  </svg>
+                  <div class="halfGauge__text"><span id="a2GaugeValue">-</span><span class="halfGauge__unit">점</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="actionCard__meta" id="a2Meta">-</div>
+            <div class="actionCard__body" id="a2Body">-</div>
           </article>
-
-          <article class="actionPanel" data-action="3">
-            <div class="actionPanel__title">팔로스루 동작</div>
-            <table class="actionTable">
-              <tbody>
-                <tr><th>요약</th><td id="a3Summary">-</td></tr>
-                <tr><th>개선이 필요해요</th><td id="a3Plateau">-</td></tr>
-                <tr><th>일관성</th><td id="a3Consistency">-</td></tr>
-                <tr><th>좋아진 점</th><td id="a3Wins">-</td></tr>
-                <tr><th>핵심 이슈</th><td id="a3Issues">-</td></tr>
-                <tr><th>체크리스트</th><td id="a3Checklist">-</td></tr>
-              </tbody>
-            </table>
+      
+          <article class="actionCard" id="actionCard3">
+            <div class="actionCard__top">
+              <div class="actionCard__title">팔로스루 동작</div>
+              <div class="actionCard__right">
+                <div class="actionCard__pill" id="a3TrendPill">-</div>
+                <div class="halfGauge" aria-label="팔로스루 점수">
+                  <svg class="halfGauge__svg" viewBox="0 0 120 70" role="img" aria-hidden="true">
+                    <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
+                    <path id="a3GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" />
+                  </svg>
+                  <div class="halfGauge__text"><span id="a3GaugeValue">-</span><span class="halfGauge__unit">점</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="actionCard__meta" id="a3Meta">-</div>
+            <div class="actionCard__body" id="a3Body">-</div>
           </article>
         </div>
       </section>
-
       <section class="card">
         <h2>추천 영상</h2>
         <div class="row">
