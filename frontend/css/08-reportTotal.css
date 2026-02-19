@@ -1,98 +1,142 @@
-/* ===== 동작별 피드백(가로 슬라이드) ===== */
-.actionNav{
+/* ===== 동작별 분석 카드(세로 카드) ===== */
+.actionCards{
+  display:flex;
+  flex-direction: row;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 2px 2px 10px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.actionCards::-webkit-scrollbar{ height: 8px; }
+.actionCards::-webkit-scrollbar-thumb{ background: rgba(17,24,39,.15); border-radius: 999px; }
+
+.actionCard{
+  background: var(--card);
+  border-radius: 18px;
+  border: 1px solid rgba(17,24,39,.08);
+  box-shadow: 0 18px 40px rgba(0,0,0,.08);
+  padding: 14px;
+  min-width: 300px;
+  max-width: 340px;
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+}
+.actionCard__right{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+
+/* ===== Half score gauge (per action) ===== */
+.halfGauge{
+  width: 110px;
+  height: 62px;
+  position: relative;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+.halfGauge__svg{
+  width: 110px;
+  height: 62px;
+}
+.halfGauge__bg{
+  fill:none;
+  stroke: rgba(17,24,39,.16);
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+.halfGauge__fg{
+  fill:none;
+  stroke: #22c55e;
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: 157;
+  stroke-dashoffset: 157;
+  transition: stroke-dashoffset .35s ease, stroke .25s ease;
+}
+.halfGauge__text{
+  position:absolute;
+  bottom: 6px;
+  display:flex;
+  align-items:baseline;
+  gap: 4px;
+  font-weight: 900;
+  color: rgba(17,24,39,.92);
+}
+.halfGauge__unit{
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(17,24,39,.70);
+}
+
+.actionCard__top{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap: 10px;
-  margin: 8px 0 10px;
+  margin-bottom: 8px;
 }
-.actionNav__btn{
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  border: 1px solid rgba(17,24,39,.12);
-  background: rgba(243,244,246,.75);
-  color: rgba(17,24,39,.85);
+
+.actionCard__title{
   font-weight: 900;
-  cursor: pointer;
+  font-size: 14px;
+  color: rgba(17,24,39,.92);
 }
-.actionNav__btn:active{ transform: translateY(1px); }
-.actionNav__dots{
-  display:flex;
-  gap: 8px;
-  justify-content:center;
-  flex: 1;
-}
-.actionDot{
-  height: 28px;
+
+.actionCard__pill{
+  height: 26px;
   padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid rgba(17,24,39,.12);
-  background: rgba(243,244,246,.75);
-  color: rgba(17,24,39,.72);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
-  cursor: pointer;
-}
-.actionDot.is-active{
-  background: rgba(32,201,151,.14);
-  border-color: rgba(32,201,151,.35);
-  color: rgba(17,24,39,.9);
+  border: 1px solid rgba(17,24,39,.10);
+  background: rgba(243,244,246,.75);
+  color: rgba(17,24,39,.75);
+  white-space: nowrap;
 }
 
-.actionCarousel{
-  display:flex;
-  overflow-x:auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  gap: 12px;
-  padding-bottom: 2px;
+.actionCard__pill.is-good{
+  background: rgba(34,197,94,.12);
+  border-color: rgba(34,197,94,.25);
+  color:#16a34a;
 }
-.actionCarousel::-webkit-scrollbar{ display:none; }
+.actionCard__pill.is-bad{
+  background: rgba(239,68,68,.12);
+  border-color: rgba(239,68,68,.22);
+  color:#b91c1c;
+}
+.actionCard__pill.is-flat{
+  background: rgba(107,114,128,.10);
+  border-color: rgba(107,114,128,.22);
+  color:#6b7280;
+}
 
-.actionPanel{
-  flex: 0 0 100%;
-  scroll-snap-align: start;
-  border: 1px solid rgba(17,24,39,.08);
+.actionCard__meta{
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(17,24,39,.70);
+  margin-bottom: 10px;
+}
+
+.actionCard__body{
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 800;
+  color: rgba(17,24,39,.85);
+  background: rgba(243,244,246,.70);
+  border: 1px solid rgba(17,24,39,.06);
   border-radius: 14px;
   padding: 12px;
-  background: rgba(243,244,246,.35);
-}
-.actionPanel__title{
-  font-weight: 900;
-  font-size: 13px;
-  margin-bottom: 10px;
-  color: rgba(17,24,39,.9);
 }
 
-.actionTable{
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
+.actionCard__body ul{
+  margin: 6px 0 0;
+  padding-left: 18px;
 }
-.actionTable th,
-.actionTable td{
-  vertical-align: top;
-  padding: 8px 8px;
-  border-top: 1px solid rgba(17,24,39,.06);
-}
-.actionTable th{
-  width: 110px;
-  white-space: nowrap;
-  color: rgba(17,24,39,.75);
-  font-weight: 900;
-}
-.actionTable td{
-  color: rgba(17,24,39,.88);
-  line-height: 1.45;
-}
+.actionCard__body li{ margin: 4px 0; }
 
-.actionHi{
-  border: 1px solid rgba(32,201,151,.25);
-  background: rgba(32,201,151,.10);
-  border-radius: 10px;
-  padding: 8px 10px;
-}
 :root{
   --card:#ffffff;
   --text:#111827;
