@@ -1161,24 +1161,44 @@ function renderActionCardsFromLLM(reportObj){
   for (const m of map){
     const a = actions?.[m.key] || {};
 
-    const title = a?.title ? String(a.title) : "-";
+    const title = a?.title ? String(a.title) : actionNameFromKfKey(m.key);
     const problem = a?.problem_one ? String(a.problem_one) : "-";
     const fixes = Array.isArray(a?.fix_two) ? a.fix_two : [];
-    const fixHtml = fixes.length ? `<ul>${fixes.map((x)=>`<li>${String(x)}</li>`).join("")}</ul>` : "-";
+    const fixHtml = fixes.length
+      ? `<ul>${fixes.map((x)=>`<li>${String(x)}</li>`).join("")}</ul>`
+      : "-";
 
+    // ✅ 동작별 분석 카드(body)에 'LLM 블록'만 주입/갱신 (통계 기반 body는 유지)
     const body = document.getElementById(`a${m.n}Body`);
     if (body){
-      body.innerHTML = `
-        <div><b>${title}</b></div>
-        <div style="margin-top:6px;"><b>개선 포인트</b><br/>${problem}</div>
-        <div style="margin-top:6px;"><b>추천 루틴</b><br/>${fixHtml}</div>
+      // 기존에 LLM 블록이 있으면 교체, 없으면 추가
+      const existing = body.querySelector(".llmActionBlock");
+      const html = `
+        <div class="llmActionBlock" style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(17,24,39,.18);">
+          <div style="font-weight:900; font-size:12px; margin-bottom:6px;">LLM 피드백</div>
+          <div style="font-weight:900;">${title}</div>
+          <div style="margin-top:6px;"><b>개선 포인트</b><br/>${problem}</div>
+          <div style="margin-top:6px;"><b>추천 루틴</b><br/>${fixHtml}</div>
+        </div>
       `;
+
+      if (existing){
+        existing.outerHTML = html;
+      } else {
+        body.insertAdjacentHTML("beforeend", html);
+      }
     }
 
-    // meta에 간단 라벨
+    // meta는 통계 기반 문구를 유지해야 하므로, 덮어쓰지 않고 "LLM 반영됨" 배지만 추가
     const meta = document.getElementById(`a${m.n}Meta`);
     if (meta){
-      meta.innerHTML = `LLM 요약 반영됨`;
+      // 이미 배지가 있으면 중복 추가 방지
+      if (!meta.querySelector(".llmAppliedBadge")){
+        meta.insertAdjacentHTML(
+          "beforeend",
+          ` <span class="llmAppliedBadge" style="margin-left:6px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:900; background:rgba(32,201,151,.14); border:1px solid rgba(32,201,151,.28); color:rgba(17,24,39,.86);">LLM 반영</span>`
+        );
+      }
     }
   }
 }
@@ -1191,17 +1211,13 @@ function renderLLMReport(reportObj){
     console.groupEnd();
   }
 
-  // 상단 요약 텍스트(있으면)
+  // 상단 성장 문구(summarySub)는 DB 비교(comparison) 기반으로 유지합니다.
+  // LLM의 summary는 별도 영역이 있을 때만 표시합니다.
   const summaryText = reportObj?.summary ? String(reportObj.summary) : null;
-  if (summaryText){
-    const sub = document.getElementById("summarySub");
-    if (sub) sub.textContent = summaryText;
-  }
+  const llmSumEl = document.getElementById("llmSummary");
+  if (llmSumEl) llmSumEl.textContent = summaryText || "-";
 
-  // A안: 동작별 간단 구조 -> actionCard에 반영
   renderActionCardsFromLLM(reportObj);
-
-  // 추천 영상(썸네일 카드) 렌더
   renderYoutubeLinksFromReport(reportObj);
 }
 
