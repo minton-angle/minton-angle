@@ -1,6 +1,18 @@
 // 페이지 로드 완료 후 실행
 document.addEventListener('DOMContentLoaded', () => {
     
+    // --- [추가] 로그인한 사용자 이름 가져오기 ---
+    // 1. 세션 저장소에서 'userName' 가져오기
+    const storedName = sessionStorage.getItem('userName');
+    
+    // 2. 이름을 표시할 HTML 요소 선택
+    const userNameElement = document.querySelector('.user-name');
+
+    // 3. 저장된 이름이 있다면 텍스트 변경 (없으면 기본값 '김고수' 유지)
+    if (storedName && userNameElement) {
+        userNameElement.textContent = `${storedName} 님`;
+    }
+
     // 1. 그립 교정 버튼 클릭 시 이동
     const gripBtn = document.querySelector('.btn-grib');
     if (gripBtn) {
