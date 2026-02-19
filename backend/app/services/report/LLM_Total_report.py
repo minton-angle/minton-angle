@@ -146,7 +146,7 @@ def _call_groq_chat(messages, model: str = GROQ_MODEL) -> str:
         "response_format": {"type": "json_object"},
     }
 
-    timeout = httpx.Timeout(connect=10.0, read=40.0)
+    timeout = httpx.Timeout(40.0)
     t0 = time.perf_counter()
 
     with httpx.Client(timeout=timeout) as client:
