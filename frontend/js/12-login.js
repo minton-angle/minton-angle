@@ -27,10 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('username', idValue);
             formData.append('password', pwValue);
 
-            // ⭐ 직접 fetch 사용 (apiCall 사용 X)
+            // ⭐ 직접 URL 사용! (common.js의 API_BASE_URL 사용)
             const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                 method: 'POST',
-                body: formData  // Content-Type 자동 설정됨
+                body: formData
             });
 
             if (!response.ok) {
@@ -58,3 +58,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+console.log('📄 12-logIn.js 로드 완료');

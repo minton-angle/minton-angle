@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마이페이지</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/10-myPage.css">
+</head>
+<body>
+    <div class="mobile-container">
+        <div class="content-wrapper">
+            <header class="header-nav">
+                <button class="btn-back" id="backMain"></button>
+                <h1 class="header-title">마이페이지</h1>
+            </header>
+
+            <div class="scroll-container">
+                <section class="user-profile">
+                    <div class="avatar-box">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="user-info">
+                        <span class="name" id="userName">김고수</span>
+                        <span class="nim">님</span>
+                    </div>
+                </section>
+
+                <nav class="menu-section">
+                    <h3 class="section-label">서비스</h3>
+                    <div class="menu-list">
+                        <a href="10_1-editProfile.html" class="menu-item">
+                            <i class="fa-solid fa-gear"></i>
+                            <span>개인 정보 수정</span>
+                        </a>
+                        <button class="menu-item" id="withdrawBtn">
+                            <i class="fa-solid fa-gear"></i>
+                            <span>회원 탈퇴</span>
+                        </button>
+                    </div>
+                </nav>
+            </div>
+            <div class="bottom-bar"></div>
+        </div>
+    </div>
+    <script src="js/common.js"></script>
+    <script src="js/10-myPage.js"></script>
+</body>
+</html>

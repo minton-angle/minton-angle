@@ -4,13 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>기본 그립 가이드</title>
-    <script src="js/common.js"></script>
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/02-gripMode.css">
 </head>
 <body>
-    <div class="app-wrapper">
+    <div class="mobile-container">
         <header class="header">
             <button class="back-btn" onclick="history.back()">
                 <img src="assets/images/arrow_back.png" alt="뒤로가기">
@@ -28,12 +27,13 @@
                         <div class="img-box">
                             <img src="assets/images/gripGuide.png" alt="그립 가이드">
                         </div>
-                        <div class="camera-box">
+                        <button type="button" class="camera-box" id="cameraBox">
                             <div class="camera-icon-wrapper">
-                                <img src="assets/images/camera_icon.png" alt="카메라" class="camera-img">
+                                <img src="assets/images/camera.png" alt="카메라" class="camera-img">
                             </div>
                             <span>카메라로 촬영하기</span>
-                        </div>
+                        </button>
+                        <input type="file" id="realCameraInput" accept="image/*"  class="hidden-input">
                     </div>
 
                     <div class="warning-container">
