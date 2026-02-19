@@ -43,8 +43,7 @@
         <div class="miniGrid">
           <div class="miniCard miniCard--wide">
             <div class="miniCard__head">
-              <button type="button" id="btnGenerateLLM" class="btnLLM" aria-label="LLM 리포트 생성/갱신">LLM 리포트 생성</button>
-              <!-- <div class="miniCard__label"> 성장곡선 </div> -->
+              <div class="miniCard__label">SCORE 변화 추이</div>
             </div>
             <canvas id="scoreKfHistoryChart"></canvas>
             <div class="kfTabsWrap">
@@ -57,6 +56,11 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="card card--llmGen">
+        <h2>LLM 리포트 생성</h2>
+        <button type="button" id="btnGenerateLLM" class="btnLLM btnLLM--big" aria-label="LLM 리포트 생성/갱신">LLM 리포트 업데이트</button>
       </section>
 
       <section class="card">
