@@ -739,16 +739,6 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
           backgroundColor: "#10b981",
           spanGaps: true,
         },
-        {
-          label: "KF ERROR",
-          data: curErr,
-          pointRadius: 2,
-          tension: 0.25,
-          yAxisID: "y1",
-          borderColor: "#f59e0b",
-          backgroundColor: "#f59e0b",
-          spanGaps: true,
-        },
 
         // previous (dashed overlay)
         {
@@ -762,17 +752,6 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
           borderDash: [6, 4],
           spanGaps: true,
         },
-        {
-          label: "KF ERROR (prev)",
-          data: prevErr,
-          pointRadius: 0,
-          tension: 0.25,
-          yAxisID: "y1",
-          borderColor: "#f59e0b",
-          backgroundColor: "#f59e0b",
-          borderDash: [6, 4],
-          spanGaps: true,
-        },
       ],
     },
     options: {
@@ -782,11 +761,7 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
         legend: { display: true, position: "bottom" },
         tooltip: {
           callbacks: {
-            label: (c) => {
-              const name = String(c.dataset.label || "");
-              if (name.includes("KF ERROR")) return ` ${c.parsed.y}°`;
-              return ` ${c.parsed.y} 점`;
-            },
+            label: (c) => ` ${c.parsed.y} 점`
           },
         },
       },
@@ -798,13 +773,6 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
           ticks: { font: { size: 10 } },
           title: { display: true, text: "SCORE" },
           grid: { display: false },
-        },
-        y1: {
-          position: "right",
-          beginAtZero: true,
-          ticks: { font: { size: 10 } },
-          grid: { drawOnChartArea: false, display: false },
-          title: { display: true, text: "KF ERROR (°)" },
         },
         x: {
           grid: { display: false },
