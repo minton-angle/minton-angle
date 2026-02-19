@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+
 # 현재 디렉토리를 Python 경로에 추가
 current_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(current_dir))
@@ -43,6 +44,7 @@ from app.db.session import engine
 from app.routers import swingRouters, uploadRouters, calendarRouters
 from app.routers.reportRouters import router as report_router
 from app.routers.authRouters import router as auth_router
+from app.routers import gripRouters
 
 # 모델 import
 from app.models.userModels import User
@@ -50,6 +52,7 @@ from app.models.postModels import Post
 from app.models.fileModels import File
 from app.models.analysisModels import Analysis
 from app.models.llmReportModels import LLMReport
+
 
 # 데이터베이스 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -76,6 +79,7 @@ app.include_router(uploadRouters.router)
 app.include_router(calendarRouters.router)
 app.include_router(report_router)
 app.include_router(auth_router)
+app.include_router(gripRouters.router)
 
 # 정적 파일 서빙
 app.mount("/backend/data", StaticFiles(directory="data"), name="data")
