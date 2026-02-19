@@ -1,5 +1,5 @@
 """
-스윙 분석 서비스 (모든 비즈니스 로직)
+최종 수정본: 스윙 분석 서비스 (9개 항목 점수 체계 및 상대 경로 최적화)
 """
 import os
 import uuid
@@ -7,6 +7,9 @@ import base64
 import cv2
 import numpy as np
 import pandas as pd
+import subprocess
+import tempfile
+import shutil
 from sqlalchemy.orm import Session
 
 from app.models.postModels import Post
@@ -28,505 +31,218 @@ from .engine.analyze_single_user_overlay import OverlayGenerator
 
 
 class SwingService:
-    """스윙 분석 서비스"""
+    """스윙 분석 서비스 (실시간 창구 및 데이터 누적 관리)"""
     
     def __init__(self):
-        # 저장 경로
-        self.save_dir = os.path.join("data", "realtime")
+        # 1. 실행 파일 위치 기준 프로젝트 루트 자동 계산 (협업/상대경로 대응)
+        current_file_path = os.path.abspath(__file__) 
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file_path))))
         
-        # ⭐ Engine 초기화
+        # 2. 저장 경로 설정
+        self.save_dir = os.path.join(project_root, "data", "realtime")
+        os.makedirs(self.save_dir, exist_ok=True)
+        
+        # 3. 엔진 초기화
         self.preprocessor = Preprocessor()
         self.keyframe_detector = KeyframeDetector()
         self.pose_detector = PoseDetector()
-        
-        # ⭐ ScoreCalculator (GT 경로 필요)
-        gt_metrics_path = "backend/data/standard/GT_angle/gt_total_metrics2.csv"
-        if os.path.exists(gt_metrics_path):
-            self.score_calculator = ScoreCalculator(gt_metrics_path)
-        else:
-            print(f"⚠️ GT 메트릭 파일 없음: {gt_metrics_path}")
-            self.score_calculator = None
-        
-        # ⭐ OverlayGenerator
         self.overlay_generator = OverlayGenerator()
-    
-    
+        
+        # ⭐ 통합된 9개 항목 엔진 로드
+        gt_json_path = os.path.join(project_root, "data", "standard", "gt_evaluation.json")
+        if os.path.exists(gt_json_path):
+            self.score_calculator = ScoreCalculator(gt_json_path)
+            print(f"✅ [SwingService] GT 기준 로드 성공")
+        else:
+            self.score_calculator = ScoreCalculator()
+            print(f"⚠️ [SwingService] GT 파일 없음, 기본 엔진 사용")
+
     # ========================================
-    # 실제 분석 메서드
+    # 핵심 분석 메서드
     # ========================================
     
     def detect_keyframes(self, keypoints_list):
-        """
-        키프레임 감지 (실제 알고리즘)
-        
-        Args:
-            keypoints_list: [{'frame_id': 0, 'nose_x': 0.5, ...}, ...]
-            
-        Returns:
-            (kf1, kf2, kf3) 프레임 인덱스
-        """
-        # DataFrame 변환
+        """키프레임 감지 (E1, E2, E3 인덱스 추출)"""
         df = pd.DataFrame(keypoints_list)
-        
-        # 키프레임 감지
         result = self.keyframe_detector.detect(df)
         
         if result is None:
-            print("⚠️ 키프레임 감지 실패, 기본값 사용")
             total_frames = len(keypoints_list)
-            return total_frames // 3, total_frames * 2 // 3, total_frames - 1
+            return total_frames // 4, total_frames // 2, int(total_frames * 0.75)
         
-        return result['ready'], result['backswing'], result['impact']
-    
-    
-    def calculate_scores(self, keypoints_list, kf1, kf2, kf3):
-        """
-        점수 계산 (실제 알고리즘)
-        
-        Args:
-            keypoints_list: [{'frame_id': 0, 'nose_x': 0.5, ...}, ...]
-            kf1, kf2, kf3: 키프레임 인덱스
-            
-        Returns:
-            {
-                "elbow_height": 85,
-                "wrist_snap": 78,
-                ...
-            }
-        """
-        if self.score_calculator is None:
-            print("⚠️ ScoreCalculator 없음, 더미 점수 반환")
-            return {
-                "elbow_height": 85,
-                "wrist_snap": 78,
-                "hit_position": 90,
-                "shoulder_rotation": 82,
-                "racket_angle": 88,
-                "follow_through": 75
-            }
-        
-        # DataFrame 변환
-        df = pd.DataFrame(keypoints_list)
-        
-        keyframes = {
-            'ready': kf1,
-            'backswing': kf2,
-            'impact': kf3
-        }
-        
-        # 점수 계산
-        result = self.score_calculator.calculate_scores(df, keyframes)
-        
-        # 기존 형식으로 변환
-        scores = {}
-        for item in result['user_evaluation']:
-            stage = item['단계']
-            score = item['점수']
-            
-            if stage == 'ready':
-                scores['elbow_height'] = score
-            elif stage == 'backswing':
-                scores['wrist_snap'] = score
-                scores['shoulder_rotation'] = score
-            elif stage == 'impact':
-                scores['hit_position'] = score
-                scores['racket_angle'] = score
-        
-        # 추가 지표 (더미)
-        scores['follow_through'] = 75
-        
-        return scores
-    
-    
-    def get_quick_feedback(self, scores):
-        """빠른 피드백 생성"""
-        avg = sum(scores.values()) / len(scores)
-        if avg >= 90:
-            return "완벽해요! 🎉"
-        elif avg >= 80:
-            return "좋아요! 👍"
-        elif avg >= 70:
-            return "괜찮아요! 💪"
-        else:
-            return "조금 더 연습해봐요! 📈"
-    
-    
-    def generate_detailed_feedback(self, scores, kf1, kf2, kf3):
-        """상세 피드백 생성 (3회차용)"""
-        avg = sum(scores.values()) / len(scores)
-        
-        if avg >= 90:
-            overall = "훌륭합니다! 거의 완벽한 스윙이에요! 🎉"
-        elif avg >= 80:
-            overall = "아주 좋아요! 조금만 더 보완하면 완벽! 👍"
-        elif avg >= 70:
-            overall = "괜찮아요! 몇 가지 개선 포인트가 있네요. 💪"
-        else:
-            overall = "기본기부터 다시 연습해봐요! 📈"
-        
-        return {
-            "overall": overall,
-            "details": scores,
-            "strengths": ["팔꿈치 높이가 좋아요!", "타구 위치가 정확해요!"],
-            "improvements": ["손목 스냅을 조금 더 활용해보세요."],
-            "next_goals": ["손목 스냅 80점 → 85점", "전체 평균 90점 달성"]
-        }
-    
-    
+        return int(result['ready']), int(result['backswing']), int(result['impact'])
+
+    def get_quick_feedback(self, total_score):
+        """총점에 따른 실시간 피드백 문구"""
+        if total_score >= 90: return "완벽해요! 🎉"
+        elif total_score >= 80: return "좋아요! 👍"
+        elif total_score >= 70: return "괜찮아요! 💪"
+        else: return "조금 더 연습해봐요! 📈"
+
     # ========================================
-    # 실시간 분석 통합 메서드
+    # 실시간 분석 통합 메서드 (1~3회차 공통)
     # ========================================
     
-    async def analyze_realtime(
-        self,
-        request: SwingAnalysisRequest,
-        db: Session
-    ):
+    async def analyze_realtime(self, request: SwingAnalysisRequest, db: Session):
         """실시간 스윙 분석 전체 프로세스"""
-        
-        # 1. 검증
         self._validate_request(request)
         
-        # ⭐ 2. Keypoints 추출 (Base64 → MediaPipe)
+        # 1. Keypoints 추출
         keypoints_list = []
-        
-        print(f"\n📊 프레임 처리 시작: {len(request.frames)}개")
-        
         for frame_id, frame_base64 in enumerate(request.frames):
             keypoints = self.pose_detector.extract_from_base64(frame_base64)
-            
             if keypoints:
                 keypoints['frame_id'] = frame_id
                 keypoints_list.append(keypoints)
         
-        print(f"✅ Keypoint 추출 완료: {len(keypoints_list)}개 프레임")
+        if not keypoints_list:
+            raise ValueError("사람이 감지되지 않았습니다. 전신이 보이게 촬영해주세요.")
         
-        if len(keypoints_list) == 0:
-            raise ValueError("Keypoint 추출 실패! 사람이 감지되지 않았습니다.")
-        
-        # ⭐ 3. 키프레임 감지 & 점수 계산
+        # 2. 키프레임 감지
         kf1, kf2, kf3 = self.detect_keyframes(keypoints_list)
-        scores = self.calculate_scores(keypoints_list, kf1, kf2, kf3)
-        quick_feedback = self.get_quick_feedback(scores)
-        total_score = sum(scores.values()) // len(scores)
         
-        print(f"🎯 키프레임: KF1={kf1}, KF2={kf2}, KF3={kf3}")
-        print(f"📊 점수: {total_score}점")
+        # ⭐ 3. 9개 항목 통합 엔진으로 점수 산출 (중복 제거)
+        df = pd.DataFrame(keypoints_list)
+        eval_result = self.score_calculator.evaluate_user(df, {'ready': kf1, 'backswing': kf2, 'impact': kf3})
         
-        # 4. 회차별 처리
+        total_score = eval_result['total_score']
+        quick_feedback = self.get_quick_feedback(total_score)
+        
+        # 4. 회차별 분기 처리
         if request.swing_num == 1:
             return await self._process_swing_1(
-                request, db, kf1, kf2, kf3, scores, quick_feedback, total_score
+                request, db, kf1, kf2, kf3, eval_result, quick_feedback
             )
         else:
             return await self._process_swing_2_or_3(
-                request, db, kf1, kf2, kf3, scores, quick_feedback, total_score
+                request, db, kf1, kf2, kf3, eval_result, quick_feedback
             )
-    
-    
-    def _validate_request(self, request):
-        """요청 검증"""
-        if request.swing_num < 1 or request.swing_num > 3:
-            raise ValueError("swing_num은 1, 2, 3만 가능합니다.")
-        
-        if request.swing_num > 1 and not request.post_id:
-            raise ValueError(f"{request.swing_num}회차는 post_id가 필수입니다. 1회차부터 시작하세요.")
-        
-        if request.swing_num == 1 and request.post_id:
-            raise ValueError("1회차에서는 post_id를 보내면 안 됩니다.")
-    
-    
-    async def _process_swing_1(
-        self, request, db, kf1, kf2, kf3, scores, quick_feedback, total_score
-    ):
-        """1회차 처리: POST, ANALYSIS, FILE 생성"""
-        
+
+    # ========================================
+    # 회차별 데이터베이스 처리 로직
+    # ========================================
+
+    async def _process_swing_1(self, request, db, kf1, kf2, kf3, eval_result, quick_feedback):
+        """1회차 처리: 신규 기록 생성"""
         post_id = str(uuid.uuid4())
         
-        # POST 생성
         post = Post(
-            idx=post_id,
-            user_id=request.user_id,
-            type="REALTIME",
-            status="ANALYZING",
-            total_score=total_score
+            idx=post_id, user_id=request.user_id, type="REALTIME", 
+            status="ANALYZING", total_score=eval_result['total_score']
         )
         db.add(post)
         db.flush()
         
-        # ANALYSIS 생성
+        # ANALYSIS 생성 (int 기반 9개 항목 데이터 저장)
         analysis = Analysis(
-            idx=str(uuid.uuid4()),
-            post_idx=post_id,
-            kf1=kf1,
-            kf2=kf2,
-            kf3=kf3,
-            score_json=scores
+            idx=str(uuid.uuid4()), post_idx=post_id, kf1=kf1, kf2=kf2, kf3=kf3,
+            score_json=eval_result # ScoreCalculator에서 만든 결과 그대로 저장
         )
         db.add(analysis)
         
-        # FILE 생성 (이미지 3개 + 동영상 2개)
-        if request.frames and len(request.frames) > max(kf1, kf2, kf3):
-            self._save_keyframe_files(
-                db, post_id, request.frames, [kf1, kf2, kf3], swing_num=1
-            )
+        self._save_keyframe_files(db, post_id, request.frames, [kf1, kf2, kf3], swing_num=1)
         
         db.commit()
         db.refresh(post)
         
         return QuickFeedbackResponse(
-            swing_num=1,
-            post_id=post_id,
-            quick_feedback=quick_feedback,
-            save_to_db=True,
-            scores=ScoreDetail(**scores)
+            swing_num=1, post_id=post_id, quick_feedback=quick_feedback,
+            save_to_db=True, stage_scores=eval_result['stage_scores']
         )
-    
-    
-    async def _process_swing_2_or_3(
-        self, request, db, kf1, kf2, kf3, scores, quick_feedback, total_score
-    ):
-        """2~3회차 처리: POST 업데이트, ANALYSIS 업데이트, FILE 추가"""
+
+    async def _process_swing_2_or_3(self, request, db, kf1, kf2, kf3, eval_result, quick_feedback):
+        """2~3회차 처리: 점수 누적 평균화 및 최종 완료"""
+        post = db.query(Post).filter(Post.idx == request.post_id).first()
+        if not post: raise ValueError("기존 분석 기록을 찾을 수 없습니다.")
         
-        # POST 조회
-        post = db.query(Post).filter(
-            Post.idx == request.post_id,
-            Post.user_id == request.user_id
-        ).first()
-        
-        if not post:
-            raise ValueError("POST를 찾을 수 없습니다. post_id를 확인하세요.")
-        
-        post.total_score = total_score
-        
-        # ANALYSIS 업데이트
-        analysis = db.query(Analysis).filter(
-            Analysis.post_idx == request.post_id
-        ).first()
+        analysis = db.query(Analysis).filter(Analysis.post_idx == request.post_id).first()
         
         if analysis:
-            # 점수 평균 계산
-            old_scores = analysis.score_json
-            new_scores = {
-                key: (old_scores.get(key, 0) + scores[key]) // 2
-                for key in scores
+            old_data = analysis.score_json
+            current_s = eval_result['stage_scores']
+            
+            # 단계별 평균 점수 업데이트
+            new_stage_scores = {
+                k: (old_data['stage_scores'].get(k, 0) + current_s[k]) // 2 
+                for k in current_s
             }
-            analysis.score_json = new_scores
-            analysis.kf1 = kf1
-            analysis.kf2 = kf2
-            analysis.kf3 = kf3
+            
+            # 전체 평균 점수 업데이트
+            new_total = sum(new_stage_scores.values()) // 3
+            
+            analysis.score_json = {
+                "evaluation": eval_result['evaluation'], # 상세 항목은 최신 회차 유지
+                "stage_scores": new_stage_scores,
+                "total_score": new_total
+            }
+            analysis.kf1, analysis.kf2, analysis.kf3 = kf1, kf2, kf3
+            post.total_score = new_total
+
+        self._save_keyframe_files(db, request.post_id, request.frames, [kf1, kf2, kf3], swing_num=request.swing_num)
         
-        # FILE 추가 (이미지 3개 + 동영상 2개)
-        if request.frames and len(request.frames) > max(kf1, kf2, kf3):
-            self._save_keyframe_files(
-                db, request.post_id, request.frames,
-                [kf1, kf2, kf3], swing_num=request.swing_num
-            )
-        
-        # 3회차면 완료 처리
         if request.swing_num == 3:
             post.status = "DONE"
-            post.total_score = sum(analysis.score_json.values()) // len(analysis.score_json)
-            
             db.commit()
-            db.refresh(post)
-            
             return AnalysisCompleteResponse(
-                swing_num=3,
-                post_id=request.post_id,
-                save_to_db=True,
-                total_score=post.total_score,
-                scores=ScoreDetail(**analysis.score_json),
+                swing_num=3, post_id=request.post_id, save_to_db=True,
+                total_score=post.total_score, 
+                stage_scores=analysis.score_json['stage_scores'],
                 quick_feedback=quick_feedback
             )
         
-        # 2회차
         db.commit()
-        db.refresh(post)
-        
         return QuickFeedbackResponse(
-            swing_num=2,
-            post_id=request.post_id,
-            quick_feedback=quick_feedback,
-            save_to_db=True,
-            scores=ScoreDetail(**scores)
+            swing_num=request.swing_num, post_id=request.post_id,
+            quick_feedback=quick_feedback, save_to_db=True,
+            stage_scores=eval_result['stage_scores']
         )
-    
-    
-    def _save_keyframe_files(self, db, post_id, frames, keyframe_indices, swing_num):
-        """
-        키프레임 저장 (이미지 3개 + 동영상 2개)
-        - 이미지 3개: KF1, KF2, KF3
-        - 동영상 2개: BACKSWING, IMPACT
-        """
-        
-        kf1, kf2, kf3 = keyframe_indices
-        
-        print(f"\n🎬 스윙 {swing_num}회 키프레임 저장:")
-        print(f"   📸 이미지 3개: KF1({kf1}), KF2({kf2}), KF3({kf3})")
-        print(f"   🎥 동영상 2개: BACKSWING({kf1}→{kf2}), IMPACT({kf2}→{kf3})")
-        
-        # 1. 이미지 3개 저장
-        for kf_num, kf_idx in enumerate([kf1, kf2, kf3], 1):
-            frame_image = frames[kf_idx]
-            file_path = self._save_image(post_id, kf_num, swing_num, frame_image)
-            
-            file = File(
-                idx=str(uuid.uuid4()),
-                post_idx=post_id,
-                file_type=f"KF{kf_num}",
-                file_name=f"swing{swing_num}_kf{kf_num}.jpg",
-                file_path=file_path,
-                file_extension="jpg",
-                storage_type="LOCAL"
-            )
-            db.add(file)
-            print(f"  ✅ KF{kf_num} 이미지 저장")
-        
-        # 2. 백스윙 동영상 (KF1 → KF2)
-        backswing_path = self._save_video_from_frames(
-            post_id, swing_num, frames, kf1, kf2, 'BACKSWING'
-        )
-        
-        file = File(
-            idx=str(uuid.uuid4()),
-            post_idx=post_id,
-            file_type="BACKSWING",
-            file_name=f"swing{swing_num}_backswing.mp4",
-            file_path=backswing_path,
-            file_extension="mp4",
-            storage_type="LOCAL"
-        )
-        db.add(file)
-        print(f"  ✅ BACKSWING 동영상 저장 ({kf2-kf1+1}프레임)")
-        
-        # 3. 임팩트 동영상 (KF2 → KF3)
-        impact_path = self._save_video_from_frames(
-            post_id, swing_num, frames, kf2, kf3, 'IMPACT'
-        )
-        
-        file = File(
-            idx=str(uuid.uuid4()),
-            post_idx=post_id,
-            file_type="IMPACT",
-            file_name=f"swing{swing_num}_impact.mp4",
-            file_path=impact_path,
-            file_extension="mp4",
-            storage_type="LOCAL"
-        )
-        db.add(file)
-        print(f"  ✅ IMPACT 동영상 저장 ({kf3-kf2+1}프레임)")
-        
-        print(f"✅ 스윙 {swing_num}회 저장 완료: 이미지 3개 + 동영상 2개\n")
-    
-    
-    def _save_image(self, post_id, kf_num, swing_num, image_base64):
-        """이미지 파일 저장 (backend/data/realtime)"""
-        
-        # 폴더 생성
-        post_dir = os.path.join(self.save_dir, post_id)
-        os.makedirs(post_dir, exist_ok=True)
-        
-        # Base64 디코딩
-        if "," in image_base64:
-            image_base64 = image_base64.split(",")[1]
-        
-        image_data = base64.b64decode(image_base64)
-        
-        # 파일 저장
-        filename = f"swing{swing_num}_kf{kf_num}.jpg"
-        filepath = os.path.join(post_dir, filename)
-        
-        with open(filepath, "wb") as f:
-            f.write(image_data)
-        
-        # 경로 정규화 (Windows \\ → /)
-        return filepath.replace("\\", "/")
-    
-    
-    def _save_video_from_frames(self, post_id, swing_num, frames, start_idx, end_idx, video_type):
-        """
-        Base64 프레임들로 동영상 생성 (ffmpeg 사용 - 브라우저 호환)
-        
-        Args:
-            post_id: POST UUID
-            swing_num: 스윙 번호 (1, 2, 3)
-            frames: Base64 이미지 리스트
-            start_idx: 시작 프레임 인덱스
-            end_idx: 끝 프레임 인덱스
-            video_type: 'BACKSWING' 또는 'IMPACT'
-        """
-        
-        import subprocess
-        import tempfile
-        import shutil
-        
-        # 폴더 생성
-        post_dir = os.path.join(self.save_dir, post_id)
-        os.makedirs(post_dir, exist_ok=True)
-        
-        # 파일명
-        if video_type == 'BACKSWING':
-            filename = f"swing{swing_num}_backswing.mp4"
-        else:
-            filename = f"swing{swing_num}_impact.mp4"
-        
-        filepath = os.path.join(post_dir, filename)
-        
-        # ⭐ 임시 폴더 생성 (프레임 이미지 저장용)
-        temp_dir = tempfile.mkdtemp()
-        
-        try:
-            print(f"  🎬 동영상 생성 시작: {filename}")
-            print(f"     프레임 범위: {start_idx} ~ {end_idx} ({end_idx - start_idx + 1}개)")
-            
-            # ⭐ 1. Base64 프레임들을 임시 JPG로 저장
-            for idx, i in enumerate(range(start_idx, end_idx + 1)):
-                # Base64 디코딩
-                frame_base64 = frames[i].split(",")[1] if "," in frames[i] else frames[i]
-                frame_data = base64.b64decode(frame_base64)
-                
-                # 임시 파일로 저장
-                temp_img_path = os.path.join(temp_dir, f"frame_{idx:04d}.jpg")
-                with open(temp_img_path, 'wb') as f:
-                    f.write(frame_data)
-            
-            print(f"     ✅ {end_idx - start_idx + 1}개 프레임 임시 저장 완료")
-            
-            # ⭐ 2. ffmpeg로 동영상 생성 (H.264 코덱, 브라우저 호환)
-            cmd = [
-                'ffmpeg',
-                '-framerate', '30',                              # 30fps
-                '-i', os.path.join(temp_dir, 'frame_%04d.jpg'), # 입력 이미지 패턴
-                '-c:v', 'libx264',                              # H.264 비디오 코덱
-                '-preset', 'fast',                              # 빠른 인코딩
-                '-crf', '23',                                   # 품질 (18-28)
-                '-pix_fmt', 'yuv420p',                          # 픽셀 포맷 (브라우저 호환)
-                '-movflags', '+faststart',                      # 웹 스트리밍 최적화
-                '-y',                                           # 덮어쓰기
-                filepath
-            ]
-            
-            # ffmpeg 실행
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                print(f"     ❌ ffmpeg 에러:")
-                print(result.stderr)
-                raise Exception(f"ffmpeg 실패: {result.stderr}")
-            
-            print(f"     ✅ 동영상 생성 완료: {filepath}")
-            
-        finally:
-            # ⭐ 3. 임시 폴더 삭제
-            shutil.rmtree(temp_dir)
-            print(f"     🧹 임시 파일 정리 완료")
-        
-        # ⭐ 경로 정규화 (Windows 경로 → Unix 경로)
-        normalized_path = filepath.replace("\\", "/")
-        print(f"     📁 정규화 경로: {normalized_path}")
-        
-        return normalized_path
 
-# 싱글톤 인스턴스
+    # ========================================
+    # 유틸리티 (기존 로직 유지)
+    # ========================================
+
+    def _validate_request(self, request):
+        if request.swing_num < 1 or request.swing_num > 3: raise ValueError("swing_num 에러")
+        if request.swing_num > 1 and not request.post_id: raise ValueError("post_id 누락")
+
+    def _save_keyframe_files(self, db, post_id, frames, keyframe_indices, swing_num):
+        kf1, kf2, kf3 = keyframe_indices
+        for kf_num, kf_idx in enumerate([kf1, kf2, kf3], 1):
+            file_path = self._save_image(post_id, kf_num, swing_num, frames[kf_idx])
+            db.add(File(idx=str(uuid.uuid4()), post_idx=post_id, file_type=f"KF{kf_num}", 
+                        file_name=f"s{swing_num}_kf{kf_num}.jpg", file_path=file_path, 
+                        file_extension="jpg", storage_type="LOCAL"))
+        
+        bs_path = self._save_video_from_frames(post_id, swing_num, frames, kf1, kf2, 'BACKSWING')
+        im_path = self._save_video_from_frames(post_id, swing_num, frames, kf2, kf3, 'IMPACT')
+        for p, t in [(bs_path, "BACKSWING"), (im_path, "IMPACT")]:
+            db.add(File(idx=str(uuid.uuid4()), post_idx=post_id, file_type=t, 
+                        file_name=f"s{swing_num}_{t.lower()}.mp4", file_path=p, 
+                        file_extension="mp4", storage_type="LOCAL"))
+
+    def _save_image(self, post_id, kf_num, swing_num, image_base64):
+        post_dir = os.path.join(self.save_dir, post_id)
+        os.makedirs(post_dir, exist_ok=True)
+        img_str = image_base64.split(",")[1] if "," in image_base64 else image_base64
+        filepath = os.path.join(post_dir, f"swing{swing_num}_kf{kf_num}.jpg")
+        with open(filepath, "wb") as f: f.write(base64.b64decode(img_str))
+        return filepath.replace("\\", "/")
+
+    def _save_video_from_frames(self, post_id, swing_num, frames, start_idx, end_idx, video_type):
+        post_dir = os.path.join(self.save_dir, post_id)
+        os.makedirs(post_dir, exist_ok=True)
+        filepath = os.path.join(post_dir, f"swing{swing_num}_{video_type.lower()}.mp4")
+        temp_dir = tempfile.mkdtemp()
+        try:
+            for idx, i in enumerate(range(start_idx, end_idx + 1)):
+                img_str = frames[i].split(",")[1] if "," in frames[i] else frames[i]
+                with open(os.path.join(temp_dir, f"frame_{idx:04d}.jpg"), 'wb') as f:
+                    f.write(base64.b64decode(img_str))
+            cmd = ['ffmpeg', '-framerate', '30', '-i', os.path.join(temp_dir, 'frame_%04d.jpg'),
+                   '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-pix_fmt', 'yuv420p',
+                   '-movflags', '+faststart', '-y', filepath]
+            subprocess.run(cmd, capture_output=True, text=True)
+        finally: shutil.rmtree(temp_dir)
+        return filepath.replace("\\", "/")
+
 swing_service = SwingService()

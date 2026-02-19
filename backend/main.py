@@ -65,11 +65,8 @@ app.include_router(uploadRouters.router)
 app.include_router(calendarRouters.router)
 app.include_router(report_router)
 
-# data 폴더를 정적 파일로 제공
-app.mount("/data", StaticFiles(directory="data"), name="data")
+app.mount("/backend/data", StaticFiles(directory="data"), name="data")
 
-# 루트 엔드포인트
-app.include_router(report_router)
 
 @app.get("/")
 def read_root():

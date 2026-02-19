@@ -174,12 +174,12 @@ def process_single_video(video_path, expert_id, current_num, total_num):
         
         # ✅ 10프레임 뒤로: W 또는 [
         elif key == ord('w') or key == ord('W') or key == ord('['):
-            current_frame = max(0, current_frame - 10)
+            current_frame = max(0, current_frame - 5)
             playing = False
         
         # ✅ 10프레임 앞으로: S 또는 ]
         elif key == ord('s') or key == ord('S') or key == ord(']'):
-            current_frame = min(total_frames - 1, current_frame + 10)
+            current_frame = min(total_frames - 1, current_frame + 5)
             playing = False
         
         # 1: E1 저장

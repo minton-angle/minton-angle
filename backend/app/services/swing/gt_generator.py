@@ -1,618 +1,549 @@
 """
-전문가 GT 범위 추출 (10개 평가 항목)
+GT Generator: 전문가 4명의 영상에서 평가 기준 자동 생성
 
-정규화: bbox 기준 (체형/키/위치 통일)
-출력:
-  - gt_range.json: 전문가 범위 (Golden Standard)
-  - gt_metrics.csv: 전문가별 개별 값
-  - viz_boxplot.png: 박스플롯 시각화
-  - viz_keyframes.png: 키프레임 비교 (검정 배경)
-  - viz_skeleton.png: 스켈레톤 오버레이
-  - viz_radar.png: 레이더 차트
-
-실행: python extract_gt.py
+[흐름]
+1. 전문가 영상 4개 로드
+2. 각 영상에서 22개 관절 추출 (눈,입,귀 제외)
+3. bbox 정규화 (체형/위치 통제)
+4. 키프레임(E1, E2, E3) 레이블 로드
+5. 각 키프레임에서 9개 평가 항목 값 계산
+6. 4명의 통계(min, max, mean, std) 산출
+7. gt_evaluation.json 저장
 """
 
 import cv2
 import json
+import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from pathlib import Path
 import mediapipe as mp
-
-# 한글 폰트
-plt.rcParams['font.family'] = 'Malgun Gothic'
-plt.rcParams['axes.unicode_minus'] = False
-
-# 경로 설정
-VIDEO_DIR = Path(r"C:\GitHub_Project\AICV_03\minton-angle\backend\data\expert_videos")
-OUTPUT_DIR = Path(r"C:\GitHub_Project\AICV_03\minton-angle\backend\data\standard")
-LABELS_PATH = OUTPUT_DIR / "keyframe_labels.csv"
-
-# MediaPipe 설정
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
+from typing import Dict, List, Tuple
+from pathlib import Path
 
 
-class GTExtractor:
-    def __init__(self):
-        self.pose = mp_pose.Pose(
-            static_image_mode=True,
-            model_complexity=2,
-            min_detection_confidence=0.5
-        )
-        self.all_metrics = []
-        self.all_frames = {}  # expert_id -> {E1: frame, E2: frame, E3: frame}
-        self.all_poses = {}   # expert_id -> {E1: landmarks, E2: landmarks, E3: landmarks}
-        
-    def run(self):
-        """전체 실행"""
-        
-        print("=" * 70)
-        print("📊 전문가 GT 범위 추출 (10개 평가 항목)")
-        print("=" * 70)
-        
-        # 1. 레이블 로드
-        labels = pd.read_csv(LABELS_PATH)
-        print(f"✅ 레이블 로드: {len(labels)}명\n")
-        
-        # 2. 각 전문가별 처리
-        for _, row in labels.iterrows():
-            expert_id = row['expert_id']
-            e1_idx = int(row['E1_ready'])
-            e2_idx = int(row['E2_backswing'])
-            e3_idx = int(row['E3_impact'])
-            
-            print(f"🎬 {expert_id} (E1={e1_idx}, E2={e2_idx}, E3={e3_idx})...", end=" ")
-            
-            result = self.process_expert(expert_id, e1_idx, e2_idx, e3_idx)
-            if result:
-                self.all_metrics.append(result)
-                print("✅")
-            else:
-                print("❌")
-        
-        # 3. GT 범위 계산
-        gt_range = self.calculate_gt_range()
-        
-        # 4. 저장
-        self.save_results(gt_range)
-        
-        # 5. 시각화
-        self.visualize_all(gt_range)
-        
-        print("\n" + "=" * 70)
-        print("✅ 완료!")
-        print(f"   📁 출력 폴더: {OUTPUT_DIR}")
-        print("=" * 70)
+class GTGenerator:
+    """전문가 GT 기준 생성기"""
     
-    def process_expert(self, expert_id, e1_idx, e2_idx, e3_idx):
-        """단일 전문가 처리"""
+    def __init__(self, expert_video_dir: str, keyframe_labels_path: str):
+        """
+        Args:
+            expert_video_dir: 전문가 영상 폴더 (expert_1.mp4, expert_2.mp4, ...)
+            keyframe_labels_path: 키프레임 레이블 CSV 경로
+        """
+        self.expert_video_dir = Path(expert_video_dir)
+        self.keyframe_labels_path = keyframe_labels_path
         
-        # 영상 경로
-        video_path = VIDEO_DIR / f"{expert_id}.mp4"
-        if not video_path.exists():
-            video_path = VIDEO_DIR / f"{expert_id}.MP4"
-        if not video_path.exists():
+        # MediaPipe 설정
+        self.mp_pose = mp.solutions.pose
+        self.pose = self.mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=2,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+        
+        # 22개 관절 (눈,입,귀 제외)
+        self.keypoint_indices = {
+            0: 'nose',
+            11: 'left_shoulder', 12: 'right_shoulder',
+            13: 'left_elbow', 14: 'right_elbow',
+            15: 'left_wrist', 16: 'right_wrist',
+            17: 'left_pinky', 18: 'right_pinky',
+            19: 'left_index', 20: 'right_index',
+            21: 'left_thumb', 22: 'right_thumb',
+            23: 'left_hip', 24: 'right_hip',
+            25: 'left_knee', 26: 'right_knee',
+            27: 'left_ankle', 28: 'right_ankle',
+            29: 'left_heel', 30: 'right_heel',
+            31: 'left_foot_index', 32: 'right_foot_index'
+        }
+        
+        # 키프레임 레이블 로드
+        self.keyframe_labels = self._load_keyframe_labels()
+        
+        print(f"✅ GTGenerator 초기화")
+        print(f"   - 전문가 영상 폴더: {self.expert_video_dir}")
+        print(f"   - 키프레임 레이블: {len(self.keyframe_labels)}개 영상")
+    
+    def _load_keyframe_labels(self) -> Dict:
+        """키프레임 레이블 CSV 로드"""
+        df = pd.read_csv(self.keyframe_labels_path)
+        
+        labels = {}
+        for _, row in df.iterrows():
+            expert_id = row['expert_id']
+            labels[expert_id] = {
+                'E1': int(row['E1_ready']),
+                'E2': int(row['E2_backswing']),
+                'E3': int(row['E3_impact'])
+            }
+        
+        return labels
+    
+    def extract_keypoints_from_video(self, video_path: str) -> pd.DataFrame:
+        """
+        영상에서 22개 관절 추출 + bbox 정규화
+        
+        Returns:
+            DataFrame: frame_id, nose_x, nose_y, ... (정규화된 좌표)
+        """
+        cap = cv2.VideoCapture(video_path)
+        
+        if not cap.isOpened():
+            print(f"❌ 영상 열기 실패: {video_path}")
             return None
         
-        cap = cv2.VideoCapture(str(video_path))
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        all_data = []
+        frame_id = 0
         
-        # 키프레임 추출 & 포즈 추출
-        frames = {}
-        poses = {}
-        
-        for name, idx in [('E1', e1_idx), ('E2', e2_idx), ('E3', e3_idx)]:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-            ret, frame = cap.read()
-            if not ret:
-                cap.release()
-                return None
-            
-            frames[name] = frame
-            
-            # MediaPipe 포즈 추출
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            result = self.pose.process(rgb)
-            
-            if not result.pose_landmarks:
-                cap.release()
-                return None
-            
-            poses[name] = self.extract_landmarks(result.pose_landmarks, frame.shape)
-        
-        # 팔로우스루용: E3 이후 프레임들
-        post_e3_poses = []
-        for idx in range(e3_idx, min(e3_idx + 30, total_frames)):
-            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+        while True:
             ret, frame = cap.read()
             if not ret:
                 break
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            result = self.pose.process(rgb)
-            if result.pose_landmarks:
-                post_e3_poses.append(self.extract_landmarks(result.pose_landmarks, frame.shape))
+            
+            # RGB 변환
+            img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = self.pose.process(img_rgb)
+            
+            if results.pose_landmarks:
+                landmarks = results.pose_landmarks.landmark
+                
+                # 원시 좌표 추출
+                raw_kps = {}
+                for idx, name in self.keypoint_indices.items():
+                    lm = landmarks[idx]
+                    raw_kps[f'{name}_x'] = lm.x
+                    raw_kps[f'{name}_y'] = lm.y
+                    raw_kps[f'{name}_z'] = lm.z
+                    raw_kps[f'{name}_v'] = lm.visibility
+                
+                # bbox 정규화
+                normalized = self._normalize_bbox(raw_kps)
+                
+                row = {'frame_id': frame_id, 'timestamp': frame_id / fps}
+                row.update(normalized)
+                all_data.append(row)
+            
+            frame_id += 1
         
         cap.release()
         
-        # 저장
-        self.all_frames[expert_id] = frames
-        self.all_poses[expert_id] = poses
+        df = pd.DataFrame(all_data)
+        print(f"   ✅ {Path(video_path).name}: {len(df)}프레임 추출")
         
-        # bbox 정규화
-        e1 = self.normalize_bbox(poses['E1'])
-        e2 = self.normalize_bbox(poses['E2'])
-        e3 = self.normalize_bbox(poses['E3'])
-        post_e3_norm = [self.normalize_bbox(p) for p in post_e3_poses]
-        
-        # 10개 지표 계산
-        metrics = self.calculate_metrics(expert_id, e1, e2, e3, post_e3_norm)
-        
-        return metrics
+        return df
     
-    def extract_landmarks(self, landmarks, shape):
-        """MediaPipe 랜드마크 → 딕셔너리"""
-        h, w = shape[:2]
+    def _normalize_bbox(self, kps: Dict) -> Dict:
+        """
+        bbox 기반 정규화 (체형/위치 통제)
         
-        keypoints = {
-            'nose': 0,
-            'left_shoulder': 11, 'right_shoulder': 12,
-            'left_elbow': 13, 'right_elbow': 14,
-            'left_wrist': 15, 'right_wrist': 16,
-            'left_hip': 23, 'right_hip': 24,
-            'left_knee': 25, 'right_knee': 26,
-            'left_ankle': 27, 'right_ankle': 28
-        }
+        모든 관절을 0~1 범위로 정규화
+        """
+        # 모든 x, y 좌표 수집
+        xs = [kps[f'{name}_x'] for name in self.keypoint_indices.values() if kps.get(f'{name}_v', 0) > 0.5]
+        ys = [kps[f'{name}_y'] for name in self.keypoint_indices.values() if kps.get(f'{name}_v', 0) > 0.5]
         
-        result = {}
-        for name, idx in keypoints.items():
-            lm = landmarks.landmark[idx]
-            result[f'{name}_x'] = lm.x * w
-            result[f'{name}_y'] = lm.y * h
-            result[f'{name}_v'] = lm.visibility
+        if not xs or not ys:
+            return kps
         
-        return result
-    
-    def normalize_bbox(self, pose):
-        """bbox 기준 0~1 정규화 (체형/키/위치 통일)"""
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
         
-        # x, y 좌표 추출
-        x_vals = [v for k, v in pose.items() if k.endswith('_x')]
-        y_vals = [v for k, v in pose.items() if k.endswith('_y')]
+        width = max_x - min_x
+        height = max_y - min_y
         
-        x_min, x_max = min(x_vals), max(x_vals)
-        y_min, y_max = min(y_vals), max(y_vals)
+        if width < 0.01:
+            width = 0.1
+        if height < 0.01:
+            height = 0.1
         
-        width = x_max - x_min if x_max > x_min else 1
-        height = y_max - y_min if y_max > y_min else 1
-        
+        # 정규화
         normalized = {}
-        for k, v in pose.items():
-            if k.endswith('_x'):
-                normalized[k] = (v - x_min) / width
-            elif k.endswith('_y'):
-                normalized[k] = (v - y_min) / height
-            else:
-                normalized[k] = v
+        for name in self.keypoint_indices.values():
+            x = kps[f'{name}_x']
+            y = kps[f'{name}_y']
+            
+            normalized[f'{name}_x'] = (x - min_x) / width
+            normalized[f'{name}_y'] = (y - min_y) / height
+            normalized[f'{name}_z'] = kps[f'{name}_z']
+            normalized[f'{name}_v'] = kps[f'{name}_v']
         
         return normalized
     
-    def calc_angle(self, p1, p2, p3):
-        """세 점의 각도 계산 (p2가 꼭지점)"""
-        v1 = np.array([p1[0] - p2[0], p1[1] - p2[1]])
-        v2 = np.array([p3[0] - p2[0], p3[1] - p2[1]])
+    def calc_angle(self, p1: Tuple, p2: Tuple, p3: Tuple) -> float:
+        """3점 각도 계산 (p2가 꼭지점)"""
+        a = np.array(p1)
+        b = np.array(p2)
+        c = np.array(p3)
         
-        cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
-        return np.degrees(np.arccos(np.clip(cos_angle, -1, 1)))
+        ba = a - b
+        bc = c - b
+        
+        norm = np.linalg.norm(ba) * np.linalg.norm(bc)
+        if norm == 0:
+            return 0
+        
+        cos_angle = np.dot(ba, bc) / norm
+        cos_angle = np.clip(cos_angle, -1.0, 1.0)
+        
+        return np.degrees(np.arccos(cos_angle))
     
-    def calculate_metrics(self, expert_id, e1, e2, e3, post_e3):
-        """10개 평가 지표 계산"""
+    def calculate_metrics_at_keyframe(
+        self, 
+        df: pd.DataFrame, 
+        keyframes: Dict
+    ) -> Dict:
+        """
+        키프레임에서 9개 평가 항목 값 계산
         
-        metrics = {'expert_id': expert_id}
+        Args:
+            df: 정규화된 keypoints DataFrame
+            keyframes: {'E1': 30, 'E2': 48, 'E3': 60}
+            
+        Returns:
+            {
+                'stage1': {
+                    'elbow_height': 0.05,
+                    'guide_arm': 0.12,
+                    'body_open': 0.08
+                },
+                'stage2': {...},
+                'stage3': {...}
+            }
+        """
+        e1_idx = keyframes['E1']
+        e2_idx = keyframes['E2']
+        e3_idx = keyframes['E3']
         
-        # =========================================
-        # [E1] 준비자세 (2개)
-        # =========================================
+        e1 = df.iloc[e1_idx]
+        e2 = df.iloc[e2_idx]
+        e3 = df.iloc[e3_idx]
         
-        # ① 왼손 위치: 왼손목이 왼어깨보다 얼마나 위에 있는지
-        # 양수 = 왼손이 어깨보다 위
-        metrics['guide_arm_height'] = float(e1['left_shoulder_y'] - e1['left_wrist_y'])
+        metrics = {
+            'stage1': {},
+            'stage2': {},
+            'stage3': {}
+        }
         
-        # ② 상체 열림: 왼어깨X - 오른어깨X
-        # 양수 = 측면 자세 (왼어깨가 오른쪽에)
-        metrics['body_openness'] = float(e1['left_shoulder_x'] - e1['right_shoulder_x'])
+        # ═══════════════════════════════════════
+        # 1단계: 준비자세 (E1)
+        # ═══════════════════════════════════════
         
-        # =========================================
-        # [E2] 백스윙 (2개)
-        # =========================================
+        # ① 팔꿈치 높이: |elbow_y - shoulder_y|
+        metrics['stage1']['elbow_height'] = abs(
+            e1['right_elbow_y'] - e1['right_shoulder_y']
+        )
         
-        # ③ 백스윙 깊이: 오른어깨X - 오른손목X
-        # 양수 = 손목이 어깨보다 뒤
-        metrics['backswing_depth'] = float(e2['right_shoulder_x'] - e2['right_wrist_x'])
+        # ② 보조 손: left_shoulder_y - left_wrist_y (양수면 올라감)
+        metrics['stage1']['guide_arm'] = (
+            e1['left_shoulder_y'] - e1['left_wrist_y']
+        )
         
-        # ④ 팔꿈치 접힘 (L자): E2에서 팔꿈치 각도
-        metrics['elbow_bend_angle'] = float(self.calc_angle(
-            [e2['right_shoulder_x'], e2['right_shoulder_y']],
-            [e2['right_elbow_x'], e2['right_elbow_y']],
-            [e2['right_wrist_x'], e2['right_wrist_y']]
-        ))
+        # ③ 상체 열림: left_shoulder_x - right_shoulder_x (양수면 열림)
+        metrics['stage1']['body_open'] = (
+            e1['left_shoulder_x'] - e1['right_shoulder_x']
+        )
         
-        # =========================================
-        # [E3] 임팩트 (3개)
-        # =========================================
+        # ═══════════════════════════════════════
+        # 2단계: 스윙 (E1→E3 + E2, E3)
+        # ═══════════════════════════════════════
         
-        # ⑤ 팔꿈치 높이: 오른어깨Y - 오른팔꿈치Y
-        # 양수 = 팔꿈치가 어깨보다 위
-        metrics['elbow_height'] = float(e3['right_shoulder_y'] - e3['right_elbow_y'])
-        
-        # ⑥ 팔 펴짐: E3에서 팔꿈치 각도
-        metrics['arm_extension_angle'] = float(self.calc_angle(
-            [e3['right_shoulder_x'], e3['right_shoulder_y']],
-            [e3['right_elbow_x'], e3['right_elbow_y']],
-            [e3['right_wrist_x'], e3['right_wrist_y']]
-        ))
-        
-        # ⑦ 타점 높이: 코Y - 오른손목Y
-        # 양수 = 손목이 코보다 위
-        metrics['hit_point_height'] = float(e3['nose_y'] - e3['right_wrist_y'])
-        
-        # =========================================
-        # [E1→E3] 회전 (2개)
-        # =========================================
-        
-        # ⑧ 어깨 회전량: E3 어깨차이 - E1 어깨차이
+        # ④ 어깨 회전: E1과 E3의 어깨 차이 변화
         e1_shoulder_diff = e1['left_shoulder_x'] - e1['right_shoulder_x']
         e3_shoulder_diff = e3['left_shoulder_x'] - e3['right_shoulder_x']
-        metrics['shoulder_rotation'] = float(e1_shoulder_diff - e3_shoulder_diff)
+        metrics['stage2']['shoulder_rotation'] = e1_shoulder_diff - e3_shoulder_diff
         
-        # ⑨ 골반 회전량: E3 골반차이 - E1 골반차이
-        e1_hip_diff = e1['left_hip_x'] - e1['right_hip_x']
-        e3_hip_diff = e3['left_hip_x'] - e3['right_hip_x']
-        metrics['hip_rotation'] = float(e1_hip_diff - e3_hip_diff)
+        # ⑤ 팔꿈치 L자 (E2): 어깨-팔꿈치-손목 각도
+        metrics['stage2']['elbow_bend'] = self.calc_angle(
+            (e2['right_shoulder_x'], e2['right_shoulder_y']),
+            (e2['right_elbow_x'], e2['right_elbow_y']),
+            (e2['right_wrist_x'], e2['right_wrist_y'])
+        )
         
-        # =========================================
-        # [E3→끝] 팔로우스루 (1개)
-        # =========================================
+        # ⑥ 백스윙 깊이 (E2): shoulder_x - wrist_x (양수면 뒤로 감)
+        metrics['stage2']['backswing_depth'] = (
+            e2['right_shoulder_x'] - e2['right_wrist_x']
+        )
         
-        # ⑩ 팔로우스루: 손목이 왼어깨를 얼마나 넘어갔는지
-        max_cross = 0
-        if post_e3:
-            left_shoulder_x = e3['left_shoulder_x']
-            for p in post_e3:
-                cross = left_shoulder_x - p['right_wrist_x']
-                max_cross = max(max_cross, cross)
-        metrics['follow_through'] = float(max_cross)
+        # ⑦ 팔 펴짐 (E3): 어깨-팔꿈치-손목 각도
+        metrics['stage2']['arm_extension'] = self.calc_angle(
+            (e3['right_shoulder_x'], e3['right_shoulder_y']),
+            (e3['right_elbow_x'], e3['right_elbow_y']),
+            (e3['right_wrist_x'], e3['right_wrist_y'])
+        )
+        
+        # ⑧ 타점 높이 (E3): nose_y - wrist_y (양수면 머리 위)
+        metrics['stage2']['hit_height'] = (
+            e3['nose_y'] - e3['right_wrist_y']
+        )
+        
+        # ═══════════════════════════════════════
+        # 3단계: 팔로우스루 (E3 이후)
+        # ═══════════════════════════════════════
+        
+        # ⑨ 팔로우스루: E3 이후 손목이 왼어깨를 지나갔는지
+        has_followthrough = False
+        left_shoulder_x = e3['left_shoulder_x']
+        
+        for i in range(e3_idx, min(e3_idx + 20, len(df))):
+            row = df.iloc[i]
+            if row['right_wrist_x'] < left_shoulder_x:
+                has_followthrough = True
+                break
+        
+        metrics['stage3']['follow_through'] = 1 if has_followthrough else 0
         
         return metrics
     
-    def calculate_gt_range(self):
-        """GT 범위 계산"""
+    def generate_gt(self, output_path: str):
+        """
+        전문가 4명의 GT 기준 생성 및 JSON 저장
         
-        df = pd.DataFrame(self.all_metrics)
+        Args:
+            output_path: 출력 JSON 경로
+        """
+        print(f"\n{'='*60}")
+        print(f"🚀 GT 생성 시작")
+        print(f"{'='*60}")
         
-        # 평가 항목 정의
-        items = [
-            ('guide_arm_height', '① 왼손 위치', 'E1', '> 0 이면 어깨 위'),
-            ('body_openness', '② 상체 열림', 'E1', '> 0 이면 측면'),
-            ('backswing_depth', '③ 백스윙 깊이', 'E2', '> 0 이면 뒤로'),
-            ('elbow_bend_angle', '④ 팔꿈치 접힘', 'E2', '60~120° 적정'),
-            ('elbow_height', '⑤ 팔꿈치 높이', 'E3', '> 0 이면 어깨 위'),
-            ('arm_extension_angle', '⑥ 팔 펴짐', 'E3', '> 150° 적정'),
-            ('hit_point_height', '⑦ 타점 높이', 'E3', '> 0 이면 머리 위'),
-            ('shoulder_rotation', '⑧ 어깨 회전', 'E1→E3', '> 0 이면 회전'),
-            ('hip_rotation', '⑨ 골반 회전', 'E1→E3', '> 0 이면 회전'),
-            ('follow_through', '⑩ 팔로우스루', 'E3→끝', '> 0 이면 넘어감'),
-        ]
-        
-        gt_range = {}
-        
-        print("\n" + "=" * 70)
-        print("📊 전문가 GT 범위 (Golden Standard)")
-        print("=" * 70)
-        
-        for key, name, phase, criteria in items:
-            values = df[key].values
-            
-            gt_range[key] = {
-                'name': name,
-                'phase': phase,
-                'min': round(float(np.min(values)), 4),
-                'max': round(float(np.max(values)), 4),
-                'mean': round(float(np.mean(values)), 4),
-                'std': round(float(np.std(values)), 4),
-                'values': [round(float(v), 4) for v in values],
-                'criteria': criteria,
-                'pass_condition': '> 0' if 'angle' not in key else f'>= {round(float(np.min(values)), 1)}'
-            }
-            
-            print(f"\n{name} [{phase}]")
-            print(f"   값: {[round(v, 3) for v in values]}")
-            print(f"   범위: {gt_range[key]['min']:.3f} ~ {gt_range[key]['max']:.3f}")
-            print(f"   평균: {gt_range[key]['mean']:.3f} ± {gt_range[key]['std']:.3f}")
-            print(f"   기준: {criteria}")
-        
-        return gt_range
-    
-    def save_results(self, gt_range):
-        """결과 저장"""
-        
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        
-        # 1. JSON 저장 (Golden Standard)
-        json_path = OUTPUT_DIR / "gt_range.json"
-        with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(gt_range, f, indent=2, ensure_ascii=False)
-        print(f"\n✅ gt_range.json 저장")
-        
-        # 2. CSV 저장 (개별 값)
-        csv_path = OUTPUT_DIR / "gt_metrics.csv"
-        df = pd.DataFrame(self.all_metrics)
-        df.to_csv(csv_path, index=False, encoding='utf-8-sig')
-        print(f"✅ gt_metrics.csv 저장")
-        
-        # 3. 요약 CSV (발표용)
-        summary_data = []
-        for key, data in gt_range.items():
-            summary_data.append({
-                '항목': data['name'],
-                '구간': data['phase'],
-                '최소': data['min'],
-                '최대': data['max'],
-                '평균': data['mean'],
-                '표준편차': data['std'],
-                '판단기준': data['criteria']
-            })
-        summary_df = pd.DataFrame(summary_data)
-        summary_df.to_csv(OUTPUT_DIR / "gt_summary.csv", index=False, encoding='utf-8-sig')
-        print(f"✅ gt_summary.csv 저장")
-    
-    def visualize_all(self, gt_range):
-        """전체 시각화"""
-        
-        print("\n📊 시각화 생성 중...")
-        
-        self.viz_boxplot(gt_range)
-        self.viz_keyframes()
-        self.viz_skeleton()
-        self.viz_radar(gt_range)
-        self.viz_comparison_table(gt_range)
-    
-    def viz_boxplot(self, gt_range):
-        """박스플롯 시각화"""
-        
-        fig, axes = plt.subplots(2, 5, figsize=(20, 8))
-        axes = axes.flatten()
-        
-        colors = ['#FF6B6B', '#FF6B6B',  # E1 - 빨강
-                  '#4ECDC4', '#4ECDC4',  # E2 - 청록
-                  '#45B7D1', '#45B7D1', '#45B7D1',  # E3 - 파랑
-                  '#96CEB4', '#96CEB4',  # 회전 - 초록
-                  '#FFEAA7']  # 팔로우스루 - 노랑
-        
-        for i, (key, data) in enumerate(gt_range.items()):
-            ax = axes[i]
-            values = data['values']
-            
-            bp = ax.boxplot(values, patch_artist=True, widths=0.6)
-            bp['boxes'][0].set_facecolor(colors[i])
-            bp['boxes'][0].set_alpha(0.7)
-            
-            # 개별 점
-            x = np.ones(len(values)) + np.random.normal(0, 0.05, len(values))
-            ax.scatter(x, values, c='black', s=100, zorder=5, edgecolor='white', linewidth=2)
-            
-            # 전문가 라벨
-            for j, v in enumerate(values):
-                ax.annotate(f'E{j+1}', (x[j], v), fontsize=8, ha='center', va='bottom')
-            
-            # 0 기준선
-            ax.axhline(0, color='red', linestyle='--', alpha=0.5)
-            
-            ax.set_title(f"{data['name']}\n({data['phase']})", fontsize=11, fontweight='bold')
-            ax.set_xticks([])
-            ax.grid(True, alpha=0.3, axis='y')
-        
-        plt.suptitle('전문가 4명 GT 범위 (10개 평가 항목)', fontsize=16, fontweight='bold', y=1.02)
-        plt.tight_layout()
-        plt.savefig(OUTPUT_DIR / "viz_boxplot.png", dpi=150, bbox_inches='tight', 
-                   facecolor='white', edgecolor='none')
-        plt.close()
-        print("   ✅ viz_boxplot.png")
-    
-    def viz_keyframes(self):
-        """키프레임 비교 (검정 배경)"""
-        
-        n_experts = len(self.all_frames)
-        
-        fig, axes = plt.subplots(n_experts, 3, figsize=(15, 5 * n_experts))
-        fig.patch.set_facecolor('black')
-        
-        if n_experts == 1:
-            axes = [axes]
-        
-        titles = ['E1: 준비자세', 'E2: 백스윙', 'E3: 임팩트']
-        
-        for i, (expert_id, frames) in enumerate(self.all_frames.items()):
-            for j, key in enumerate(['E1', 'E2', 'E3']):
-                ax = axes[i][j] if n_experts > 1 else axes[j]
-                ax.set_facecolor('black')
-                
-                img = cv2.cvtColor(frames[key], cv2.COLOR_BGR2RGB)
-                ax.imshow(img)
-                
-                if i == 0:
-                    ax.set_title(titles[j], fontsize=14, fontweight='bold', color='white', pad=10)
-                
-                if j == 0:
-                    ax.set_ylabel(expert_id, fontsize=12, fontweight='bold', color='white')
-                
-                ax.set_xticks([])
-                ax.set_yticks([])
-                
-                for spine in ax.spines.values():
-                    spine.set_color('white')
-                    spine.set_linewidth(2)
-        
-        plt.suptitle('전문가 키프레임 비교', fontsize=18, fontweight='bold', color='white', y=1.01)
-        plt.tight_layout()
-        plt.savefig(OUTPUT_DIR / "viz_keyframes.png", dpi=150, bbox_inches='tight',
-                   facecolor='black', edgecolor='none')
-        plt.close()
-        print("   ✅ viz_keyframes.png")
-    
-    def viz_skeleton(self):
-        """스켈레톤 오버레이"""
-        
-        n_experts = len(self.all_frames)
-        
-        fig, axes = plt.subplots(n_experts, 3, figsize=(15, 5 * n_experts))
-        fig.patch.set_facecolor('black')
-        
-        if n_experts == 1:
-            axes = [axes]
-        
-        titles = ['E1: 준비자세', 'E2: 백스윙', 'E3: 임팩트']
-        
-        for i, (expert_id, frames) in enumerate(self.all_frames.items()):
-            for j, key in enumerate(['E1', 'E2', 'E3']):
-                ax = axes[i][j] if n_experts > 1 else axes[j]
-                ax.set_facecolor('black')
-                
-                frame = frames[key].copy()
-                
-                # MediaPipe로 스켈레톤 그리기
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                result = self.pose.process(rgb)
-                
-                if result.pose_landmarks:
-                    mp_drawing.draw_landmarks(
-                        frame, 
-                        result.pose_landmarks, 
-                        mp_pose.POSE_CONNECTIONS,
-                        mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=3, circle_radius=5),
-                        mp_drawing.DrawingSpec(color=(255, 255, 0), thickness=2)
-                    )
-                
-                img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                ax.imshow(img)
-                
-                if i == 0:
-                    ax.set_title(titles[j], fontsize=14, fontweight='bold', color='white', pad=10)
-                
-                if j == 0:
-                    ax.set_ylabel(expert_id, fontsize=12, fontweight='bold', color='white')
-                
-                ax.set_xticks([])
-                ax.set_yticks([])
-        
-        plt.suptitle('전문가 스켈레톤 오버레이', fontsize=18, fontweight='bold', color='white', y=1.01)
-        plt.tight_layout()
-        plt.savefig(OUTPUT_DIR / "viz_skeleton.png", dpi=150, bbox_inches='tight',
-                   facecolor='black', edgecolor='none')
-        plt.close()
-        print("   ✅ viz_skeleton.png")
-    
-    def viz_radar(self, gt_range):
-        """레이더 차트 (발표용)"""
-        
-        df = pd.DataFrame(self.all_metrics)
-        
-        # 정규화 (0~1 스케일)
-        normalized = {}
-        for key in gt_range.keys():
-            values = df[key].values
-            min_val, max_val = values.min(), values.max()
-            if max_val > min_val:
-                normalized[key] = (values - min_val) / (max_val - min_val)
-            else:
-                normalized[key] = np.ones_like(values) * 0.5
-        
-        # 레이더 차트
-        labels = [gt_range[k]['name'] for k in gt_range.keys()]
-        n_vars = len(labels)
-        
-        angles = np.linspace(0, 2 * np.pi, n_vars, endpoint=False).tolist()
-        angles += angles[:1]
-        
-        fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(polar=True))
-        
-        colors = plt.cm.Set2(np.linspace(0, 1, len(df)))
-        
-        for i, row in df.iterrows():
-            values = [normalized[k][i] for k in gt_range.keys()]
-            values += values[:1]
-            
-            ax.plot(angles, values, 'o-', linewidth=2, label=row['expert_id'], color=colors[i])
-            ax.fill(angles, values, alpha=0.1, color=colors[i])
-        
-        ax.set_xticks(angles[:-1])
-        ax.set_xticklabels(labels, fontsize=10)
-        ax.set_ylim(0, 1)
-        ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
-        
-        plt.title('전문가 4명 평가 항목 비교 (정규화)', fontsize=14, fontweight='bold', pad=20)
-        plt.tight_layout()
-        plt.savefig(OUTPUT_DIR / "viz_radar.png", dpi=150, bbox_inches='tight',
-                   facecolor='white', edgecolor='none')
-        plt.close()
-        print("   ✅ viz_radar.png")
-    
-    def viz_comparison_table(self, gt_range):
-        """비교 테이블 이미지 (발표용)"""
-        
-        fig, ax = plt.subplots(figsize=(16, 8))
-        ax.axis('off')
-        
-        # 테이블 데이터
-        headers = ['항목', '구간', '전문가 범위', '평균 ± 표준편차', 'PASS 조건']
-        
-        rows = []
-        for key, data in gt_range.items():
-            rows.append([
-                data['name'],
-                data['phase'],
-                f"{data['min']:.3f} ~ {data['max']:.3f}",
-                f"{data['mean']:.3f} ± {data['std']:.3f}",
-                data['criteria']
-            ])
-        
-        colors_map = {
-            'E1': '#FFE5E5',
-            'E2': '#E5F5F5', 
-            'E3': '#E5F0FF',
-            'E1→E3': '#E5FFE5',
-            'E3→끝': '#FFF5E5'
+        # 모든 전문가의 메트릭 수집
+        all_metrics = {
+            'stage1': {'elbow_height': [], 'guide_arm': [], 'body_open': []},
+            'stage2': {'shoulder_rotation': [], 'elbow_bend': [], 'backswing_depth': [], 
+                      'arm_extension': [], 'hit_height': []},
+            'stage3': {'follow_through': []}
         }
         
-        row_colors = [colors_map.get(gt_range[k]['phase'], 'white') for k in gt_range.keys()]
+        expert_data = {}  # 개별 전문가 데이터 저장
         
-        table = ax.table(
-            cellText=rows,
-            colLabels=headers,
-            cellLoc='center',
-            loc='center',
-            colColours=['#4A4A4A'] * len(headers),
-            cellColours=[[c] * len(headers) for c in row_colors]
-        )
+        # 전문가 영상 처리
+        for expert_id, keyframes in self.keyframe_labels.items():
+            video_path = self.expert_video_dir / f"{expert_id}.mp4"
+            
+            if not video_path.exists():
+                print(f"⚠️ 영상 없음: {video_path}")
+                continue
+            
+            print(f"\n📹 {expert_id} 처리 중...")
+            
+            # keypoints 추출
+            df = self.extract_keypoints_from_video(str(video_path))
+            
+            if df is None or len(df) == 0:
+                continue
+            
+            # 메트릭 계산
+            metrics = self.calculate_metrics_at_keyframe(df, keyframes)
+            
+            expert_data[expert_id] = metrics
+            
+            # 수집
+            for stage, items in metrics.items():
+                for metric_name, value in items.items():
+                    all_metrics[stage][metric_name].append(value)
+            
+            print(f"   ✅ 메트릭 계산 완료")
         
-        table.auto_set_font_size(False)
-        table.set_fontsize(11)
-        table.scale(1.2, 2)
+        # 통계 계산
+        print(f"\n📊 통계 계산 중...")
         
-        # 헤더 텍스트 흰색
-        for i in range(len(headers)):
-            table[(0, i)].set_text_props(color='white', fontweight='bold')
+        gt_result = {
+            "version": "1.0",
+            "description": "배드민턴 스윙 평가 GT 기준 (전문가 4명 기반)",
+            "n_experts": len(expert_data),
+            "generated_from": list(expert_data.keys()),
+            
+            "stages": {
+                "stage1": {
+                    "name": "준비자세",
+                    "phase": "E1",
+                    "max_score": 100,
+                    "metrics": {}
+                },
+                "stage2": {
+                    "name": "스윙",
+                    "phase": "E1→E3, E2, E3",
+                    "max_score": 100,
+                    "metrics": {}
+                },
+                "stage3": {
+                    "name": "팔로우스루",
+                    "phase": "E3→끝",
+                    "max_score": 100,
+                    "metrics": {}
+                }
+            }
+        }
         
-        plt.title('전문가 GT 범위 (Golden Standard)', fontsize=16, fontweight='bold', pad=20)
-        plt.tight_layout()
-        plt.savefig(OUTPUT_DIR / "viz_table.png", dpi=150, bbox_inches='tight',
-                   facecolor='white', edgecolor='none')
-        plt.close()
-        print("   ✅ viz_table.png")
+        # 메트릭 정의
+        metric_definitions = {
+            'stage1': {
+                'elbow_height': {
+                    'id': 1,
+                    'name': '팔꿈치 높이',
+                    'type': 'direction',
+                    'description': '팔꿈치가 어깨 높이 근처에 있는지',
+                    'pass_condition': 'abs(value) < threshold',
+                    'fail_display': ['낮음', '높음']
+                },
+                'guide_arm': {
+                    'id': 2,
+                    'name': '보조 손',
+                    'type': 'direction',
+                    'description': '왼손이 위로 올라가 있는지',
+                    'pass_condition': 'value > 0',
+                    'fail_display': ['내려감']
+                },
+                'body_open': {
+                    'id': 3,
+                    'name': '상체 열림',
+                    'type': 'direction',
+                    'description': '상체(어깨)가 열려있는지',
+                    'pass_condition': 'value > threshold',
+                    'fail_display': ['닫힘']
+                }
+            },
+            'stage2': {
+                'shoulder_rotation': {
+                    'id': 4,
+                    'name': '어깨 회전',
+                    'type': 'direction',
+                    'description': 'E1→E3 동안 어깨가 회전했는지',
+                    'pass_condition': 'value > threshold',
+                    'fail_display': ['안함']
+                },
+                'elbow_bend': {
+                    'id': 5,
+                    'name': '팔꿈치 L자',
+                    'type': 'gt_range',
+                    'description': '백스윙 시 팔꿈치 각도 (L자 형태)',
+                    'pass_condition': 'gt_min <= value <= gt_max',
+                    'fail_display': ['펴짐', '굽힘']
+                },
+                'backswing_depth': {
+                    'id': 6,
+                    'name': '백스윙 깊이',
+                    'type': 'direction',
+                    'description': '손목이 어깨 뒤로 갔는지',
+                    'pass_condition': 'value > 0',
+                    'fail_display': ['얕음']
+                },
+                'arm_extension': {
+                    'id': 7,
+                    'name': '팔 펴짐',
+                    'type': 'gt_range',
+                    'description': '임팩트 시 팔꿈치 각도',
+                    'pass_condition': 'value >= gt_min',
+                    'fail_display': ['굽힘']
+                },
+                'hit_height': {
+                    'id': 8,
+                    'name': '타점 높이',
+                    'type': 'direction',
+                    'description': '손목이 머리 위에 있는지',
+                    'pass_condition': 'value > 0',
+                    'fail_display': ['낮음']
+                }
+            },
+            'stage3': {
+                'follow_through': {
+                    'id': 9,
+                    'name': '팔로우스루',
+                    'type': 'binary',
+                    'description': '팔로우스루를 했는지',
+                    'pass_condition': 'value == 1',
+                    'fail_display': ['안함']
+                }
+            }
+        }
+        
+        # 통계 + 정의 결합
+        for stage, metrics in all_metrics.items():
+            n_metrics = len(metrics)
+            score_per_metric = round(100 / n_metrics, 1)
+            
+            for metric_name, values in metrics.items():
+                if not values:
+                    continue
+                
+                values = np.array(values)
+                
+                definition = metric_definitions[stage][metric_name].copy()
+                definition['score'] = score_per_metric
+                definition['expert_values'] = [round(v, 4) for v in values.tolist()]
+                definition['statistics'] = {
+                    'min': round(float(values.min()), 4),
+                    'max': round(float(values.max()), 4),
+                    'mean': round(float(values.mean()), 4),
+                    'std': round(float(values.std()), 4)
+                }
+                
+                # GT 범위 타입은 min/max를 gt_min/gt_max로
+                if definition['type'] == 'gt_range':
+                    definition['gt_min'] = round(float(values.min()) - values.std(), 1)
+                    definition['gt_max'] = round(float(values.max()) + values.std(), 1)
+                
+                # 방향성 타입은 threshold 설정
+                elif definition['type'] == 'direction':
+                    # 평균의 50%를 threshold로
+                    mean_val = float(values.mean())
+                    if metric_name == 'elbow_height':
+                        definition['threshold'] = round(abs(mean_val) * 2, 4)  # 여유있게
+                    else:
+                        definition['threshold'] = round(mean_val * 0.5, 4)
+                
+                gt_result['stages'][stage]['metrics'][metric_name] = definition
+        
+        # 개별 전문가 데이터 추가
+        gt_result['expert_raw_data'] = {}
+        for expert_id, metrics in expert_data.items():
+            gt_result['expert_raw_data'][expert_id] = {
+                stage: {k: round(v, 4) for k, v in items.items()}
+                for stage, items in metrics.items()
+            }
+        
+        # JSON 저장
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(gt_result, f, ensure_ascii=False, indent=2)
+        
+        print(f"\n{'='*60}")
+        print(f"✅ GT 생성 완료!")
+        print(f"   - 저장 경로: {output_path}")
+        print(f"   - 전문가 수: {len(expert_data)}명")
+        print(f"   - 평가 항목: 9개")
+        print(f"{'='*60}")
+        
+        # 요약 출력
+        print(f"\n📋 GT 요약:")
+        for stage, data in gt_result['stages'].items():
+            print(f"\n  [{data['name']}] ({data['phase']})")
+            for metric_name, metric in data['metrics'].items():
+                stats = metric['statistics']
+                if metric['type'] == 'gt_range':
+                    print(f"    - {metric['name']}: {metric['gt_min']:.1f}° ~ {metric['gt_max']:.1f}° (mean: {stats['mean']:.1f}°)")
+                else:
+                    print(f"    - {metric['name']}: mean={stats['mean']:.4f}, threshold={metric.get('threshold', 'N/A')}")
+        
+        return gt_result
+    
+    def __del__(self):
+        if hasattr(self, 'pose'):
+            self.pose.close()
 
+
+# ═══════════════════════════════════════════════════════════════
+# 실행
+# ═══════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    extractor = GTExtractor()
-    extractor.run()
+    # 경로 설정
+    EXPERT_VIDEO_DIR = r"C:\GitHub_Project\AICV_03\minton-angle\backend\data\expert_videos"
+    KEYFRAME_LABELS_PATH = r"C:\GitHub_Project\AICV_03\minton-angle\backend\data\standard\keyframe_labels.csv"
+    OUTPUT_PATH = r"C:\GitHub_Project\AICV_03\minton-angle\backend\data\standard\gt_evaluation.json"
+    
+    # GT 생성
+    generator = GTGenerator(EXPERT_VIDEO_DIR, KEYFRAME_LABELS_PATH)
+    gt_result = generator.generate_gt(OUTPUT_PATH)
