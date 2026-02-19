@@ -178,6 +178,11 @@ function renderActionCards(currentSessions, prevSessions){
       setHalfGauge(c.n, actionScore, direction);
     }
 
+    // Per-card mini stage history chart (cards 1~4): stage_scores overlay (current vs previous)
+    if (String(c.n) !== "5"){
+      renderActionMiniStageChart(c.n, curArr, prevArr, __RANGE_FILTER__);
+    }
+
     // worst: lowest mean score
     if (Number.isFinite(curMean) && (worst.mean < 0 || curMean < worst.mean)){
       worst = { n: c.n, mean: curMean };
@@ -700,7 +705,14 @@ function renderTableFromSession(session) {
 }
 
 // ====== Chart.js 렌더링 ======
-const charts = { scoreKfHistory: null };
+const charts = {
+  scoreKfHistory: null,
+  // per-action mini charts: actionMini1..4
+  actionMini1: null,
+  actionMini2: null,
+  actionMini3: null,
+  actionMini4: null,
+};
 
 let __ALL_SESSIONS__ = [];
 let __KF_FILTER__ = "ALL"; // ALL | KF1 | KF2 | KF3
@@ -761,6 +773,109 @@ function destroyChart(key) {
     charts[key].destroy();
     charts[key] = null;
   }
+}
+
+function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeKey){
+  const n = String(actionNum);
+  if (n === "5") return; // FollowSwing은 boolean 기반: 미니차트 제외
+
+  const canvas = document.getElementById(`a${n}StageChart`);
+  if (!canvas) return;
+
+  const chartKey = `actionMini${n}`;
+  destroyChart(chartKey);
+
+  const r = String(rangeKey || "7d").toLowerCase();
+  let N = Array.isArray(currentSeries) ? currentSeries.length : 0;
+  if (r === "7d") N = 7;
+  else if (r === "1m") N = 30;
+  else if (r === "3m") N = 90;
+  else if (r === "all") N = Array.isArray(currentSeries) ? currentSeries.length : 0;
+
+  N = clamp(Number(N) || 0, 1, 120);
+  const labels = Array.from({ length: N }, (_, i) => String(i + 1));
+
+  function alignLastN(arr){
+    const xs = Array.isArray(arr) ? arr : [];
+    const tail = xs.slice(-N);
+    const pad = Array(Math.max(0, N - tail.length)).fill(null);
+    return pad.concat(tail).map((v)=>{
+      const num = Number(v);
+      return Number.isFinite(num) ? num : null;
+    });
+  }
+
+  const cur = alignLastN(currentSeries);
+  const prev = alignLastN(prevSeries);
+
+  // y축 자동 확대
+  const allVals = [...cur, ...prev]
+    .filter((v)=> Number.isFinite(Number(v)))
+    .map(Number);
+
+  let yMin = 0;
+  let yMax = 100;
+
+  if (allVals.length){
+    const vMin = Math.min(...allVals);
+    const vMax = Math.max(...allVals);
+
+    const pad = 5;
+    yMin = Math.floor((vMin - pad) / 5) * 5;
+    yMax = Math.ceil((vMax + pad) / 5) * 5;
+
+    yMin = clamp(yMin, 0, 100);
+    yMax = clamp(yMax, 0, 100);
+
+    if (yMax - yMin < 10) yMax = clamp(yMin + 10, 0, 100);
+    if (yMax <= yMin){ yMin = 0; yMax = 100; }
+  }
+
+  charts[chartKey] = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "현재",
+          data: cur,
+          backgroundColor: "rgba(34,197,94,0.7)",
+          borderRadius: 4,
+          barPercentage: 0.9,
+          categoryPercentage: 0.5,
+        },
+        {
+          label: "이전",
+          data: prev,
+          backgroundColor: "rgba(249,115,22,0.7)",
+          borderRadius: 4,
+          barPercentage: 0.9,
+          categoryPercentage: 0.5,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: "index", intersect: false },
+      },
+      scales: {
+        x: {
+          stacked: false,
+          grid: { display: false },
+          ticks: { display: false },
+        },
+        y: {
+          min: yMin,
+          max: yMax,
+          grid: { display: false },
+          ticks: { display: false },
+        },
+      },
+    },
+  });
 }
 
 function renderScoreKfHistoryChart(currentSessions, prevSessions) {
@@ -1365,7 +1480,7 @@ function renderActionCardsFromLLM(reportObj){
       if (!meta.querySelector(".llmAppliedBadge")){
         meta.insertAdjacentHTML(
           "beforeend",
-          ` <span class="llmAppliedBadge" style="margin-left:6px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:900; background:rgba(32,201,151,.14); border:1px solid rgba(32,201,151,.28); color:rgba(17,24,39,.86);">LLM 반영</span>`
+          ` <span class="llmAppliedBadge" style="margin-left:6px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:900; background:rgba(32,201,151,.14); border:1px solid rgba(32,201,151,.28); color:rgba(17,24,39,.86);">SCORE 비교</span>`
         );
       }
     }
