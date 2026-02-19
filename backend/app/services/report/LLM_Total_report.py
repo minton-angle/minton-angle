@@ -26,19 +26,38 @@ DEFAULT_TEMPERATURE = float(os.getenv("GROQ_TEMPERATURE", "0.4"))
 # System Prompt (분석 리포트 톤 고정)
 # ------------------------------------------------------------------
 def _system_prompt(lang: str) -> str:
-    return (
-        "당신은 배드민턴 스윙의 '성장 분석 리포트'를 작성하는 데이터 분석가입니다. "
-        "코칭하거나 훈련을 지시하지 마세요. "
-        "데이터 기반으로 변화와 패턴을 설명하세요. "
-        "입력은 키프레임(KF1~KF3)의 오차각도와 meta.insights입니다. "
-        "반드시 JSON만 반환하세요. "
-        "최상위 키는 summary, growth, actions, today_checklist 입니다. "
-        "동작 라벨은 반드시 '백스윙 동작', '임팩트 동작', '팔로스루 동작'으로 작성하세요. "
-        "각 동작의 내용은 서로 달라야 합니다. "
-        "problem_one에는 해당 오차각도 숫자(예: 0.12°)를 반드시 포함하세요. "
-        "fix_two는 지시형 문장 금지이며, 분석 포인트 2개로 작성하세요. "
-        "절대 '~하세요' 또는 '~하지 마세요' 표현을 사용하지 마세요."
-    )
+    # NOTE: lang is kept for future extensibility; current prompt is Korean-first.
+    return """
+당신은 배드민턴 동작 분석 AI 코치입니다.
+
+[절대 규칙]
+1) 수치는 반드시 `meta.score_stats`에 있는 값만 사용하십시오.
+   - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_Total, Average_Score
+   - 각 키별 사용 가능 값: current_mean, prev_mean, delta, direction
+   - 사용 금지: angles(단일 세션 값), raw angle, 임의로 만든 수치/예시 수치
+2) 각 섹션(ready/rotation/backswing/impact/followswing)의 내용은 서로 달라야 합니다. (같은 문장/같은 수치 반복 금지)
+3) direction 판정은 입력의 direction 값을 그대로 따르십시오.
+   - improved: delta > 0 (점수 상승)
+   - worsened: delta < 0 (점수 하락)
+   - flat: delta == 0
+4) 문구에는 반드시 "이전 기간 대비" 표현이 포함되어야 합니다.
+5) 출력은 반드시 JSON 오브젝트 1개이며, 아래 스키마를 정확히 지키십시오.
+   - summary: string
+   - growth: { direction: improved|worsened|flat, delta_average_score: number, message: string }
+   - sections: {
+       ready: { title, change_one, focus_two },
+       rotation: { title, change_one, focus_two },
+       backswing: { title, change_one, focus_two },
+       impact: { title, change_one, focus_two },
+       followswing: { title, change_one, focus_two }
+     }
+   - today_checklist: string[]
+6) change_one에는 아래 3개 값을 반드시 포함하십시오(점수 표기, 소수점 2자리):
+   - current_mean, prev_mean, delta
+7) focus_two는 "관찰 포인트" 2개를 배열로 작성하십시오.
+   - 지시형(해라/하세요) 문장 금지, 관찰/포인트 형태로 작성
+8) today_checklist는 정확히 3개 항목의 배열로 작성하십시오.
+""".strip()
 
 
 # ------------------------------------------------------------------
@@ -47,47 +66,51 @@ def _system_prompt(lang: str) -> str:
 def _user_prompt(
     angles: Dict[str, float],
     meta: Optional[Dict[str, Any]],
-    lang: str
+    lang: str,
 ) -> str:
+    m = meta or {}
+
+    # LLM이 반드시 써야 하는 값만 제공(angles는 제공하지 않음: 최신 1건 고정/0.1° 앵커링 방지)
+    safe_meta = {
+        "post_idx": m.get("post_idx"),
+        "range": m.get("range"),
+        "summary": m.get("summary", {}),
+        "trend": m.get("trend", {}),
+        "score_stats": m.get("score_stats", {}),
+        "insights": m.get("insights", {}),
+    }
+
+    schema = {
+        "summary": "string",
+        "growth": {
+            "direction": "improved|worsened|flat",
+            "delta_average_score": "number",
+            "message": "string",
+        },
+        "sections": {
+            "ready": {"title": "준비", "change_one": "string", "focus_two": "string[]"},
+            "rotation": {"title": "회전", "change_one": "string", "focus_two": "string[]"},
+            "backswing": {"title": "백스윙", "change_one": "string", "focus_two": "string[]"},
+            "impact": {"title": "임팩트", "change_one": "string", "focus_two": "string[]"},
+            "followswing": {"title": "팔로스윙", "change_one": "string", "focus_two": "string[]"},
+        },
+        "today_checklist": "string[]",
+    }
 
     payload = {
-        "angles": angles,
-        "meta": meta or {},
-        "schema": {
-            "summary": "string",
-            "growth": {
-                "direction": "improved|worsened|flat",
-                "delta_mean_abs_kf_error": "number",
-                "message": "string"
-            },
-            "actions": {
-                "kf1": {
-                    "title": "백스윙 동작",
-                    "problem_one": "string",
-                    "fix_two": "string[] (주의해야 할 분석 포인트 2개)"
-                },
-                "kf2": {
-                    "title": "임팩트 동작",
-                    "problem_one": "string",
-                    "fix_two": "string[]"
-                },
-                "kf3": {
-                    "title": "팔로스루 동작",
-                    "problem_one": "string",
-                    "fix_two": "string[]"
-                }
-            },
-            "today_checklist": "string[]"
-        }
+        "meta": safe_meta,
+        "schema": schema,
     }
 
     return (
-        "다음 입력으로 성장 분석 리포트를 생성하세요.\n"
-        "규칙:\n"
-        "1) 세 동작의 분석 내용은 서로 달라야 합니다.\n"
-        "2) problem_one에는 해당 오차각도 값(°)을 반드시 포함하세요.\n"
-        "3) fix_two는 분석 포인트 2개이며 지시형 문장 금지.\n"
-        "4) today_checklist는 3개 항목으로 작성하세요.\n\n"
+        "다음 입력(meta.score_stats, meta.trend)을 사용해 '기간 비교 기반' 점수 리포트를 생성하세요.\n"
+        "중요: angles/단일 세션 값은 사용 금지이며 입력에도 제공되지 않습니다.\n"
+        "작성 규칙:\n"
+        "1) ready/rotation/backswing/impact/followswing 분석 내용은 서로 달라야 합니다.\n"
+        "2) 각 섹션의 change_one에는 current_mean, prev_mean, delta(모두 점수, 소수점 2자리) 3개를 반드시 포함하세요.\n"
+        "3) focus_two는 2개 항목의 배열이며, 지시형(해라/하세요) 문장 금지.\n"
+        "4) today_checklist는 정확히 3개 항목의 배열로 작성하세요.\n"
+        "5) 숫자는 meta.score_stats 값만 사용하세요.\n\n"
         f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
 
@@ -120,6 +143,41 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
             {"title": title, "problem_one": "-", "fix_two": []}
         )
         node["fix_two"] = _ensure_list(node.get("fix_two"))
+
+    # New score-based sections
+    report_obj.setdefault("sections", {})
+    for key, title in [
+        ("ready", "준비"),
+        ("rotation", "회전"),
+        ("backswing", "백스윙"),
+        ("impact", "임팩트"),
+        ("followswing", "팔로스윙"),
+    ]:
+        node = report_obj["sections"].setdefault(
+            key,
+            {"title": title, "change_one": "-", "focus_two": []},
+        )
+        node["focus_two"] = _ensure_list(node.get("focus_two"))
+
+    # Backward-compat: map score sections -> legacy actions(kf1/kf2/kf3) if actions missing
+    if not report_obj.get("actions"):
+        report_obj["actions"] = {
+            "kf1": {
+                "title": "백스윙 동작",
+                "problem_one": report_obj["sections"]["backswing"].get("change_one", "-"),
+                "fix_two": report_obj["sections"]["backswing"].get("focus_two", []),
+            },
+            "kf2": {
+                "title": "임팩트 동작",
+                "problem_one": report_obj["sections"]["impact"].get("change_one", "-"),
+                "fix_two": report_obj["sections"]["impact"].get("focus_two", []),
+            },
+            "kf3": {
+                "title": "팔로스루 동작",
+                "problem_one": report_obj["sections"]["followswing"].get("change_one", "-"),
+                "fix_two": report_obj["sections"]["followswing"].get("focus_two", []),
+            },
+        }
 
     report_obj.setdefault("today_checklist", [])
     return report_obj
@@ -174,6 +232,16 @@ def generate_report(
     lang: str = "ko",
     model: str = GROQ_MODEL,
 ) -> Dict[str, Any]:
+
+    try:
+        score_stats = (meta or {}).get("score_stats", {})
+        logger_llm.info(
+            "LLM prompt inputs range=%s score_stats=%s",
+            (meta or {}).get("range"),
+            json.dumps(score_stats, ensure_ascii=False),
+        )
+    except Exception:
+        pass
 
     messages = [
         {"role": "system", "content": _system_prompt(lang)},

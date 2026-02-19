@@ -1,63 +1,9 @@
-# # backend/scripts/create_analysis.py
-# import sys
-# from pathlib import Path
-# from datetime import datetime
-# import uuid
-
-# project_root = Path(__file__).resolve().parent.parent
-# sys.path.insert(0, str(project_root))
-
-# from app.db.session import SessionLocal
-# from app.models.postModels import Post  # 테이블 등록용 (필수)
-# # ✅ 여기만 "실제 Analysis 모델 경로"에 맞게 바꾸세요
-# # 예: from app.models.analysisModels import Analysis
-# from app.models.analysisModels import Analysis  # <-- 이 줄은 프로젝트에 맞게 수정 필요
-
-
-# db = SessionLocal()
-
-# try:
-#     # 1) 예시용 post_idx (실제 존재하는 POST.idx 값으로 수정하세요)
-#     post_idx_value = "d6072ac0-2de6-47ad-9067-03bfe68f9d32"
-
-#     # 2) analysis 레코드 생성 (테이블 스키마 기준)
-#     analysis = Analysis(
-#         idx=str(uuid.uuid4()),         # PK UUID 생성
-#         post_idx=post_idx_value,       # FK (POST.idx)
-#         kf1=1,
-#         kf2=2,
-#         kf3=3,
-#         kf1_error=0.12,
-#         kf2_error=0.08,
-#         kf3_error=0.15,
-#         score_json={
-#             "ready": 85,
-#             "backswing": 78,
-#             "impact": 90,
-#             "rotation": 88,
-#             "balance": 80,
-#             "followthrough": 92
-#         },
-#         create_date=datetime.utcnow()
-#     )
-
-#     # 3) DB 저장
-#     db.add(analysis)
-#     db.commit()
-#     print("✅ analysis 레코드 생성 완료!")
-
-# except Exception as e:
-#     db.rollback()
-#     print(f"❌ 실패: {e}")
-
-# finally:
-#     db.close()
-
 # backend/scripts/create_analysis.py
 import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 import uuid
+import random
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
@@ -76,24 +22,109 @@ try:
     rows = []
     for days_ago in range(40):
         dt = datetime.utcnow() - timedelta(days=days_ago)
+        # ------------------------------
+        # 1) 현실적인 분포 + 40일 구간에서 약 10점 개선(최신이 높음)
+        #    - 39일 전: base 약 85점
+        #    - 0일 전 : base 약 95점
+        # ------------------------------
+        def clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
+            return max(lo, min(hi, v))
+
+        def to_10(v: float) -> int:
+            """Quantize to 10-point increments within [0,100]."""
+            return int(clamp(round(v / 10.0) * 10.0, 0.0, 100.0))
+
+        progress = (39 - days_ago) / 39.0  # 0.0(과거) -> 1.0(최신)
+        base_avg = 85.0 + (10.0 * progress)  # 약 10점 차이
+
+        # Total 점수들(0~100): base를 중심으로 약간의 변동
+        ready_total_seed = clamp(random.gauss(base_avg + 1.0, 3.0))
+        rotation_total_seed = clamp(random.gauss(base_avg - 0.5, 3.0))
+        backswing_total_seed = clamp(random.gauss(base_avg - 2.0, 4.0))  # backswing은 조금 흔들리게
+        impact_total_seed = clamp(random.gauss(base_avg + 0.5, 3.0))
+        follow_total_seed = clamp(random.gauss(base_avg + 0.0, 3.0))
+
+        # ------------------------------
+        # 2) 세부 항목 생성 (Total 규칙을 보장)
+        #    - Ready_Total = (Arm, Height, Stance) 평균
+        #    - Backswing_Total = (WristX, Racket, Elbow) 평균
+        #    - FollowSwing_Total = (Move, Cross) 평균
+        # ------------------------------
+        # Ready (3개 평균)
+        ready_arm = to_10(random.gauss(ready_total_seed, 6.0))
+        ready_height = to_10(random.gauss(ready_total_seed, 6.0))
+        ready_stance = to_10(random.gauss(ready_total_seed, 6.0))
+        ready_total = round((ready_arm + ready_height + ready_stance) / 3.0, 2)
+
+        # Rotation (단일 항목)
+        rotation_hip = to_10(random.gauss(rotation_total_seed, 5.0))
+        rotation_total = round(float(rotation_hip), 2)
+
+        # Backswing (3개 평균)
+        backswing_wristx = to_10(random.gauss(backswing_total_seed, 10.0))
+        backswing_racket = to_10(random.gauss(backswing_total_seed, 10.0))
+        backswing_elbow = to_10(random.gauss(backswing_total_seed, 10.0))
+        backswing_total = round((backswing_wristx + backswing_racket + backswing_elbow) / 3.0, 2)
+
+        # Impact (단일 항목)
+        impact_angle = to_10(random.gauss(impact_total_seed, 5.0))
+        impact_total = round(float(impact_angle), 2)
+
+        # FollowSwing (2개 평균)
+        follow_move = to_10(random.gauss(follow_total_seed, 8.0))
+        follow_cross = to_10(random.gauss(follow_total_seed, 8.0))
+        follow_total = round((follow_move + follow_cross) / 2.0, 2)
+
+        # ------------------------------
+        # 3) Average_Score
+        #    - Total들만 평균
+        # ------------------------------
+        total_items = [ready_total, rotation_total, backswing_total, impact_total, follow_total]
+        average_score = round(sum(total_items) / len(total_items), 2)
+
+        # ------------------------------
+        # 4) kf 오차는 점수와 반비례하도록(대충) 생성
+        #    - 점수가 높을수록 오차가 낮아지게
+        # ------------------------------
+        def score_to_err(score: float, lo: float = 0.02, hi: float = 0.20) -> float:
+            s = max(0.0, min(100.0, float(score)))
+            base = hi - (s / 100.0) * (hi - lo)
+            noise = random.uniform(-0.005, 0.005)
+            return round(max(lo, min(hi, base + noise)), 4)
+
+        kf1_err = score_to_err(ready_total)
+        kf2_err = score_to_err(backswing_total)
+        kf3_err = score_to_err(impact_total)
+
+        score_json = {
+            "1_Ready_Total": ready_total,
+            "1_Ready_Arm": ready_arm,
+            "1_Ready_Height": ready_height,
+            "1_Ready_Stance": ready_stance,
+            "2_Rotation_Total": rotation_total,
+            "2_Rotation_Hip": rotation_hip,
+            "3_Backswing_Total": backswing_total,
+            "3_Backswing_WristX": backswing_wristx,
+            "3_Backswing_Racket": backswing_racket,
+            "3_Backswing_Elbow": backswing_elbow,
+            "4_Impact_Total": impact_total,
+            "4_Impact_Angle": impact_angle,
+            "5_FollowSwing_Total": follow_total,
+            "5_FollowSwing_Move(50)": follow_move,
+            "5_FollowSwing_Cross(50)": follow_cross,
+            "Average_Score": average_score,
+        }
+
         rows.append(
             Analysis(
                 idx=str(uuid.uuid4()),
                 post_idx=post_idx_value,
                 kf1=1, kf2=2, kf3=3,
-                # 최근(0일 전)일수록 오차가 작고, 과거로 갈수록 오차가 커지는 형태(개선 추세)
-                kf1_error=round(0.10 + (days_ago * 0.002), 4),
-                kf2_error=round(0.08 + (days_ago * 0.0022), 4),
-                kf3_error=round(0.12 + (days_ago * 0.0018), 4),
-                score_json={
-                    "ready": max(0, min(100, 75 + (39 - days_ago))),
-                    "backswing": max(0, min(100, 70 + (39 - days_ago))),
-                    "impact": max(0, min(100, 80 + (39 - days_ago))),
-                    "rotation": max(0, min(100, 78 + (39 - days_ago))),
-                    "balance": max(0, min(100, 72 + (39 - days_ago))),
-                    "followthrough": max(0, min(100, 82 + (39 - days_ago))),
-                },
-                create_date=dt,  # ✅ 날짜별 create_date 강제 입력
+                kf1_error=kf1_err,
+                kf2_error=kf2_err,
+                kf3_error=kf3_err,
+                score_json=score_json,
+                create_date=dt,
             )
         )
 

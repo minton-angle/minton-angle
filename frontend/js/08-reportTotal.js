@@ -7,27 +7,35 @@ const API_BASE = "http://localhost:8000"; // FastAPI 주소
 // ====== KF 키 → 사용자 친화 명칭 ======
 function actionNameFromKfKey(kfKey) {
   const k = String(kfKey || "").toLowerCase();
-  if (k.includes("kf1")) return "백스윙 동작";
-  if (k.includes("kf2")) return "임팩트 동작";
-  if (k.includes("kf3")) return "팔로스루 동작";
+  if (k.includes("kf1")) return "백스윙";
+  if (k.includes("kf2")) return "임팩트";
+  if (k.includes("kf3")) return "팔로스윙";
   return "-";
 }
 
-// KF 키 → 동작 번호 (1,2,3) 매핑
 function kfFieldFromActionIndex(n){
-  if (String(n) === "1") return "kf1_error";
-  if (String(n) === "2") return "kf2_error";
-  if (String(n) === "3") return "kf3_error";
+  // 5-card order: 1 Ready, 2 Rotation, 3 Backswing, 4 Impact, 5 FollowSwing
+  // KF error series exists only for cards 3~5.
+  if (String(n) === "3") return "kf1_error";
+  if (String(n) === "4") return "kf2_error";
+  if (String(n) === "5") return "kf3_error";
   return null;
+}
+
+function kfKeyOfAction(actionNum){
+  return kfFieldFromActionIndex(actionNum);
 }
 
 function trendPillText(direction, delta){
   const dir = String(direction || "flat");
   const d = Number(delta);
   const abs = Number.isFinite(d) ? Math.abs(d).toFixed(2) : "-";
-  if (dir === "improved") return `개선 (${abs}°↓)`;
-  if (dir === "worsened") return `악화 (${abs}°↑)`;
-  return `정체 (${abs}°)`;
+
+  // If delta looks like degrees (legacy path), keep old arrow. Otherwise treat as score.
+  // Heuristic: degrees deltas are usually small (< 20). Scores are also < 20, but we prefer score wording here.
+  if (dir === "improved") return `개선 (Δ ${abs}점)`;
+  if (dir === "worsened") return `악화 (Δ ${abs}점)`;
+  return `정체 (Δ ${abs}점)`;
 }
 
 function applyTrendPill(el, direction){
@@ -65,25 +73,48 @@ function buildActionInsightText(actionLabel, curMean, prevMean, curStd){
   const pm = Number.isFinite(prevMean) ? prevMean.toFixed(2) : "-";
   const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
 
-  return `평균 오차: <b>${cm}°</b> (이전 ${pm}°)<br/>재현성(편차): <b>${sd}°</b>
-  <ul>
-    <li>평균 오차는 낮을수록 좋습니다.</li>
-    <li>편차가 크면 같은 동작을 반복했을 때 결과가 흔들린다는 의미입니다.</li>
-  </ul>`;
+  return `평균 오차: <b>${cm}°</b> (이전 ${pm}°)<br/>재현성(편차): <b>${sd}°</b>`;
 }
 
 function renderActionCards(currentSessions, prevSessions){
   const cards = [
-    { n: 1, label: "백스윙 동작" },
-    { n: 2, label: "임팩트 동작" },
-    { n: 3, label: "팔로스루 동작" },
+    { n: 1, label: "준비" },
+    { n: 2, label: "회전" },
+    { n: 3, label: "백스윙" },
+    { n: 4, label: "임팩트" },
+    { n: 5, label: "팔로스윙" },
   ];
 
-  let worst = { n: 1, mean: -1 };
-  let volatile = { n: 1, std: -1 };
+  let worst = { n: 3, mean: -1 };
+  let volatile = { n: 3, std: -1 };
 
   for (const c of cards){
     const field = kfFieldFromActionIndex(c.n);
+    // Ready/Rotation은 아직 세션 API에서 stage 점수 시계열이 제공되지 않으므로,
+    // 카드 1~2는 최신 세션의 종합 score로 임시 표시(차트/추천 로직에는 영향 없음)
+    if (!field){
+      const last = (Array.isArray(currentSessions) && currentSessions.length)
+        ? currentSessions[currentSessions.length - 1]
+        : null;
+      const overallScore = Number.isFinite(Number(last?.score))
+        ? Number(last.score)
+        : computeScoreFromKfError(last?.kf_error);
+
+      setHalfGauge(c.n, overallScore, "flat");
+
+      const pill = document.getElementById(`a${c.n}TrendPill`);
+      if (pill){
+        pill.textContent = "-";
+        applyTrendPill(pill, "flat");
+      }
+
+      const body = document.getElementById(`a${c.n}Body`);
+      if (body){
+        body.innerHTML = "세션 데이터(단계별 점수)가 아직 제공되지 않아 LLM 피드백을 참고하세요.";
+      }
+
+      continue;
+    }
     const curArr = extractKfSeries(currentSessions, field);
     const prevArr = extractKfSeries(prevSessions, field);
 
@@ -116,13 +147,6 @@ function renderActionCards(currentSessions, prevSessions){
       applyTrendPill(pill, direction);
     }
 
-    const meta = document.getElementById(`a${c.n}Meta`);
-    if (meta){
-      const cm = Number.isFinite(curMean) ? curMean.toFixed(2) : "-";
-      const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
-      meta.innerHTML = `최근 평균 오차 <b>${cm}°</b> · 편차 <b>${sd}°</b>`;
-    }
-
     const body = document.getElementById(`a${c.n}Body`);
     if (body){
       body.innerHTML = buildActionInsightText(c.label, curMean, prevMean, curStd);
@@ -132,7 +156,8 @@ function renderActionCards(currentSessions, prevSessions){
   // 추천 영상: 평균 오차 worst + 편차 worst 기반 자동 큐레이션
   const worstField = kfFieldFromActionIndex(worst.n);
   const volField = kfFieldFromActionIndex(volatile.n);
-  renderYoutubeLinksByKfKeys([worstField, volField]);
+  const keys = [worstField, volField].filter(Boolean);
+  renderYoutubeLinksByKfKeys(keys);
 }
 // ====== Half gauge helpers (per action card) ======
 const HALF_GAUGE_DASH = 157; // approx half circumference for the SVG arc
@@ -161,17 +186,11 @@ function computeActionScoreFromMean(meanErr){
 }
 
 // ====== 동작별 피드백 카드 렌더 ======
-function kfKeyOfAction(actionNum){
-  if (String(actionNum) === "1") return "kf1_error";
-  if (String(actionNum) === "2") return "kf2_error";
-  if (String(actionNum) === "3") return "kf3_error";
-  return null;
-}
 
 function setText(id, html){
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = (html == null || html === "") ? "-" : String(html);
+  el.innerHTML = (html == null || html === "") ? "" : String(html);
 }
 
 // ===== A안: 동작별 간단 구조 =====
@@ -306,7 +325,7 @@ function renderYoutubeLinksByKfKeys(kfKeys) {
   const list = uniqByVideoId(picked).slice(0, 3);
 
   if (!list.length) {
-    wrap.innerHTML = `<div class="ytEmpty">-</div>`;
+    wrap.innerHTML = `<div class="ytEmpty"></div>`;
     return;
   }
 
@@ -1049,12 +1068,16 @@ let __RANGE_FILTER__ = "7d";
 window.__LAST_SESSION__ = null;
 
 function wireRangeTabs(onChange){
-  const tabs = Array.from(document.querySelectorAll(".rangeTab"));
+  // 기간 탭(1주/1개월/3개월/전체)만 바인딩: LLM 생성 버튼(btnGenerateLLM)이 실수로 같이 묶이지 않도록 범위를 제한
+  const tabs = Array.from(document.querySelectorAll(".rangeTabs .rangeTab[data-range]"));
   if (!tabs.length) return;
 
   tabs.forEach((btn)=>{
     btn.addEventListener("click", ()=>{
-      const v = String(btn.dataset.range || "7d").toLowerCase();
+      // 기간 탭만 바인딩 (btnGenerateLLM 등은 제외)
+      const rawRange = btn.getAttribute("data-range");
+      if (!rawRange) return; // safety
+      const v = String(rawRange || "7d").toLowerCase();
       __RANGE_FILTER__ = (v === "7d" || v === "1m" || v === "3m" || v === "all") ? v : "7d";
 
       tabs.forEach((b)=>{
@@ -1098,6 +1121,12 @@ async function refreshByRange(range){
     ? Number(last.score)
     : computeScoreFromKfError(last?.kf_error);
   setScore(initialScore);
+
+  // If server provides the latest LLM report, render it (doesn't affect charts)
+  const latestLLM = payload?.latest_llm_report?.report || null;
+  if (latestLLM) {
+    renderLLMReport(latestLLM);
+  }
 }
 
 // ====== LLM 리포트 생성 호출 (DB 기반) ======
@@ -1137,48 +1166,82 @@ function renderYoutubeLinksFromReport(reportObj){
   const plateauKf = reportObj?.plateau?.kf || reportObj?.plateau?.key || null;
   const consKf = reportObj?.consistency?.kf || reportObj?.consistency?.key || null;
 
+  // score-based report fallback: use sections to choose videos
+  // backswing -> kf1, impact -> kf2, followswing -> kf3
+  const hasSections = reportObj && typeof reportObj === "object" && reportObj.sections && typeof reportObj.sections === "object";
+  const sectionFallbackKeys = hasSections ? ["kf1_error", "kf2_error", "kf3_error"] : [];
+
   const keys = [];
   if (plateauKf) keys.push(plateauKf);
   if (consKf && consKf !== plateauKf) keys.push(consKf);
 
-  // fallback: 전체 대표
-  if (!keys.length) keys.push("kf1_error", "kf2_error", "kf3_error");
+  // fallback: 전체 대표 (sections가 있으면 섹션 기반 fallback 우선)
+  if (!keys.length) {
+    if (sectionFallbackKeys.length) keys.push(...sectionFallbackKeys);
+    else keys.push("kf1_error", "kf2_error", "kf3_error");
+  }
 
   renderYoutubeLinksByKfKeys(keys);
 }
 
 // LLM report -> 동작 카드(기존 actionCard UI)에 요약/피드백 반영
 function renderActionCardsFromLLM(reportObj){
-  const actions = reportObj?.actions || {};
+  const hasSections = reportObj && typeof reportObj === "object" && reportObj.sections && typeof reportObj.sections === "object";
 
-  // actions는 { kf1: {...}, kf2: {...}, kf3: {...} } 형태를 기대
-  const map = [
-    { n: 1, key: "kf1" },
-    { n: 2, key: "kf2" },
-    { n: 3, key: "kf3" },
+  // New(score-based): sections -> 5 cards mapping
+  const sectionMap = [
+    { n: 1, skey: "ready", fallbackTitle: "준비" },
+    { n: 2, skey: "rotation", fallbackTitle: "회전" },
+    { n: 3, skey: "backswing", fallbackTitle: "백스윙" },
+    { n: 4, skey: "impact", fallbackTitle: "임팩트" },
+    { n: 5, skey: "followswing", fallbackTitle: "팔로스윙" },
   ];
 
-  for (const m of map){
-    const a = actions?.[m.key] || {};
+  // Legacy: actions, only cards 3~5
+  const actions = reportObj?.actions || {};
+  const legacyMap = [
+    { n: 1, key: null },
+    { n: 2, key: null },
+    { n: 3, key: "kf1" },
+    { n: 4, key: "kf2" },
+    { n: 5, key: "kf3" },
+  ];
 
-    const title = a?.title ? String(a.title) : actionNameFromKfKey(m.key);
-    const problem = a?.problem_one ? String(a.problem_one) : "-";
-    const fixes = Array.isArray(a?.fix_two) ? a.fix_two : [];
-    const fixHtml = fixes.length
-      ? `<ul>${fixes.map((x)=>`<li>${String(x)}</li>`).join("")}</ul>`
+  for (let i = 0; i < 5; i++){
+    const n = i + 1;
+
+    // 1) pick content
+    let title = null;
+    let changeOne = null;
+    let focusTwo = [];
+
+    if (hasSections){
+      const s = reportObj?.sections?.[sectionMap[i].skey] || {};
+      title = s?.title || sectionMap[i].fallbackTitle;
+      changeOne = s?.change_one || "-";
+      focusTwo = Array.isArray(s?.focus_two) ? s.focus_two : [];
+    } else {
+      const legacyKey = legacyMap[i].key;
+      const a = legacyKey ? (actions?.[legacyKey] || {}) : {};
+      title = a?.title ? String(a.title) : (legacyKey ? actionNameFromKfKey(legacyKey) : sectionMap[i].fallbackTitle);
+      changeOne = a?.problem_one ? String(a.problem_one) : "-";
+      focusTwo = Array.isArray(a?.fix_two) ? a.fix_two : [];
+    }
+
+    const focusHtml = focusTwo.length
+      ? `<ul>${focusTwo.map((x)=>`<li>${String(x)}</li>`).join("")}</ul>`
       : "-";
 
-    // ✅ 동작별 분석 카드(body)에 'LLM 블록'만 주입/갱신 (통계 기반 body는 유지)
-    const body = document.getElementById(`a${m.n}Body`);
+    // 2) inject/replace LLM block only
+    const body = document.getElementById(`a${n}Body`);
     if (body){
-      // 기존에 LLM 블록이 있으면 교체, 없으면 추가
       const existing = body.querySelector(".llmActionBlock");
       const html = `
         <div class="llmActionBlock" style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(17,24,39,.18);">
           <div style="font-weight:900; font-size:12px; margin-bottom:6px;">LLM 피드백</div>
-          <div style="font-weight:900;">${title}</div>
-          <div style="margin-top:6px;"><b>개선 포인트</b><br/>${problem}</div>
-          <div style="margin-top:6px;"><b>추천 루틴</b><br/>${fixHtml}</div>
+          <div style="font-weight:900;">${String(title || "-")}</div>
+          <div style="margin-top:6px;"><b>이전 기간 대비 변화</b><br/>${String(changeOne || "-")}</div>
+          <div style="margin-top:6px;"><b>관찰 포인트</b><br/>${focusHtml}</div>
         </div>
       `;
 
@@ -1189,10 +1252,9 @@ function renderActionCardsFromLLM(reportObj){
       }
     }
 
-    // meta는 통계 기반 문구를 유지해야 하므로, 덮어쓰지 않고 "LLM 반영됨" 배지만 추가
-    const meta = document.getElementById(`a${m.n}Meta`);
+    // 3) meta badge
+    const meta = document.getElementById(`a${n}Meta`);
     if (meta){
-      // 이미 배지가 있으면 중복 추가 방지
       if (!meta.querySelector(".llmAppliedBadge")){
         meta.insertAdjacentHTML(
           "beforeend",
@@ -1214,8 +1276,15 @@ function renderLLMReport(reportObj){
   // 상단 성장 문구(summarySub)는 DB 비교(comparison) 기반으로 유지합니다.
   // LLM의 summary는 별도 영역이 있을 때만 표시합니다.
   const summaryText = reportObj?.summary ? String(reportObj.summary) : null;
+  const growth = reportObj?.growth || null;
+  const deltaAvg = growth && Number.isFinite(Number(growth.delta_average_score)) ? Number(growth.delta_average_score).toFixed(2) : null;
+  const growthMsg = growth?.message ? String(growth.message) : null;
+
   const llmSumEl = document.getElementById("llmSummary");
-  if (llmSumEl) llmSumEl.textContent = summaryText || "-";
+  if (llmSumEl) {
+    if (growthMsg && deltaAvg != null) llmSumEl.textContent = `${growthMsg} (Δ ${deltaAvg})`;
+    else llmSumEl.textContent = summaryText || "-";
+  }
 
   renderActionCardsFromLLM(reportObj);
   renderYoutubeLinksFromReport(reportObj);
@@ -1294,6 +1363,12 @@ async function loadFromDB(range = "7d") {
 
   setScore(initialScore);
 
+  // Render latest LLM report on first load if available
+  const latestLLM = payload?.latest_llm_report?.report || null;
+  if (latestLLM) {
+    renderLLMReport(latestLLM);
+  }
+
 })();
 
 // ====== LLM 리포트 생성/갱신 버튼 ======
@@ -1308,6 +1383,7 @@ function wireLLMGenerateButton(){
       btn.textContent = "생성 중...";
       console.log("[LLM GENERATE] post_idx=", (getPostIdxFromURL() || getPostIdxFallback()), "range=", __RANGE_FILTER__);
       const postIdx = getPostIdxFromURL() || getPostIdxFallback();
+      if (!postIdx) throw new Error("post_idx가 없습니다. URL에 ?post_idx=... 를 붙이세요.");
       const report = await generateLLMReportByPostIdx(postIdx, "ko");
       renderLLMReport(report);
 
