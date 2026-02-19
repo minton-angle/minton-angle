@@ -17,10 +17,10 @@ db = SessionLocal()
 try:
     post_idx_value = "e70ba785-e705-41f8-b83c-c9ea45da28f5"
 
-    # ✅ 40일치 생성 (1개월(30d) + 여유분) : 0~39일 전
+    # ✅ 60일치 생성 (1개월(30d) + 여유분) : 0~39일 전
     #    - 1주일(7d) vs 1개월(30d) 비교가 되도록 최소 한 달 이상 데이터 확보
     rows = []
-    for days_ago in range(40):
+    for days_ago in range(60):
         dt = datetime.utcnow() - timedelta(days=days_ago)
         # ------------------------------
         # 1) 현실적인 분포 + 40일 구간에서 약 10점 개선(최신이 높음)
@@ -70,16 +70,20 @@ try:
         impact_angle = to_10(random.gauss(impact_total_seed, 5.0))
         impact_total = round(float(impact_angle), 2)
 
-        # FollowSwing (2개 평균)
-        follow_move = to_10(random.gauss(follow_total_seed, 8.0))
-        follow_cross = to_10(random.gauss(follow_total_seed, 8.0))
-        follow_total = round((follow_move + follow_cross) / 2.0, 2)
+        # FollowSwing (boolean)
+        # - 실제 서비스에서는 True/False로 들어올 예정
+        # - 더미데이터는 랜덤으로 생성
+        follow_pass = bool(random.choice([True, False]))
+
+        # 하위호환: 기존 UI/API는 0~100 점수형 Total을 기대하므로
+        # True면 100, False면 0으로 유지
+        follow_total = 100.0 if follow_pass else 0.0
 
         # ------------------------------
         # 3) Average_Score
-        #    - Total들만 평균
+        #    - 점수 기반 Total들만 평균 (FollowSwing은 boolean이므로 제외)
         # ------------------------------
-        total_items = [ready_total, rotation_total, backswing_total, impact_total, follow_total]
+        total_items = [ready_total, rotation_total, backswing_total, impact_total]
         average_score = round(sum(total_items) / len(total_items), 2)
 
         # ------------------------------
@@ -109,9 +113,8 @@ try:
             "3_Backswing_Elbow": backswing_elbow,
             "4_Impact_Total": impact_total,
             "4_Impact_Angle": impact_angle,
-            "5_FollowSwing_Total": follow_total,
-            "5_FollowSwing_Move(50)": follow_move,
-            "5_FollowSwing_Cross(50)": follow_cross,
+            "5_FollowSwing_Total": follow_total,      # 하위호환(0/100)
+            "5_FollowSwing_Pass": bool(follow_pass),  # 신규(boolean)
             "Average_Score": average_score,
         }
 
