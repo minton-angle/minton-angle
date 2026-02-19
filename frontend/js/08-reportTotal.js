@@ -65,11 +65,7 @@ function buildActionInsightText(actionLabel, curMean, prevMean, curStd){
   const pm = Number.isFinite(prevMean) ? prevMean.toFixed(2) : "-";
   const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
 
-  return `평균 오차: <b>${cm}°</b> (이전 ${pm}°)<br/>재현성(편차): <b>${sd}°</b>
-  <ul>
-    <li>평균 오차는 낮을수록 좋습니다.</li>
-    <li>편차가 크면 같은 동작을 반복했을 때 결과가 흔들린다는 의미입니다.</li>
-  </ul>`;
+  return `평균 오차: <b>${cm}°</b> (이전 ${pm}°)<br/>재현성(편차): <b>${sd}°</b>`;
 }
 
 function renderActionCards(currentSessions, prevSessions){
@@ -114,13 +110,6 @@ function renderActionCards(currentSessions, prevSessions){
     if (pill){
       pill.textContent = trendPillText(direction, delta);
       applyTrendPill(pill, direction);
-    }
-
-    const meta = document.getElementById(`a${c.n}Meta`);
-    if (meta){
-      const cm = Number.isFinite(curMean) ? curMean.toFixed(2) : "-";
-      const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
-      meta.innerHTML = `최근 평균 오차 <b>${cm}°</b> · 편차 <b>${sd}°</b>`;
     }
 
     const body = document.getElementById(`a${c.n}Body`);
@@ -171,7 +160,7 @@ function kfKeyOfAction(actionNum){
 function setText(id, html){
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = (html == null || html === "") ? "-" : String(html);
+  el.innerHTML = (html == null || html === "") ? "" : String(html);
 }
 
 // ===== A안: 동작별 간단 구조 =====
@@ -306,7 +295,7 @@ function renderYoutubeLinksByKfKeys(kfKeys) {
   const list = uniqByVideoId(picked).slice(0, 3);
 
   if (!list.length) {
-    wrap.innerHTML = `<div class="ytEmpty">-</div>`;
+    wrap.innerHTML = `<div class="ytEmpty"></div>`;
     return;
   }
 
