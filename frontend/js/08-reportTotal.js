@@ -1,3 +1,21 @@
+function stageKeyFromActionIndex(n){
+  // 5-card order: 1 Ready, 2 Rotation, 3 Backswing, 4 Impact, 5 FollowSwing
+  if (String(n) === "1") return "1_Ready_Total";
+  if (String(n) === "2") return "2_Rotation_Total";
+  if (String(n) === "3") return "3_Backswing_Total";
+  if (String(n) === "4") return "4_Impact_Total";
+  if (String(n) === "5") return "5_FollowSwing_Total";
+  return null;
+}
+
+function extractStageSeries(sessions, stageKey){
+  const key = String(stageKey || "");
+  return (Array.isArray(sessions) ? sessions : []).map((s)=>{
+    const v = s?.stage_scores?.[key];
+    const num = Number(v);
+    return Number.isFinite(num) ? num : null;
+  });
+}
 const API_BASE = "http://localhost:8000"; // FastAPI 주소
 
 // ====== GT Profile (종합 리포트 페이지에서는 사용 안 함) ======
@@ -73,7 +91,7 @@ function buildActionInsightText(actionLabel, curMean, prevMean, curStd){
   const pm = Number.isFinite(prevMean) ? prevMean.toFixed(2) : "-";
   const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
 
-  return `평균 오차: <b>${cm}°</b> (이전 ${pm}°)<br/>재현성(편차): <b>${sd}°</b>`;
+  return `평균 점수: <b>${cm}점</b> (이전 ${pm}점)<br/>변동성(표준편차): <b>${sd}점</b>`;
 }
 
 function renderActionCards(currentSessions, prevSessions){
@@ -89,34 +107,10 @@ function renderActionCards(currentSessions, prevSessions){
   let volatile = { n: 3, std: -1 };
 
   for (const c of cards){
-    const field = kfFieldFromActionIndex(c.n);
-    // Ready/Rotation은 아직 세션 API에서 stage 점수 시계열이 제공되지 않으므로,
-    // 카드 1~2는 최신 세션의 종합 score로 임시 표시(차트/추천 로직에는 영향 없음)
-    if (!field){
-      const last = (Array.isArray(currentSessions) && currentSessions.length)
-        ? currentSessions[currentSessions.length - 1]
-        : null;
-      const overallScore = Number.isFinite(Number(last?.score))
-        ? Number(last.score)
-        : computeScoreFromKfError(last?.kf_error);
+    const stageKey = stageKeyFromActionIndex(c.n);
 
-      setHalfGauge(c.n, overallScore, "flat");
-
-      const pill = document.getElementById(`a${c.n}TrendPill`);
-      if (pill){
-        pill.textContent = "-";
-        applyTrendPill(pill, "flat");
-      }
-
-      const body = document.getElementById(`a${c.n}Body`);
-      if (body){
-        body.innerHTML = "세션 데이터(단계별 점수)가 아직 제공되지 않아 LLM 피드백을 참고하세요.";
-      }
-
-      continue;
-    }
-    const curArr = extractKfSeries(currentSessions, field);
-    const prevArr = extractKfSeries(prevSessions, field);
+    const curArr = extractStageSeries(currentSessions, stageKey);
+    const prevArr = extractStageSeries(prevSessions, stageKey);
 
     const curMean = meanAbs(curArr);
     const prevMean = meanAbs(prevArr);
@@ -126,17 +120,19 @@ function renderActionCards(currentSessions, prevSessions){
     let delta = null;
     if (Number.isFinite(curMean) && Number.isFinite(prevMean)){
       delta = curMean - prevMean;
-      if (delta < -1e-9) direction = "improved";
-      else if (delta > 1e-9) direction = "worsened";
+      if (delta > 1e-9) direction = "improved";
+      else if (delta < -1e-9) direction = "worsened";
     }
 
-    // per-action score gauge (0~100)
-    const actionScore = Number.isFinite(curMean) ? computeActionScoreFromMean(curMean) : 0;
+    // stage scores are already 0~100
+    const actionScore = Number.isFinite(curMean) ? Math.round(clamp(curMean, 0, 100)) : 0;
     setHalfGauge(c.n, actionScore, direction);
 
-    if (Number.isFinite(curMean) && curMean > worst.mean){
+    // worst: lowest mean score
+    if (Number.isFinite(curMean) && (worst.mean < 0 || curMean < worst.mean)){
       worst = { n: c.n, mean: curMean };
     }
+    // volatile: largest std
     if (Number.isFinite(curStd) && curStd > volatile.std){
       volatile = { n: c.n, std: curStd };
     }
@@ -153,10 +149,10 @@ function renderActionCards(currentSessions, prevSessions){
     }
   }
 
-  // 추천 영상: 평균 오차 worst + 편차 worst 기반 자동 큐레이션
-  const worstField = kfFieldFromActionIndex(worst.n);
-  const volField = kfFieldFromActionIndex(volatile.n);
-  const keys = [worstField, volField].filter(Boolean);
+  // 추천 영상: 평균 점수 worst + 편차 worst 기반 자동 큐레이션 (stage keys)
+  const worstKey = stageKeyFromActionIndex(worst.n);
+  const volKey = stageKeyFromActionIndex(volatile.n);
+  const keys = [worstKey, volKey].filter(Boolean);
   renderYoutubeLinksByKfKeys(keys);
 }
 // ====== Half gauge helpers (per action card) ======
@@ -275,26 +271,53 @@ function youtubeThumbUrl(videoId) {
 
 // 제품에서 큐레이션한 목록만 사용 (채널/영상 ID 고정)
 const CURATED_YT = {
-  // 동작 1: 준비/그립/백스윙
+  // legacy KF buckets
   action1: [
     { videoId: "toQ7tOx7Tvs", title: "The 4 Grips In Badminton (올바른 그립 전환)", channel: "Badminton Insight" },
     { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (준비/타이밍)", channel: "Badminton Insight" },
   ],
-  // 동작 2: 임팩트/파워/타이밍
   action2: [
     { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (파워와 타이밍)", channel: "Badminton Insight" },
   ],
-  // 동작 3: 팔로스루/회전/손가락-손목 사용
   action3: [
     { videoId: "zCq36gnqGdI", title: "How To Use Your Wrist In Badminton (손목이 아니라 손가락)", channel: "Badminton Insight" },
+  ],
+
+  // stage buckets (A안)
+  ready: [
+    { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (준비/타이밍)", channel: "Badminton Insight" },
+    { videoId: "toQ7tOx7Tvs", title: "The 4 Grips In Badminton (그립/준비)", channel: "Badminton Insight" },
+  ],
+  rotation: [
+    { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (회전/타이밍)", channel: "Badminton Insight" },
+  ],
+  backswing: [
+    { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (백스윙 연결)", channel: "Badminton Insight" },
+  ],
+  impact: [
+    { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (임팩트 포인트)", channel: "Badminton Insight" },
+  ],
+  followswing: [
+    { videoId: "zCq36gnqGdI", title: "How To Use Your Wrist In Badminton (팔로스윙/손가락)", channel: "Badminton Insight" },
   ],
 };
 
 function curatedListForKf(kfKey) {
-  const k = String(kfKey || "").toLowerCase();
+  const raw = String(kfKey || "");
+  const k = raw.toLowerCase();
+
+  // stage keys
+  if (k.includes("1_ready_total") || k === "ready") return CURATED_YT.ready;
+  if (k.includes("2_rotation_total") || k === "rotation") return CURATED_YT.rotation;
+  if (k.includes("3_backswing_total") || k === "backswing") return CURATED_YT.backswing;
+  if (k.includes("4_impact_total") || k === "impact") return CURATED_YT.impact;
+  if (k.includes("5_followswing_total") || k === "followswing") return CURATED_YT.followswing;
+
+  // legacy KF keys
   if (k.includes("kf1")) return CURATED_YT.action1;
   if (k.includes("kf2")) return CURATED_YT.action2;
   if (k.includes("kf3")) return CURATED_YT.action3;
+
   return [];
 }
 
@@ -1169,7 +1192,13 @@ function renderYoutubeLinksFromReport(reportObj){
   // score-based report fallback: use sections to choose videos
   // backswing -> kf1, impact -> kf2, followswing -> kf3
   const hasSections = reportObj && typeof reportObj === "object" && reportObj.sections && typeof reportObj.sections === "object";
-  const sectionFallbackKeys = hasSections ? ["kf1_error", "kf2_error", "kf3_error"] : [];
+  const sectionFallbackKeys = hasSections ? [
+    "1_Ready_Total",
+    "2_Rotation_Total",
+    "3_Backswing_Total",
+    "4_Impact_Total",
+    "5_FollowSwing_Total",
+  ] : [];
 
   const keys = [];
   if (plateauKf) keys.push(plateauKf);
@@ -1178,7 +1207,7 @@ function renderYoutubeLinksFromReport(reportObj){
   // fallback: 전체 대표 (sections가 있으면 섹션 기반 fallback 우선)
   if (!keys.length) {
     if (sectionFallbackKeys.length) keys.push(...sectionFallbackKeys);
-    else keys.push("kf1_error", "kf2_error", "kf3_error");
+    else keys.push("1_Ready_Total", "2_Rotation_Total", "3_Backswing_Total", "4_Impact_Total", "5_FollowSwing_Total");
   }
 
   renderYoutubeLinksByKfKeys(keys);
