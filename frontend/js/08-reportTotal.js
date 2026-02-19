@@ -1049,12 +1049,16 @@ let __RANGE_FILTER__ = "7d";
 window.__LAST_SESSION__ = null;
 
 function wireRangeTabs(onChange){
-  const tabs = Array.from(document.querySelectorAll(".rangeTab"));
+  // 기간 탭(1주/1개월/3개월/전체)만 바인딩: LLM 생성 버튼(btnGenerateLLM)이 실수로 같이 묶이지 않도록 범위를 제한
+  const tabs = Array.from(document.querySelectorAll(".rangeTabs .rangeTab[data-range]"));
   if (!tabs.length) return;
 
   tabs.forEach((btn)=>{
     btn.addEventListener("click", ()=>{
-      const v = String(btn.dataset.range || "7d").toLowerCase();
+      // 기간 탭만 바인딩 (btnGenerateLLM 등은 제외)
+      const rawRange = btn.getAttribute("data-range");
+      if (!rawRange) return; // safety
+      const v = String(rawRange || "7d").toLowerCase();
       __RANGE_FILTER__ = (v === "7d" || v === "1m" || v === "3m" || v === "all") ? v : "7d";
 
       tabs.forEach((b)=>{
@@ -1320,6 +1324,7 @@ function wireLLMGenerateButton(){
       btn.textContent = "생성 중...";
       console.log("[LLM GENERATE] post_idx=", (getPostIdxFromURL() || getPostIdxFallback()), "range=", __RANGE_FILTER__);
       const postIdx = getPostIdxFromURL() || getPostIdxFallback();
+      if (!postIdx) throw new Error("post_idx가 없습니다. URL에 ?post_idx=... 를 붙이세요.");
       const report = await generateLLMReportByPostIdx(postIdx, "ko");
       renderLLMReport(report);
 
