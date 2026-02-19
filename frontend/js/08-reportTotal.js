@@ -832,21 +832,22 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
           pointRadius: 2,
           tension: 0.25,
           yAxisID: "y",
+          borderWidth: 3,
           borderColor: "#10b981",
           backgroundColor: "#10b981",
           spanGaps: true,
         },
 
-        // previous (dashed overlay)
+        // previous (orange overlay)
         {
-          label: `SCORE(${prevLabel}전)`,
+          label: `SCORE(${prevLabel} 전)`,
           data: prevScore,
-          pointRadius: 0,
+          pointRadius: 2,
           tension: 0.25,
           yAxisID: "y",
-          borderColor: "#10b981",
-          backgroundColor: "#10b981",
-          borderDash: [6, 4],
+          borderWidth: 2,
+          borderColor: "rgba(249,115,22,0.6)",
+          backgroundColor: "rgba(249,115,22,0.6)",
           spanGaps: true,
         },
       ],
