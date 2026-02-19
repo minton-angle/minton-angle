@@ -32,7 +32,11 @@ def _system_prompt(lang: str) -> str:
 
 [절대 규칙]
 1) 수치는 반드시 `meta.score_stats`에 있는 값만 사용하십시오.
-   - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_Total, Average_Score
+   - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_SuccessRate, Average_Score
+   - 5_FollowSwing_SuccessRate는 성공률 점수(0~100)이며, 추가 필드 false_rate_current/false_rate_prev/risk_level을 함께 제공받을 수 있습니다.
+   1-1) 팔로스윙 섹션에서 risk_level이 improve 또는 risk인 경우에만 '부상 위험'을 언급할 수 있습니다.
+    - 단, 의학적 진단/확정 표현 금지(예: "어깨 충돌이다", "부상이다").
+    - 허용 톤: "부담이 커질 수 있어요", "통증이 있으면 강도를 낮추세요", "지속되면 전문가 상담을 고려하세요".
    - 각 키별 사용 가능 값: current_mean, prev_mean, delta, direction
    - 사용 금지: angles(단일 세션 값), raw angle, 임의로 만든 수치/예시 수치
 2) 각 섹션(ready/rotation/backswing/impact/followswing)의 내용은 서로 달라야 합니다. (같은 문장/같은 수치 반복 금지)
