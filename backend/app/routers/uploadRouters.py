@@ -10,22 +10,24 @@ from app.models.fileModels import File as FileModel
 from app.models.analysisModels import Analysis
 from app.services.swing.video_analysis_service import VideoAnalysisService, video_analysis_service
 
-# ⭐ import 방식 변경
-# from app.services.swing import video_analysis_service
+from app.routers.authRouters import get_current_user
+from app.models.userModels import User
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
 
 @router.post("/video")
 async def upload_video(
-    user_id: str,
+    current_user = Depends(get_current_user),
     video: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    
 ):
     """영상 업로드 및 분석"""
     
     try:
         # ⭐ video_analysis_service.video_analysis_service 사용
+        user_id = current_user.id
         result = await video_analysis_service.analyze_video(user_id, video, db)
         print(f"📡 프론트엔드로 보낼 최종 데이터: {result}")
         return result

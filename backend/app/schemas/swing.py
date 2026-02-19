@@ -28,7 +28,6 @@ class FileTypeEnum(str, Enum):
 
 class SwingAnalysisRequest(BaseModel):
     """실시간 스윙 분석 요청"""
-    user_id: str = Field(..., description="사용자 ID")
     swing_num: int = Field(..., ge=1, le=3, description="스윙 횟수 (1~3)")
     post_id: Optional[str] = Field(None, description="POST ID (2~3회차 시 필수, 1회차에서 받은 ID)")
     keypoints: List[Dict[str, float]] = Field(..., description="키포인트 데이터 [19개 랜드마크 x 3개 값(x,y,z)]")
@@ -37,7 +36,6 @@ class SwingAnalysisRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "user_id": "user_123",
                 "swing_num": 2,
                 "post_id": "550e8400-e29b-41d4-a716-446655440000",  # 2~3회차는 필수
                 "keypoints": [
@@ -58,7 +56,6 @@ class SwingAnalysisRequest(BaseModel):
 
 class VideoUploadRequest(BaseModel):
     """동영상 업로드 분석 요청"""
-    user_id: str = Field(..., description="사용자 ID")
     video_file: str = Field(..., description="Base64 인코딩된 동영상 파일")
     
     class Config:
@@ -127,25 +124,58 @@ class AnalysisCompleteResponse(BaseModel):
     post_id: str = Field(..., description="생성된 POST ID")
     save_to_db: bool = Field(True, description="DB 저장 여부")
     total_score: int = Field(..., ge=0, le=100, description="종합 점수")
-    scores: ScoreDetail = Field(..., description="6대 지표 점수")
+    stage_scores: dict = Field(..., description="단계별 점수")  # ⭐ 추가!
     quick_feedback: str = Field(..., description="간단한 피드백 메시지")
+    
+    # ⭐ 영상 업로드와 동일한 구조!
+    scores: dict = Field(..., description="점수 상세 (evaluation 포함)")
+    keyframes: Optional[dict] = Field(None, description="키프레임 정보")
+    files: Optional[dict] = Field(None, description="파일 경로")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "swing_num": 3,
-                "post_id": "550e8400-e29b-41d4-a716-446655440000",
+                "post_id": "550e8400-...",
                 "save_to_db": True,
-                "total_score": 87,
-                "scores": {
-                    "elbow_height": 85,
-                    "wrist_snap": 78,
-                    "hit_position": 90,
-                    "shoulder_rotation": 82,
-                    "racket_angle": 88,
-                    "follow_through": 75
+                "total_score": 83,
+                "stage_scores": {
+                    "stage1": 100,
+                    "stage2": 100,
+                    "stage3": 50
                 },
-                "quick_feedback": "아주 좋아요! 👍"
+                "quick_feedback": "좋아요! 👍",
+                "scores": {
+                    "total_score": 83,
+                    "stage_scores": {
+                        "stage1": 100,
+                        "stage2": 100,
+                        "stage3": 50
+                    },
+                    "evaluation": [
+                        {"id": 1, "name": "팔꿈치 높이", "pass": 1, "stage": 1, "status": "PASS"},
+                        {"id": 2, "name": "보조 손", "pass": 1, "stage": 1, "status": "PASS"},
+                        {"id": 3, "name": "상체 열림", "pass": 1, "stage": 1, "status": "PASS"},
+                        {"id": 4, "name": "어깨 회전", "pass": 1, "stage": 2, "status": "PASS"},
+                        {"id": 5, "name": "팔꿈치 L자", "pass": 1, "stage": 2, "status": "PASS"},
+                        {"id": 6, "name": "백스윙 깊이", "pass": 1, "stage": 2, "status": "PASS"},
+                        {"id": 7, "name": "팔 펴짐", "pass": 1, "stage": 2, "status": "PASS"},
+                        {"id": 8, "name": "타점 높이", "pass": 1, "stage": 2, "status": "PASS"},
+                        {"id": 9, "name": "팔로우", "pass": 1, "stage": 3, "status": "중간"}
+                    ]
+                },
+                "keyframes": {
+                    "kf1": 43,
+                    "kf2": 47,
+                    "kf3": 50
+                },
+                "files": {
+                    "kf1_image": "/backend/data/...",
+                    "kf2_image": "/backend/data/...",
+                    "kf3_image": "/backend/data/...",
+                    "backswing_video": "/backend/data/...",
+                    "impact_video": "/backend/data/..."
+                }
             }
         }
 

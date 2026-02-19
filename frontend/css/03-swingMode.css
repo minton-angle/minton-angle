@@ -100,7 +100,7 @@
     width: 100%;
     color: #1a4b2f;
     font-size: 26px;
-    font-weight: 400;
+    font-weight: 600;
     line-height: 1.4;
     text-align: left;
     margin-bottom: 25px;
@@ -213,8 +213,8 @@
     filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
 }
 
-.nav-gym {
-    background-image: url('../assets/images/gym.png');
+.nav-play {
+    background-image: url('../assets/images/play.png');
     filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
 }
 
@@ -223,7 +223,7 @@
     filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
 }
 
-.nav-settings {
-    background-image: url('../assets/images/settings.png');
+.nav-myPage {
+    background-image: url('../assets/images/myPage.png');
     filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
 }

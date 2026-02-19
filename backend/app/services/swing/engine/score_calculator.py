@@ -6,14 +6,22 @@ from typing import Dict, List
 
 class ScoreCalculator:
     """GDR 3단계 (9개 항목) 통합 채점 엔진 - 최종 보정판"""
+    _initialized = False
+    
     def __init__(self, gt_json_path: str = None):
         if gt_json_path and os.path.exists(gt_json_path):
             with open(gt_json_path, 'r', encoding='utf-8') as f:
                 self.gt = json.load(f)
-            print(f"✅ [Brain] 전문가 기준 로드 완료")
+            
+            # ⭐ 클래스 변수로 체크!
+            if not ScoreCalculator._initialized:
+                print(f"✅ [Brain] 전문가 기준 로드 완료")
+                ScoreCalculator._initialized = True
         else:
             self.gt = None
-            print(f"⚠️ [Brain] GT 파일 없음, 기본 임계값 사용")
+            if not ScoreCalculator._initialized:
+                print(f"⚠️ [Brain] GT 파일 없음, 기본 임계값 사용")
+                ScoreCalculator._initialized = True
 
     def calc_angle(self, p1, p2, p3):
         a, b, c = np.array(p1), np.array(p2), np.array(p3)
@@ -44,7 +52,7 @@ class ScoreCalculator:
         results.append({"id": 3, "stage": 1, "name": "상체 열림", "pass": p3, "status": "PASS" if p3 else "닫힘"})
 
         # --- 2단계: 스윙 (5개 항목) ---
-        # 4. 어깨 회전 (개선: 너비 변화량의 절대값 기준)
+        # 4. 어깨 회전
         e1_width = abs(e1['left_shoulder_x'] - e1['right_shoulder_x'])
         e3_width = abs(e3['left_shoulder_x'] - e3['right_shoulder_x'])
         rot_val = abs(e1_width - e3_width)
@@ -69,10 +77,9 @@ class ScoreCalculator:
         p8 = 1 if (e3['nose_y'] - e3['right_wrist_y']) > -0.15 else 0
         results.append({"id": 8, "stage": 2, "name": "타점 높이", "pass": p8, "status": "PASS" if p8 else "낮음"})
 
-        # --- 3단계: 팔로우스루 (방향 중립적 알고리즘) ---
+        # --- 3단계: 팔로우스루 ---
         f_score = 0
         status_9 = "안함"
-        # 임팩트 이후 60프레임(약 2초)까지 넉넉하게 추적
         search_range = min(int(keyframes['impact']) + 60, len(df))
         
         start_x = float(e3['right_wrist_x'])
@@ -83,7 +90,6 @@ class ScoreCalculator:
             curr_x = float(df.iloc[i]['right_wrist_x'])
             curr_y = float(df.iloc[i]['right_wrist_y'])
             
-            # 코(중심선)를 기준으로 반대편으로 넘어갔는지 체크
             crossed = (started_left and curr_x > center_x + 0.05) or (not started_left and curr_x < center_x - 0.05)
             
             if crossed:
@@ -96,7 +102,7 @@ class ScoreCalculator:
 
         results.append({"id": 9, "stage": 3, "name": "팔로우", "pass": 1 if f_score >= 50 else 0, "status": status_9})
 
-        # --- 최종 점수 합산 (표준 타입 강제 변환) ---
+        # --- 최종 점수 합산 ---
         s1 = int(sum(r['pass'] for r in results if r['stage'] == 1) / 3 * 100)
         s2 = int(sum(r['pass'] for r in results if r['stage'] == 2) / 5 * 100)
         s3 = int(f_score)

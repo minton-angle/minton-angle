@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // ⭐ 2초 로딩 후 리포트로 이동 (파라미터 전달!)
     setTimeout(() => {
-        const reportUrl = `../07-reportDetail.html?post_id=${postId}&type=${type}`;
+        const reportUrl = `07-reportDetail.html?post_id=${postId}&type=${type}`;
         console.log('🔗 이동:', reportUrl);
         location.href = reportUrl;
     }, 2000);

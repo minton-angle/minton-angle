@@ -1,4 +1,20 @@
+/* ============================================
+   04_1-swingUpload.css
+   가로폭 극대화 + 날렵한 모서리 + 프리텐다드 적용
+   ============================================ */
+
+/* 0. 폰트 적용 (Pretendard) */
+/*@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');*/
+
+
+/** {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    letter-spacing: -0.01em;
+    box-sizing: border-box;
+}*/
+
 html, body {
+    display: flex;
     height: 100%;
     margin: 0;
     padding: 0;
@@ -21,6 +37,14 @@ body {
     font-family: 'Pretendard', sans-serif;
 }
 
+.app-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 600px;
+}
+
+/* 1. 헤더 영역 (기존 유지) */
 .header {
     display: flex;
     align-items: center;
@@ -82,21 +106,20 @@ body {
     width: 100%; /* 기존 80%에서 96%로 대폭 확대 */
     /*margin: 15px auto 25px auto;*/
     margin: 0 0 2dvh 0;
-    max-width: 420px;
+    max-width: 400px;
     display: flex;
     justify-content: center;
     margin: 2dvh 0 1.5dvh 0;
 }
 
 .upload-box {
-    width: 70%;
-    max-width: 500px;
+    width: 60%;
+    max-width: 320px;
     aspect-ratio: 3/4; /* 세로로 더 길게 확보하여 시원한 느낌 */
     background-color: #fff;
     border-radius: 20px; /* 모서리 둥글기를 20px에서 12px로 낮춰 날렵하게 수정 */
     display: flex;
     /*margin-left: 6%;*/
-    margin-top: 10%;
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -174,6 +197,31 @@ body {
 
 .info-list li span { color: #025B36; font-weight: bold; }
 
+/* 5. 하단 버튼 영역 (기존 유지) */
+/*.bottom-action {
+    flex-shrink: 0;
+    padding: 16px 20px 34px 20px;
+    background-color: #fff;
+    border-top: 1px solid #eee;
+}
+
+.submit-btn {
+    width: 100%;
+    background-color: #025B36;
+    color: #fff;
+    border: none;
+    padding: 18px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.submit-btn:disabled {
+    background-color: #BDBDBD;
+    cursor: not-allowed;
+}*/
+
 /* 5. 하단 버튼 영역 */
 .bottom-action {
     padding: 1.5dvh 5dvh;
@@ -198,6 +246,10 @@ body {
     cursor: not-allowed;
 }
 
+/*.submit-btn:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+}*/
 
 /* 로딩 애니메이션 (기존 유지) */
 .submit-btn.loading { color: transparent; position: relative; }
