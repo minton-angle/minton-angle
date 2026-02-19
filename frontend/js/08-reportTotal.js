@@ -797,15 +797,17 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
           max: 100,
           ticks: { font: { size: 10 } },
           title: { display: true, text: "SCORE" },
+          grid: { display: false },
         },
         y1: {
           position: "right",
           beginAtZero: true,
           ticks: { font: { size: 10 } },
-          grid: { drawOnChartArea: false },
+          grid: { drawOnChartArea: false, display: false },
           title: { display: true, text: "KF ERROR (°)" },
         },
         x: {
+          grid: { display: false },
           ticks: {
             font: { size: 10 },
             callback: (val, idx) => {
