@@ -771,54 +771,72 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
   const cur = getFilteredSessions(currentSessions);
   const prev = getFilteredSessions(prevSessions);
 
+  // ---- Index-based overlay (1..N points) ----
   const rangeKey = (__RANGE_FILTER__ || "7d");
   const prevLabel = rangeLabelFromKey(rangeKey);
 
-  // ---- Build unified X labels using ISO date strings (stable), format on ticks as M.D ----
-  function isoDay(x){
-    const d = safeDate(x);
-    if (!d) return null;
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+  // Choose N by selected range (fallback to current length)
+  let N = cur.length;
+  if (rangeKey === "7d") N = 7;
+  else if (rangeKey === "1m") N = 30;
+  else if (rangeKey === "3m") N = 90;
+  else if (rangeKey === "all") N = cur.length;
+
+  // Safety cap to avoid huge charts
+  N = clamp(Number(N) || 0, 1, 120);
+
+  // Build labels as simple indices
+  const labels = Array.from({ length: N }, (_, i) => String(i + 1));
+
+  // Take last N points and align to indices (pad front with null if shorter)
+  function alignLastN(xs, pick) {
+    const arr = (Array.isArray(xs) ? xs : []).map(pick);
+    const tail = arr.slice(-N);
+    const pad = Array(Math.max(0, N - tail.length)).fill(null);
+    return pad.concat(tail);
   }
 
-  const labelSet = new Set();
-  cur.forEach((s)=>{ const k = isoDay(s.created_at); if (k) labelSet.add(k); });
-  prev.forEach((s)=>{ const k = isoDay(s.created_at); if (k) labelSet.add(k); });
-
-  // If no valid dates, fallback to original month.day labels (current only)
-  const labelsISO = Array.from(labelSet).sort((a,b)=> a.localeCompare(b));
-  const useISO = labelsISO.length > 0;
-
-  const labels = useISO ? labelsISO : cur.map((s)=> formatMonthDay(s.created_at ?? null));
-
-  function mapSeries(xs, pick){
-    const map = new Map();
-    xs.forEach((s)=>{
-      const k = useISO ? isoDay(s.created_at) : formatMonthDay(s.created_at ?? null);
-      if (!k) return;
-      map.set(k, pick(s));
-    });
-    return labels.map((k)=> (map.has(k) ? map.get(k) : null));
-  }
-
-  const curScore = mapSeries(cur, (s)=>{
-    const direct = Number(s.score);
+  const curScore = alignLastN(cur, (s) => {
+    const direct = Number(s?.score);
     if (Number.isFinite(direct)) return direct;
     return computeScoreFromKfError(s?.kf_error);
   });
 
-  const curErr = mapSeries(cur, (s)=> (Number.isFinite(Number(s?.kf_error)) ? Number(s.kf_error) : null));
-
-  const prevScore = mapSeries(prev, (s)=>{
-    const direct = Number(s.score);
+  const prevScore = alignLastN(prev, (s) => {
+    const direct = Number(s?.score);
     if (Number.isFinite(direct)) return direct;
     return computeScoreFromKfError(s?.kf_error);
   });
 
-  const prevErr = mapSeries(prev, (s)=> (Number.isFinite(Number(s?.kf_error)) ? Number(s.kf_error) : null));
+  // Dynamic Y zoom (based on visible values from both series)
+  const allVals = [...curScore, ...prevScore].filter((v) => Number.isFinite(Number(v))).map(Number);
+  let yMin = 0;
+  let yMax = 100;
+  if (allVals.length) {
+    const vMin = Math.min(...allVals);
+    const vMax = Math.max(...allVals);
+    // add padding and snap to 5-point steps
+    const pad = 5;
+    yMin = Math.floor((vMin - pad) / 5) * 5;
+    yMax = Math.ceil((vMax + pad) / 5) * 5;
+
+    // ensure a minimum visible range
+    if (yMax - yMin < 10) {
+      const mid = (yMax + yMin) / 2;
+      yMin = Math.floor((mid - 5) / 5) * 5;
+      yMax = Math.ceil((mid + 5) / 5) * 5;
+    }
+
+    // clamp to score domain
+    yMin = clamp(yMin, 0, 100);
+    yMax = clamp(yMax, 0, 100);
+
+    // if equal after clamp, fallback
+    if (yMax <= yMin) {
+      yMin = 0;
+      yMax = 100;
+    }
+  }
 
   charts.scoreKfHistory = new Chart(ctx, {
     type: "line",
@@ -832,12 +850,10 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
           pointRadius: 2,
           tension: 0.25,
           yAxisID: "y",
-          borderWidth: 3,
           borderColor: "#10b981",
           backgroundColor: "#10b981",
           spanGaps: true,
         },
-
         // previous (orange overlay)
         {
           label: `SCORE(${prevLabel} 전)`,
@@ -845,7 +861,6 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
           pointRadius: 2,
           tension: 0.25,
           yAxisID: "y",
-          borderWidth: 2,
           borderColor: "rgba(249,115,22,0.6)",
           backgroundColor: "rgba(249,115,22,0.6)",
           spanGaps: true,
@@ -866,8 +881,8 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
       scales: {
         y: {
           position: "left",
-          min: 0,
-          max: 100,
+          min: yMin,
+          max: yMax,
           ticks: { font: { size: 10 } },
           title: { display: false, text: "" },
           grid: { display: false },
@@ -876,11 +891,7 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
           grid: { display: false },
           ticks: {
             font: { size: 10 },
-            callback: (val, idx) => {
-              // labels[idx] is ISO day string or already formatted
-              const raw = labels[idx];
-              return useISO ? formatMonthDay(raw) : raw;
-            }
+            callback: (val, idx) => labels[idx]
           }
         },
       },
