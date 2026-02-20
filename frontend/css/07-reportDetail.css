@@ -642,3 +642,50 @@ body {
 .eval-container.mini {
     margin-top: 15px;
 }
+
+/* 프레임 컨트롤러 스타일 */
+.frame-control-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #eee;
+}
+
+.frame-btn {
+    width: 45px;
+    height: 45px;
+    background: #025B36;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.frame-btn:active {
+    transform: scale(0.9);
+}
+
+.frame-info-display {
+    text-align: center;
+}
+
+#current-step-label {
+    display: block;
+    font-weight: 800;
+    color: #333;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.frame-sub-text {
+    font-size: 11px;
+    color: #888;
+    margin: 0;
+}

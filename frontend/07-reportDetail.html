@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>스윙 분석 리포트</title>
-
     <script src="js/common.js"></script>
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/reset.css">
@@ -21,7 +20,6 @@
 
         <div class="scroll-container">
             <main class="report-content">
-                
                 <section class="report-card overall-card">
                     <div class="card-header">
                         <p class="card-subtitle">전문가와 비교한 내 스윙 분석 결과</p>
@@ -71,7 +69,7 @@
                 <section class="phase-section">
                     <div class="phase-header">
                         <span class="phase-number">2</span>
-                        <h3 class="phase-title">스윙</h3>
+                        <h3 class="phase-title">스윙 과정 분석</h3>
                         <span class="phase-badge" id="phase2-badge">--점</span>
                     </div>
                     <div class="phase-content">
@@ -79,61 +77,59 @@
                             <div class="comparison-item">
                                 <span class="comparison-label">나의 스윙</span>
                                 <div class="media-box video-box">
-                                    <video id="phase2-user-video" muted playsinline><source src="" type="video/mp4"></video>
+                                    <video id="phase2-user-video" muted playsinline preload="auto"></video>
                                 </div>
                             </div>
                             <div class="comparison-item">
                                 <span class="comparison-label">전문가</span>
                                 <div class="media-box video-box">
-                                    <video id="phase2-expert-video" muted playsinline><source src="assets/2_rotation_hybrid.mp4" type="video/mp4"></video>
+                                    <video id="phase2-expert-video" muted playsinline preload="auto"></video>
                                 </div>
                             </div>
                         </div>
-                        <button class="sync-play-btn" onclick="syncPlayVideos('phase2')">▶️ 동시에 재생하기</button>
+
+                        <div class="frame-control-panel">
+                            <button class="frame-btn" onclick="stepFrame(-5)">＜</button>
+                            <div class="frame-info-display">
+                                <span id="current-step-label">준비 ~ 임팩트 탐색</span>
+                                <p class="frame-sub-text">5프레임씩 이동하며 자세를 비교하세요</p>
+                            </div>
+                            <button class="frame-btn" onclick="stepFrame(5)">＞</button>
+                        </div>
 
                         <div class="eval-container">
                             <div class="eval-item"><span class="eval-name">🔄 어깨 회전</span><span class="eval-status" id="eval-4">--</span></div>
                         </div>
 
                         <div class="sub-section">
-                            <h4 class="sub-title">📸 키프레임 상세 비교</h4>
-                            
+                            <h4 class="sub-title">📸 핵심 키프레임 비교</h4>
                             <div class="keyframe-group">
-                                <p class="keyframe-label-main">* 백스윙</p>
+                                <p class="keyframe-label-main">* 백스윙 (최대 이완)</p>
                                 <div class="comparison-container">
                                     <div class="comparison-item">
-                                        <span class="comparison-label">나의 자세</span>
-                                        <div class="media-box small"><img id="phase2-backswing-img" src="" alt="나의 자세"></div>
+                                        <div class="media-box small"><img id="phase2-backswing-img" src=""></div>
                                     </div>
                                     <div class="comparison-item">
-                                        <span class="comparison-label">전문가</span>
-                                        <div class="media-box small"><img src="assets/3_backswing_hybrid.jpg" alt="전문가"></div>
+                                        <div class="media-box small"><img src="assets/3_backswing_hybrid.jpg"></div>
                                     </div>
                                 </div>
-                                <div class="eval-container mini">
-                                    <div class="eval-item" data-id="5"><span class="eval-name">💪 팔꿈치 L자</span><span class="eval-status" id="eval-5">--</span></div>
-                                    <div class="eval-item" data-id="6"><span class="eval-name">↩️ 백스윙 깊이</span><span class="eval-status" id="eval-6">--</span></div>
+                            </div>
+                            <div class="keyframe-group">
+                                <p class="keyframe-label-main">* 임팩트 (타점)</p>
+                                <div class="comparison-container">
+                                    <div class="comparison-item">
+                                        <div class="media-box small"><img id="phase2-impact-img" src=""></div>
+                                    </div>
+                                    <div class="comparison-item">
+                                        <div class="media-box small"><img src="assets/4_impact_hybrid.jpg"></div>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </section>
 
-                            <div class="keyframe-group">
-                                <p class="keyframe-label-main">* 임팩트</p>
-                                <div class="comparison-container">
-                                    <div class="comparison-item">
-                                        <span class="comparison-label">나의 자세</span>
-                                        <div class="media-box small"><img id="phase2-impact-img" src="" alt="나의 자세"></div>
-                                    </div>
-                                    <div class="comparison-item">
-                                        <span class="comparison-label">전문가</span>
-                                        <div class="media-box small"><img src="assets/4_impact_hybrid.jpg" alt="전문가"></div>
-                                    </div>
-                                </div>
-                                <div class="eval-container mini">
-                                    <div class="eval-item" data-id="7"><span class="eval-name">🦾 팔 펴짐</span><span class="eval-status" id="eval-7">--</span></div>
-                                    <div class="eval-item" data-id="8"><span class="eval-name">📍 타점 높이</span><span class="eval-status" id="eval-8">--</span></div>
-                                </div>
-                            </div>
-                        </div> </div> </section> <section class="phase-section">
+                <section class="phase-section">
                     <div class="phase-header">
                         <span class="phase-number">3</span>
                         <h3 class="phase-title">팔로우스루</h3>
@@ -144,13 +140,13 @@
                             <div class="comparison-item">
                                 <span class="comparison-label">나의 영상</span>
                                 <div class="media-box video-box">
-                                    <video id="phase3-user-video" muted playsinline><source src="" type="video/mp4"></video>
+                                    <video id="phase3-user-video" muted playsinline></video>
                                 </div>
                             </div>
                             <div class="comparison-item">
                                 <span class="comparison-label">전문가</span>
                                 <div class="media-box video-box">
-                                    <video id="phase3-expert-video" muted playsinline><source src="assets/5_follow_hybrid.mp4" type="video/mp4"></video>
+                                    <video id="phase3-expert-video" muted playsinline><source src="assets/5_follow_hybrid.mp4"></video>
                                 </div>
                             </div>
                         </div>
