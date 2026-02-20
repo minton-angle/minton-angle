@@ -192,58 +192,64 @@ function renderActionCards(currentSessions, prevSessions){
       volatile = { n: c.n, std: curStd };
     }
 
-    const pill = document.getElementById(`a${c.n}TrendPill`);
     // special case: card 5 (FollowSwing) feedback
     const body = document.getElementById(`a${c.n}Body`);
-    if (body){
-      // FollowSwing: boolean-based feedback (false rate) + previous period comparison
-      if (String(c.n) === "5"){
-        const curSeries = extractFollowSwingPassSeries(currentSessions);
-        const curValid = curSeries.filter((v)=> v === true || v === false);
-        const curTotalN = curValid.length;
-        const curFalseN = curValid.filter((v)=> v === false).length;
-        const curFalseRate = curTotalN ? (curFalseN / curTotalN) : NaN;
+    if (!body) continue;
 
-        const prevSeries = extractFollowSwingPassSeries(prevSessions);
-        const prevValid = prevSeries.filter((v)=> v === true || v === false);
-        const prevTotalN = prevValid.length;
-        const prevFalseN = prevValid.filter((v)=> v === false).length;
-        const prevFalseRate = prevTotalN ? (prevFalseN / prevTotalN) : NaN;
+    // FollowSwing: boolean-based feedback (false rate) + previous period comparison
+    if (String(c.n) === "5"){
+      const curSeries = extractFollowSwingPassSeries(currentSessions);
+      const curValid = curSeries.filter((v)=> v === true || v === false);
+      const curTotalN = curValid.length;
+      const curFalseN = curValid.filter((v)=> v === false).length;
+      const curFalseRate = curTotalN ? (curFalseN / curTotalN) : NaN;
 
-        const curPct = Number.isFinite(curFalseRate) ? Math.round(curFalseRate * 100) : null;
-        const prevPct = Number.isFinite(prevFalseRate) ? Math.round(prevFalseRate * 100) : null;
+      const prevSeries = extractFollowSwingPassSeries(prevSessions);
+      const prevValid = prevSeries.filter((v)=> v === true || v === false);
+      const prevTotalN = prevValid.length;
+      const prevFalseN = prevValid.filter((v)=> v === false).length;
+      const prevFalseRate = prevTotalN ? (prevFalseN / prevTotalN) : NaN;
 
-        // delta in percentage points (current - previous)
-        const deltaPp = (Number.isFinite(curFalseRate) && Number.isFinite(prevFalseRate))
-          ? Math.round((curFalseRate - prevFalseRate) * 100)
-          : null;
+      const curPct = Number.isFinite(curFalseRate) ? Math.round(curFalseRate * 100) : null;
+      const prevPct = Number.isFinite(prevFalseRate) ? Math.round(prevFalseRate * 100) : null;
 
-        // false rate is better when LOWER
-        let fsDir = "flat";
-        if (deltaPp != null){
-          if (deltaPp < 0) fsDir = "improved";
-          else if (deltaPp > 0) fsDir = "worsened";
-        }
+      const deltaPp = (Number.isFinite(curFalseRate) && Number.isFinite(prevFalseRate))
+        ? Math.round((curFalseRate - prevFalseRate) * 100)
+        : null;
 
-        const msg = followswingFeedbackFromFalseRate(curFalseRate);
+      // false rate는 낮을수록 좋음
+      let fsDir = "flat";
+      if (deltaPp != null){
+        if (deltaPp < 0) fsDir = "improved";
+        else if (deltaPp > 0) fsDir = "worsened";
+      }
 
-        body.innerHTML = `기간 내 팔로우 스윙을 못한 비율: <b>${curPct == null ? "-" : curPct + "%"}</b> (False ${curFalseN}/${curTotalN})<br/>` +
-                         `이전 기간내 못한 비율: <b>${prevPct == null ? "-" : prevPct + "%"}</b> (False ${prevFalseN}/${prevTotalN})<br/>` +
-                         `변화: <b>${deltaPp == null ? "-" : (deltaPp > 0 ? "+" : "") + deltaPp + "%p"}</b><br/>` +
-                         `<b>${msg}</b>`;
+      // Half gauge: 성공률(%)
+      const successRate = 100 - Math.round((Number.isFinite(curFalseRate) ? curFalseRate : 0) * 100);
+      const actionScore = clamp(successRate, 0, 100);
+      setHalfGauge(c.n, actionScore, fsDir);
 
-        // pill: reflect false-rate delta
-        const pillEl = document.getElementById(`a${c.n}TrendPill`);
-        if (pillEl){
-          pillEl.textContent = followswingTrendPillText(fsDir, deltaPp == null ? NaN : deltaPp);
-          applyTrendPill(pillEl, fsDir);
-        }
-      } else {
-        body.innerHTML = buildActionInsightText(c.label, curMean, prevMean, curStd);
-        if (pill){
-          pill.textContent = trendPillText(direction, delta);
-          applyTrendPill(pill, direction);
-        }
+      // ✅ 도넛(현재 기간만): 성공/실패율(%)
+      renderFollowSwingDonutCurrent(currentSessions);
+
+      const msg = followswingFeedbackFromFalseRate(curFalseRate);
+      body.innerHTML = `기간 내 팔로우 스윙을 못한 비율: <b>${curPct == null ? "-" : curPct + "%"}</b> (False ${curFalseN}/${curTotalN})<br/>` +
+                       `이전 기간내 못한 비율: <b>${prevPct == null ? "-" : prevPct + "%"}</b> (False ${prevFalseN}/${prevTotalN})<br/>` +
+                       `변화: <b>${deltaPp == null ? "-" : (deltaPp > 0 ? "+" : "") + deltaPp + "%p"}</b><br/>` +
+                       `<b>${msg}</b>`;
+
+      // pill: reflect false-rate delta
+      const pillEl = document.getElementById(`a${c.n}TrendPill`);
+      if (pillEl){
+        pillEl.textContent = followswingTrendPillText(fsDir, deltaPp == null ? NaN : deltaPp);
+        applyTrendPill(pillEl, fsDir);
+      }
+    } else {
+      body.innerHTML = buildActionInsightText(c.label, curMean, prevMean, curStd);
+      const pill = document.getElementById(`a${c.n}TrendPill`);
+      if (pill){
+        pill.textContent = trendPillText(direction, delta);
+        applyTrendPill(pill, direction);
       }
     }
   }
@@ -253,7 +259,11 @@ function renderActionCards(currentSessions, prevSessions){
   const volKey = stageKeyFromActionIndex(volatile.n);
   const keys = [worstKey, volKey].filter(Boolean);
   renderYoutubeLinksByKfKeys(keys);
+
+  // FollowSwing 성공/실패율 도넛(현재 기간)
+  renderFollowSwingDonutCurrent(currentSessions);
 }
+
 // ====== Half gauge helpers (per action card) ======
 const HALF_GAUGE_DASH = 157; // approx half circumference for the SVG arc
 
@@ -712,6 +722,8 @@ const charts = {
   actionMini2: null,
   actionMini3: null,
   actionMini4: null,
+  // FollowSwing은 boolean 기반이므로 mini chart 제외, 대신 도넛 차트로 성공/실패 비율 표시
+  followSwingDonut: null
 };
 
 let __ALL_SESSIONS__ = [];
@@ -769,8 +781,8 @@ function getFilteredSessions(all){
 }
 
 function destroyChart(key) {
-  if (charts[key]) {
-    charts[key].destroy();
+  if (charts && charts[key]) {
+    try { charts[key].destroy(); } catch (_) {}
     charts[key] = null;
   }
 }
@@ -1040,6 +1052,96 @@ function renderSeverityDonutChart(angles) {
         },
       },
     },
+  });
+}
+
+// ✅ FollowSwing 성공/실패율(%) 도넛 (현재 기간만)
+function computeFollowSwingRates(sessions){
+  const series = extractFollowSwingPassSeries(sessions);
+  const valid = series.filter((v)=> v === true || v === false);
+  const total = valid.length;
+  const fail = valid.filter((v)=> v === false).length;
+  const success = valid.filter((v)=> v === true).length;
+
+  if (!total) {
+    return { total: 0, success: 0, fail: 0, successPct: 0, failPct: 0 };
+  }
+
+  const successPct = Math.round((success / total) * 100);
+  const failPct = 100 - successPct;
+  return { total, success, fail, successPct, failPct };
+}
+
+function renderFollowSwingDonutCurrent(currentSessions){
+  const ctx = document.getElementById("followSwingDonutChart");
+  if (!ctx) return;
+
+  destroyChart("followSwingDonut");
+
+  const r = computeFollowSwingRates(currentSessions);
+
+  // Center text plugin (Chart.js v3+)
+  const centerTextPlugin = {
+    id: "centerTextPlugin",
+    afterDraw(chart){
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      const center = meta?.data?.[0];
+      if (!center) return;
+
+      const x = center.x;
+      const y = center.y;
+
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      // main
+      ctx.font = "700 18px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.fillStyle = "rgba(17,24,39,.92)";
+      ctx.fillText(`${r.successPct}%`, x, y - 2);
+
+      // sub
+      ctx.font = "600 11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.fillStyle = "rgba(17,24,39,.55)";
+      ctx.fillText(`성공 (${r.success}/${r.total})`, x, y + 16);
+
+      ctx.restore();
+    }
+  };
+
+  charts.followSwingDonut = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["성공", "실패"],
+      datasets: [
+        {
+          label: "FollowSwing",
+          data: [r.successPct, r.failPct],
+          backgroundColor: ["rgba(34,197,94,0.85)", "rgba(239,68,68,0.75)"],
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "70%",
+      plugins: {
+        legend: {
+          display: true,
+          position: "bottom",
+          labels: { boxWidth: 10, font: { size: 10 } },
+        },
+        tooltip: {
+          callbacks: {
+            label: (c)=> ` ${c.label}: ${c.parsed}%`,
+          }
+        }
+      },
+      animation: { duration: 700 },
+    },
+    plugins: [centerTextPlugin],
   });
 }
 
