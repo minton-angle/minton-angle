@@ -1,7 +1,12 @@
 /**
  * 07-reportDetail.js
- * 전 단계 사용자-전문가 1:1 비교 강화 버전
+ * 전 단계 사용자-전문가 1:1 비교 및 Phase 2 수동 프레임 제어 통합 버전
  */
+
+// 영상 제어를 위한 글로벌 변수
+let videoFPS = 30; 
+let kf1_frame = 0; // 준비 자세 프레임
+let kf3_frame = 0; // 임팩트 자세 프레임 (최대 탐색 범위)
 
 document.addEventListener('DOMContentLoaded', () => {
     loadAnalysisResult();
@@ -26,8 +31,10 @@ async function loadAnalysisResult() {
         const result = await response.json();
         console.log('✅ 분석 데이터 수신:', result);
         
-        // 데이터 구조 안전성 체크 (백엔드 구조가 result.scores 임을 확인)
         if (result.success && result.scores) {
+            // 키프레임 번호 저장 (Phase 2 제어용)
+            kf1_frame = result.kf1 || 0;
+            kf3_frame = result.kf3 || 100;
             displayResult(result);
         } else {
             throw new Error('결과 데이터 형식이 올바르지 않거나 존재하지 않습니다.');
@@ -43,23 +50,19 @@ async function loadAnalysisResult() {
  * 2. 화면 전체 데이터 바인딩
  */
 function displayResult(result) {
-    const scoreData = result.scores; // 백엔드 점수 객체
-    const files = result.files;      // 사용자 분석 이미지/영상 경로들
+    const scoreData = result.scores; 
+    const files = result.files;      
 
-    // [전체] 종합 점수 및 원형 차트 애니메이션
     displayOverallScore(result.total_score || scoreData.total_score);
     
-    // [전체] 단계별 배지 점수 (Stage 1, 2, 3)
     if (scoreData.stage_scores) {
         displayStageScores(scoreData.stage_scores);
     }
     
-    // [전체] 9개 상세 평가 항목 (PASS/FAIL)
     if (scoreData.evaluation) {
         displayEvaluation(scoreData.evaluation);
     }
     
-    // [미디어] 사용자 분석 파일 매칭 및 전문가 1:1 비교 설정
     if (files) {
         displayMediaComparison(files);
     }
@@ -83,7 +86,6 @@ function displayOverallScore(score) {
     gradeEl.textContent = gradeText;
     commentEl.textContent = comment;
     
-    // 원형 차트 게이지 업데이트
     const meter = document.getElementById('score-meter');
     if (meter) {
         const circumference = 2 * Math.PI * 45;
@@ -134,17 +136,17 @@ function displayEvaluation(evaluation) {
     });
 }
 
+/**
+ * 6. 미디어 파일 경로 설정 및 영상 초기화
+ */
 function displayMediaComparison(files) {
-    // 🌟 경로에서 드라이브 문자(C:)와 중복된 경로를 제거하는 함수
     const fixPath = (rawPath) => {
         if (!rawPath) return "";
-        // 1. 역슬래시를 슬래시로 통일
         let cleanPath = rawPath.replace(/\\/g, '/');
-        // 2. "/C:/GitHub_Project/AICV_03/minton-angle/backend/data/" 부분을 찾아 그 이후만 남김
         const marker = "backend/data/";
         const index = cleanPath.indexOf(marker);
         if (index !== -1) {
-            return "/" + cleanPath.substring(index); // 결과: /backend/data/upload_keyframes/...
+            return "/" + cleanPath.substring(index);
         }
         return cleanPath;
     };
@@ -154,14 +156,20 @@ function displayMediaComparison(files) {
         document.getElementById('phase1-user-img').src = `${API_BASE_URL}${fixPath(files.kf1_image)}`;
     }
     
-    // 2단계 스윙 영상
+    // 2단계 스윙 영상 (수동 제어 대상)
+    const v2User = document.getElementById('phase2-user-video');
+    const v2Expert = document.getElementById('phase2-expert-video');
+
     if (files.backswing_video) {
-        const v2 = document.getElementById('phase2-user-video');
-        v2.src = `${API_BASE_URL}${fixPath(files.backswing_video)}`;
-        v2.load();
+        v2User.src = `${API_BASE_URL}${fixPath(files.backswing_video)}`;
+        v2Expert.src = "assets/2_rotation_hybrid.mp4"; // 전문가 기준 영상 경로
+        
+        // 메타데이터 로드 후 시작 프레임(kf1) 시점으로 자동 이동
+        v2User.onloadedmetadata = () => { syncToFrame(kf1_frame); };
+        v2Expert.onloadedmetadata = () => { syncToFrame(kf1_frame); };
     }
 
-    // 2단계 키프레임
+    // 2단계 고정 키프레임
     if (files.kf2_image) {
         document.getElementById('phase2-backswing-img').src = `${API_BASE_URL}${fixPath(files.kf2_image)}`;
     }
@@ -169,15 +177,59 @@ function displayMediaComparison(files) {
         document.getElementById('phase2-impact-img').src = `${API_BASE_URL}${fixPath(files.kf3_image)}`;
     }
 
-    // 3단계 팔로우스루
+    // 3단계 팔로우스루 (기존 방식 유지)
     if (files.impact_video) {
         const v3 = document.getElementById('phase3-user-video');
         v3.src = `${API_BASE_URL}${fixPath(files.impact_video)}`;
         v3.load();
     }
 }
+
 /**
- * 7. 영상 동시 재생 제어
+ * 7. [신규 추가] 프레임 단위 이동 제어 함수
+ * @param {number} offset - 이동할 프레임 수 (5 또는 -5)
+ */
+function stepFrame(offset) {
+    const v2User = document.getElementById('phase2-user-video');
+    const v2Expert = document.getElementById('phase2-expert-video');
+    
+    if (!v2User || !v2Expert) return;
+
+    // 현재 시간을 프레임 번호로 변환
+    let currentFrame = Math.round(v2User.currentTime * videoFPS);
+    let targetFrame = currentFrame + offset;
+
+    // 탐색 범위 제한 (kf1_frame ~ kf3_frame)
+    if (targetFrame < kf1_frame) targetFrame = kf1_frame;
+    if (targetFrame > kf3_frame) targetFrame = kf3_frame;
+
+    syncToFrame(targetFrame);
+}
+
+/**
+ * 특정 프레임 번호로 두 영상을 동기화하여 이동
+ */
+function syncToFrame(frameNumber) {
+    const v2User = document.getElementById('phase2-user-video');
+    const v2Expert = document.getElementById('phase2-expert-video');
+    
+    const targetTime = frameNumber / videoFPS;
+    
+    v2User.currentTime = targetTime;
+    v2Expert.currentTime = targetTime;
+
+    // UI 레이블 업데이트
+    const label = document.getElementById('current-step-label');
+    if (label) {
+        const totalSection = kf3_frame - kf1_frame;
+        const currentPos = frameNumber - kf1_frame;
+        const progress = totalSection > 0 ? Math.round((currentPos / totalSection) * 100) : 0;
+        label.textContent = `스윙 분석 (${progress}%)`;
+    }
+}
+
+/**
+ * 8. 영상 동시 재생 제어 (Phase 3 전용)
  */
 function syncPlayVideos(phase) {
     const userVideo = document.getElementById(`${phase}-user-video`);
@@ -192,7 +244,7 @@ function syncPlayVideos(phase) {
 }
 
 /**
- * 8. 에러 발생 시 UI 처리
+ * 9. 에러 발생 시 UI 처리
  */
 function showError(message) {
     const content = document.querySelector('.report-content');

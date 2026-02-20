@@ -5,6 +5,18 @@
 // API 기본 URL
 const API_BASE_URL = 'http://localhost:8000';
 
+// ⭐ 개발 모드 설정 (배포 시 false로 변경!)
+const DEV_MODE = true;
+
+// ========================================
+// 개발 모드 초기화
+// ========================================
+if (DEV_MODE) {
+    console.log('%c🔓 개발 모드 활성화', 'color: orange; font-size: 16px; font-weight: bold;');
+    console.log('💡 인증 없이 모든 API 사용 가능');
+    console.log('📝 배포 시 DEV_MODE = false로 변경하세요');
+}
+
 // ========================================
 // 인증 관련
 // ========================================
@@ -44,6 +56,7 @@ function saveLoginInfo(accessToken, userId, userName) {
     sessionStorage.setItem('access_token', accessToken);
     sessionStorage.setItem('user_id', userId);
     sessionStorage.setItem('user_name', userName);
+    console.log('✅ 로그인 완료:', userId);
 }
 
 /**
@@ -59,32 +72,21 @@ function logout() {
  * 모든 페이지에서 공통으로 쓸 로그인 체크 함수
  */
 function checkAuth() {
-    // 공개 페이지 목록 (로그인 없이 접근 가능)
+    // ⭐ 개발 모드: 로그인 체크 스킵
+    if (DEV_MODE) {
+        console.log('🔓 [개발 모드] 로그인 체크 스킵');
+        return;
+    }
+    
     const publicPages = [
-        '12-login.html',
-        '11-signUp.html',
         '00-onboarding.html',
-        '04_1-swingUpload.html',
-        '05-swingAnalyze.html',
-        '06-reportLoading.html',
-        '07-reportDetaile.html',
-        '06-reportLoading.html',
-        '02-gripMode.html'
-        // '03-swingMode.html',
-        // '04-swingGuide.html',
-        // '10_1-editProfile.html',
-        // '10-myPage.html',
-        // '11-signUp.html',
-        // '12-logIn.html',
-        // '01-home.html'
-        
+        '11-signUp.html',
+        '12-logIn.html'
     ];
     
-    // 현재 페이지가 공개 페이지인지 확인
     const currentPage = window.location.pathname;
     const isPublicPage = publicPages.some(page => currentPage.includes(page));
     
-    // 로그인 안 했고, 공개 페이지도 아니면 로그인 페이지로
     if (!isLoggedIn() && !isPublicPage) {
         alert('로그인이 필요한 서비스입니다.');
         window.location.href = '12-logIn.html';
@@ -95,6 +97,12 @@ function checkAuth() {
  * 로그인 필수 페이지 체크 (개별 페이지에서 사용)
  */
 function requireLogin() {
+    // ⭐ 개발 모드: 항상 true 반환
+    if (DEV_MODE) {
+        console.log('🔓 [개발 모드] requireLogin 체크 스킵');
+        return true;
+    }
+    
     if (!isLoggedIn()) {
         alert('로그인이 필요합니다.');
         window.location.href = '12-logIn.html';
@@ -116,14 +124,14 @@ document.addEventListener('DOMContentLoaded', checkAuth);
 async function authFetch(url, options = {}) {
     const token = getToken();
     
-    if (!token) {
-        throw new Error('로그인이 필요합니다.');
-    }
-    
     const headers = {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`
+        ...options.headers
     };
+    
+    // 개발 모드가 아니거나 토큰이 있으면 추가
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
     
     return fetch(url, { ...options, headers });
 }
@@ -143,11 +151,13 @@ async function apiCall(endpoint, options = {}) {
         ...options.headers
     };
     
-    // auth 옵션이 false가 아니면 토큰 자동 추가
+    // auth 옵션이 false가 아니면 토큰 추가 시도
     if (options.auth !== false) {
         const token = getToken();
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
+        } else if (DEV_MODE) {
+            console.log('🔓 [개발 모드] 토큰 없이 API 호출');
         }
     }
     
