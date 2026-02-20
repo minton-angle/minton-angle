@@ -441,6 +441,68 @@ def posture_report_from_post(
             "Average_Score",
         ]
 
+        # ===== stage breakdown(세부 항목) 정의 =====
+        # Total은 UI/게이지/시계열 유지용, breakdown은 LLM 문장 다양성/원인 후보 추정용
+        STAGE_BREAKDOWN_KEYS: Dict[str, list[str]] = {
+            "1_Ready_Total": ["1_Ready_Arm", "1_Ready_Height", "1_Ready_Stance"],
+            "2_Rotation_Total": ["2_Rotation_Hip"],
+            "3_Backswing_Total": ["3_Backswing_WristX", "3_Backswing_Racket", "3_Backswing_Elbow"],
+            "4_Impact_Total": ["4_Impact_Angle"],
+            # FollowSwing은 boolean 기반(5_FollowSwing_Pass)으로 별도 처리
+        }
+
+        def _sub_score_of(row: Analysis, key: str) -> Optional[float]:
+            try:
+                sj = getattr(row, "score_json", None) or {}
+                v = sj.get(key)
+                return float(v) if v is not None else None
+            except Exception:
+                return None
+
+        def _mean_sub_score(rows: list[Analysis], key: str) -> float:
+            vals: list[float] = []
+            for rr in rows:
+                v = _sub_score_of(rr, key)
+                if v is None:
+                    continue
+                v = max(0.0, min(100.0, float(v)))
+                vals.append(v)
+            return sum(vals) / len(vals) if vals else 0.0
+
+        def _compute_breakdown_stats(total_key: str, cur_rows: list[Analysis], prev_rows: list[Analysis]) -> Dict[str, Any]:
+            """각 Total에 대해 세부 항목 통계 + worst_sub(가장 낮은 세부 점수) 요약을 생성."""
+            sub_keys = STAGE_BREAKDOWN_KEYS.get(total_key, [])
+            sub_stats: Dict[str, Any] = {}
+            for sk in sub_keys:
+                cm = _mean_sub_score(cur_rows, sk)
+                pm = _mean_sub_score(prev_rows, sk) if prev_rows else cm
+                d = cm - pm
+                sd = "improved" if d > 1e-9 else ("worsened" if d < -1e-9 else "flat")
+                sub_stats[sk] = {
+                    "current_mean": round(cm, 2),
+                    "prev_mean": round(pm, 2),
+                    "delta": round(d, 2),
+                    "direction": sd,
+                }
+
+            worst_sub = None
+            worst_val = None
+            for sk, node in sub_stats.items():
+                v = node.get("current_mean")
+                try:
+                    v = float(v)
+                except Exception:
+                    continue
+                if worst_val is None or v < worst_val:
+                    worst_val = v
+                    worst_sub = sk
+
+            return {
+                "sub_stats": sub_stats,
+                "worst_sub": worst_sub,
+                "worst_sub_current_mean": (round(float(worst_val), 2) if worst_val is not None else None),
+            }
+
         def _score_of(row: Analysis, key: str) -> Optional[float]:
             try:
                 sj = getattr(row, "score_json", None) or {}
@@ -518,6 +580,8 @@ def posture_report_from_post(
                     "false_rate_current": round(cur_false, 4),
                     "false_rate_prev": round(prev_false, 4),
                     "risk_level": _followswing_risk_level(cur_false),
+                    "success_rate_current": round(cur_sr, 2),
+                    "success_rate_prev": round(prev_sr, 2)
                 }
                 continue
 
@@ -526,12 +590,18 @@ def posture_report_from_post(
             prev_m = _mean_score(prev_analyses, k) if prev_analyses else cur_m
             dlt = cur_m - prev_m
             direction = "improved" if dlt > 1e-9 else ("worsened" if dlt < -1e-9 else "flat")
-            score_stats[k] = {
+            node: Dict[str, Any] = {
                 "current_mean": round(cur_m, 2),
                 "prev_mean": round(prev_m, 2),
                 "delta": round(dlt, 2),
                 "direction": direction,
             }
+
+            # Total 키는 세부 항목 breakdown 요약을 추가(LLM 문장 다양성 목적)
+            if k in STAGE_BREAKDOWN_KEYS:
+                node.update(_compute_breakdown_stats(k, analyses, prev_analyses))
+
+            score_stats[k] = node
 
         # 전체 트렌드는 Average_Score 기준으로 요약
         cur_avg = float(score_stats.get("Average_Score", {}).get("current_mean", 0.0))
