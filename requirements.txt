@@ -17,3 +17,4 @@ scipy
 # Utilities
 httpx>=0.27.0
 python-dotenv
+
