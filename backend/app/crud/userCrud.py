@@ -47,10 +47,11 @@ def update_user(
     db: Session,
     user_id: str,
     name: Optional[str] = None,
-    sex: Optional[str] = None,
-    hand: Optional[str] = None
+    password: Optional[str] = None
 ) -> Optional[User]:
-    """사용자 정보 수정"""
+    """사용자 정보 수정 (이름 + 비밀번호)"""
+    from app.core.security import hash_password
+    
     user = get_user_by_id(db, user_id)
     
     if not user:
@@ -58,10 +59,9 @@ def update_user(
     
     if name is not None:
         user.name = name
-    if sex is not None:
-        user.sex = sex
-    if hand is not None:
-        user.hand = hand
+    
+    if password is not None:
+        user.password = hash_password(password)
     
     db.commit()
     db.refresh(user)

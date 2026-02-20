@@ -10,7 +10,7 @@ from app.models.fileModels import File as FileModel
 from app.models.analysisModels import Analysis
 from app.services.swing.video_analysis_service import VideoAnalysisService, video_analysis_service
 
-from app.routers.authRouters import get_current_user
+from app.routers.userRouters import get_current_user
 from app.models.userModels import User
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
