@@ -267,32 +267,33 @@ class KeyframeDetector:
                 # 3차: 중간값
                 b_idx = int((start_bs + highest_idx) / 2)
 
-        # [STEP 3] IMPACT: 백스윙 이후 ~ 최고점 사이에서 팔 가장 펴진 순간
-        search_start = b_idx  # 백스윙 프레임
-        search_end = min(int(highest_idx) + 3, len(df) - 1)  # +3 추가
-
-        # 기본값 먼저 할당!
-        i_idx = int(highest_idx)
+        # [STEP 3] IMPACT: 손목이 가장 높이 올라간 순간을 타점으로 잡기
         
-        if search_start < search_end:
-            impact_scope = df.loc[search_start:search_end].copy()
+        # 1. 백스윙 이후 구간 설정
+        search_start = b_idx
+        search_end = min(int(highest_idx) + 5, len(df) - 1)
+        impact_scope = df.loc[search_start:search_end].copy()
+
+        # 2. [핵심 수정] 팔 각도가 아니라 '손목 높이(Y)'가 가장 높은 지점을 찾음
+        # Y값이 작을수록 화면 위쪽(타점 높음)이므로 idxmin() 사용
+        if not impact_scope.empty:
+            i_idx = int(impact_scope[c['wri'][1]].idxmin())
             
-            if not impact_scope.empty:
-                # 팔꿈치 각도 계산
-                def calc_elbow_angle(row):
-                    s = np.array([row[c['shld'][0]], row[c['shld'][1]]])
-                    e = np.array([row[c['elb'][0]], row[c['elb'][1]]])
-                    w = np.array([row[c['wri'][0]], row[c['wri'][1]]])
-                    
-                    v1 = s - e
-                    v2 = w - e
-                    
-                    cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
-                    return np.degrees(np.arccos(np.clip(cos_angle, -1, 1)))
-                
-                angles = impact_scope.apply(calc_elbow_angle, axis=1)
-                if not angles.empty:
-                    i_idx = int(angles.idxmax())  # 팔이 가장 펴진 순간
+            # [추가 보정] 만약 손목 높이가 비슷한 프레임이 여러개라면 
+            # 그 근처에서 팔이 더 많이 펴진 프레임을 선택하도록 미세 조정
+            near_peak = impact_scope.loc[max(search_start, i_idx-2) : min(search_end, i_idx+2)]
+            
+            def calc_elbow_angle(row):
+                s = np.array([row[c['shld'][0]], row[c['shld'][1]]])
+                e = np.array([row[c['elb'][0]], row[c['elb'][1]]])
+                w = np.array([row[c['wri'][0]], row[c['wri'][1]]])
+                v1, v2 = s - e, w - e
+                norm = np.linalg.norm(v1) * np.linalg.norm(v2)
+                if norm == 0: return 0
+                return np.degrees(np.arccos(np.clip(np.dot(v1, v2) / (norm + 1e-6), -1, 1)))
+
+            angles = near_peak.apply(calc_elbow_angle, axis=1)
+            i_idx = int(angles.idxmax()) # 피크 근처에서 가장 팔이 펴진 순간 확정
         
         # [STEP 4] FOLLOW-THROUGH: Z축 부호 반전
         ft_res = "X"
