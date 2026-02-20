@@ -68,8 +68,8 @@ function checkAuth() {
         '05-swingAnalyze.html',
         '06-reportLoading.html',
         '07-reportDetaile.html',
-        '06-reportLoading.html'
-        // '02-gripMode.html',
+        '06-reportLoading.html',
+        '02-gripMode.html'
         // '03-swingMode.html',
         // '04-swingGuide.html',
         // '10_1-editProfile.html',
