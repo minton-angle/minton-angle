@@ -305,6 +305,195 @@
 }
 
 .nav-home { background-image: url('../assets/images/home.png'); }
-.nav-gym { background-image: url('../assets/images/gym.png'); }
+.nav-play { background-image: url('../assets/images/play.png'); }
 .nav-history { background-image: url('../assets/images/history.png'); }
-.nav-settings { background-image: url('../assets/images/settings.png'); }
+.nav-myPage { background-image: url('../assets/images/myPage.png'); }
+
+/* ========================================
+   5. 모달 팝업
+   ======================================== */
+
+/* 모달 오버레이 */
+.report-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.report-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+}
+
+/* 모달 컨텐츠 */
+.modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 25px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* 모달 헤더 */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #014E0B;
+    margin: 0;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.modal-close:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* 모달 바디 */
+.modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* 리포트 카드 */
+.report-card {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.report-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+}
+
+.card-content {
+    flex: 1;
+}
+
+.card-content h4 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #014E0B;
+    margin: 0 0 8px 0;
+}
+
+.card-time {
+    font-size: 13px;
+    color: #666;
+    margin: 4px 0;
+}
+
+.card-score {
+    font-size: 14px;
+    color: #333;
+    margin: 4px 0;
+}
+
+.card-score strong {
+    color: #6BCB77;
+    font-size: 16px;
+}
+
+.card-button {
+    background: #6BCB77;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+
+.card-button:hover {
+    background: #5AB968;
+}
+
+/* 리포트 없을 때 */
+.no-report {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    padding: 30px 20px;
+}
+
+/* 점 표시 */
+.report-dots {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    margin-top: 2px;
+}
+
+.dot {
+    font-size: 8px;
+    line-height: 1;
+}
+
+.has-report {
+    cursor: pointer;
+}
+
+.has-report:hover {
+    background: rgba(107, 203, 119, 0.1) !important;
+    border-radius: 50%;
+}

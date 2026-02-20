@@ -140,6 +140,7 @@ async function authFetch(url, options = {}) {
  * JSON API 호출 헬퍼
  */
 async function apiCall(endpoint, options = {}) {
+    
     const url = `${API_BASE_URL}${endpoint}`;
     
     const defaultHeaders = {
