@@ -14,7 +14,7 @@ from app.schemas.swing import (
 )
 from app.services.swing.swing_service import swing_service
 
-from app.routers.authRouters import get_current_user
+from app.routers.userRouters import get_current_user
 
 router = APIRouter(prefix="/api/realtime", tags=["realtime"])
 

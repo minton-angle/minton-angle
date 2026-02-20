@@ -41,10 +41,9 @@ from app.db.base import Base
 from app.db.session import engine
 
 # 라우터 import
-from app.routers import swingRouters, uploadRouters, calendarRouters
+from app.routers import swingRouters, uploadRouters, calendarRouters, gripRouters
 from app.routers.reportRouters import router as report_router
-from app.routers.authRouters import router as auth_router
-from app.routers import gripRouters
+from app.routers.userRouters import router as user_router
 
 # 모델 import
 from app.models.userModels import User
@@ -74,11 +73,11 @@ app.add_middleware(
 )
 
 # 라우터 등록
+app.include_router(user_router)
 app.include_router(swingRouters.router)
 app.include_router(uploadRouters.router)
 app.include_router(calendarRouters.router)
 app.include_router(report_router)
-app.include_router(auth_router)
 app.include_router(gripRouters.router)
 
 # 정적 파일 서빙

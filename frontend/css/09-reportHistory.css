@@ -10,7 +10,7 @@
 
 .header {
     width: 100%;
-    padding: 1dvh 20px;  /* ⭐ 줄임 */
+    padding: 2dvh 20px;
     background-color: transparent !important;
     display: flex;
     justify-content: flex-start;
@@ -18,107 +18,145 @@
 
 .logo-box-left {
     background-image: url('../assets/images/logo2.png');
-    width: 100px;  /* ⭐ 140px → 100px */
-    height: 32px;  /* ⭐ 45px → 32px */
+    width: 30%;
+    max-width: 180px;
+    height: 6dvh;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: left center;
+    margin-top: 10px;
 }
 
-/* 요청사항: 제목 섹션 투명 유리 배경 추가 */
+/* 제목 섹션 */
 .glass-title-unit {
     background: rgba(255, 255, 255, 0.5);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 50px;
-    padding: 8px 24px;  /* ⭐ 10px 30px → 8px 24px */
-    margin: 8px 0 15px 0;  /* ⭐ 줄임 */
-    display: inline-block;
+    padding: 10px 30px;
+    margin: 10px auto 12px auto;
+    display: block;
+    width: calc(100% - 40px);
+    margin-bottom: 20px;
 }
 
 .section-title {
     text-align: center;
     color: #014E0B;
-    font-size: 16px;  /* ⭐ 18px → 16px */
+    font-size: 22px;
     font-weight: 700;
     margin: 0;
 }
 
-/* 2. 글래스모피즘 캘린더 - ⭐ 크기 축소! */
+/* 2. 글래스모피즘 캘린더 */
 .calendar-card {
     background: rgba(255, 255, 255, 0.7) !important;
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
     border: 1px solid rgba(255, 255, 255, 0.4) !important;
-    border-radius: 20px;  /* ⭐ 25px → 20px */
-    padding: 8px;  /* ⭐ 10px → 8px */
+    border-radius: 25px;
+    padding: 15px 15px;  /* ⭐ 좌우도 15px로 통일 */
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    max-width: 340px;  /* ⭐ 최대 너비 제한 */
-    margin: 0 auto;  /* ⭐ 중앙 정렬 */
+    width: calc(100% - 60px);  /* ⭐ 40px → 60px (더 좁게) */
+    margin: 0 auto 12px auto;
+    height: 48dvh;  /* ⭐ 50dvh → 48dvh (정사각형에 가깝게) */
+    max-height: 440px;  /* ⭐ 450px → 440px */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-.fc-daygrid-body { padding: 0 !important; }  /* ⭐ 여백 제거 */
-.fc-scrollgrid-sync-table { width: 100% !important; }
+.fc {
+    font-family: inherit !important;
+    border: none !important;
+    font-size: 15px !important;
+    flex: 1;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
 
-/* 기본 오늘 날짜 노란 배경 제거 */
+.fc-view-harness {
+    flex: 1 !important;
+    overflow: hidden !important;
+    max-height: 100% !important;
+}
+
+.fc-scroller {
+    overflow: hidden !important;
+}
+
+.fc-daygrid-body {
+    padding: 4px 4px !important;  /* ⭐ 8px → 4px (위아래 줄임) */
+    overflow: hidden !important;
+}
+
+.fc-scrollgrid {
+    border: none !important;
+    overflow: hidden !important;
+}
+
+.fc-scrollgrid-sync-table {
+    width: 100% !important;
+}
+
+/* ⭐ 날짜 간격 축소 */
+.fc-daygrid-day-frame {
+    min-height: 30px !important;  /* ⭐ 35px → 30px (줄임) */
+}
+
 .fc-day-today {
     background-color: transparent !important;
 }
 
-.fc { 
-    font-family: inherit !important; 
+.fc-theme-standard td,
+.fc-theme-standard th {
     border: none !important;
-    font-size: 13px !important;  /* ⭐ 전체 폰트 크기 축소 */
+    padding: 2px 2px !important;  /* ⭐ 4px → 2px (위아래 줄임) */
 }
 
-.fc-theme-standard td, .fc-theme-standard th { 
-    border: none !important;
-    padding: 2px !important;  /* ⭐ 셀 여백 축소 */
-}
-
-.fc-scrollgrid { border: none !important; }
-
-/* ⭐ 요일 헤더 크기 축소 */
+/* 요일 헤더 */
 .fc-col-header-cell {
-    padding: 4px 0 !important;  /* ⭐ 줄임 */
+    padding: 6px 0 !important;  /* ⭐ 8px → 6px (줄임) */
 }
 
 .fc-col-header-cell-cushion {
-    font-size: 11px !important;  /* ⭐ 축소 */
+    font-size: 13px !important;
     color: #888 !important;
     font-weight: 600 !important;
 }
 
-/* 초록색 화살표 버튼 */
+/* 화살표 버튼 */
 .fc .fc-button-primary {
     background-color: transparent !important;
     border: none !important;
-    color: #014E0B !important; 
+    color: #014E0B !important;
     box-shadow: none !important;
-    font-size: 1.2rem !important;  /* ⭐ 1.4rem → 1.2rem */
-    padding: 0 4px !important;  /* ⭐ 축소 */
+    font-size: 1.4rem !important;
+    padding: 0 8px !important;
 }
 
-.fc-toolbar-title { 
-    font-size: 1rem !important;  /* ⭐ 1.2rem → 1rem */
+.fc-toolbar-title {
+    font-size: 1.2rem !important;
     font-weight: 800 !important;
 }
 
-.fc-toolbar { 
-    margin-bottom: 8px !important;  /* ⭐ 축소 */
+.fc-toolbar {
+    margin-bottom: 8px !important;  /* ⭐ 12px → 8px (줄임) */
+    flex-shrink: 0;
 }
 
-/* ⭐ 날짜 숫자 크기 축소 */
+/* 날짜 숫자 */
 .fc-daygrid-day-number {
     color: #333 !important;
-    width: 28px !important;  /* ⭐ 35px → 28px */
-    height: 28px !important;  /* ⭐ 35px → 28px */
+    width: 30px !important;  /* ⭐ 38px → 35px (살짝 줄임) */
+    height: 35px !important;  /* ⭐ 38px → 35px */
     display: flex !important;
     align-items: center;
     justify-content: center;
     margin: 0 auto !important;
-    font-size: 12px !important;  /* ⭐ 14px → 12px */
+    font-size: 15px !important;
     text-decoration: none !important;
     position: relative;
     z-index: 1;
@@ -131,57 +169,62 @@
     font-weight: 700;
 }
 
-.fc-day-disabled, .fc-day-other { 
+.fc-day-disabled,
+.fc-day-other {
     background-color: transparent !important;
 }
 
-/* ⭐ Footer 축소 */
+/* Footer */
 .calendar-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 10px;  /* ⭐ 15px → 10px */
-    padding-top: 10px;  /* ⭐ 12px → 10px */
+    margin-top: 10px;  /* ⭐ 18px → 14px (줄임) */
+    padding-top: 12px;  /* ⭐ 14px → 12px */
     border-top: 1px solid rgba(255, 255, 255, 0.3);
+    flex-shrink: 0;
 }
 
 .calendar-footer-label {
-    font-size: 11px;  /* ⭐ 축소 */
+    font-size: 13px;
     color: #666;
     font-weight: 600;
 }
 
 .time-value {
     background: rgba(255, 255, 255, 0.5);
-    padding: 3px 10px;  /* ⭐ 4px 12px → 3px 10px */
-    border-radius: 12px;  /* ⭐ 15px → 12px */
-    font-size: 11px;  /* ⭐ 13px → 11px */
+    padding: 5px 14px;
+    border-radius: 15px;
+    font-size: 13px;
     font-weight: 600;
 }
 
-/* 3. 토글 버튼 및 가이드 */
+/* 3. 가이드 텍스트 */
 .guide-text {
     text-align: center;
     color: #ffffff;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-    font-size: 11px;  /* ⭐ 13px → 11px */
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    font-size: 13px;
     font-weight: 600;
-    margin: 15px 0;  /* ⭐ 20px → 15px */
+    margin: 7px 0;
     line-height: 1.4;
 }
 
+/* 토글 버튼 - ⭐ 키우기 */
 .toggle-wrapper {
-    margin-top: 15px;  /* ⭐ 20px → 15px */
+    margin-top: 20px;
+    margin-bottom: 20px;
     position: relative;
     display: flex;
     background: rgba(255, 255, 255, 0.5);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 35px;  /* ⭐ 40px → 35px */
+    border-radius: 40px;  /* ⭐ 35px → 40px (둥글게) */
     padding: 4px;
-    height: 48px;  /* ⭐ 54px → 48px */
-    width: 100%;
-    max-width: 340px;  /* ⭐ 캘린더와 동일한 너비 */
+    height: 10dvh;  /* ⭐ 6dvh → 7dvh (높이 증가) */
+    max-height: 60px;  /* ⭐ 55px → 60px */
+    width: 80%;
+    max-width: 340px;
     margin-left: auto;
     margin-right: auto;
 }
@@ -193,7 +236,7 @@
     width: calc(50% - 4px);
     height: calc(100% - 8px);
     background-color: #6BCB77;
-    border-radius: 30px;  /* ⭐ 35px → 30px */
+    border-radius: 35px;  /* ⭐ 30px → 35px */
     transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
     z-index: 1;
 }
@@ -205,29 +248,32 @@
     border: none;
     background: transparent;
     font-weight: 700;
-    font-size: 13px;  /* ⭐ 14px → 13px */
+    font-size: 14px;  /* ⭐ 13px → 14px (글씨 크게) */
     color: #444;
     cursor: pointer;
 }
 
-.toggle-btn.active { color: #014E0B; }
+.toggle-btn.active {
+    color: #014E0B;
+}
 
-.sub-txt { 
-    font-size: 8px;  /* ⭐ 9px → 8px */
-    display: block; 
+.sub-txt {
+    font-size: 10px;  /* ⭐ 9px → 10px (글씨 크게) */
+    display: block;
     margin-top: 2px;
 }
 
 /* 4. 하단바 */
 .navbar-section {
     position: absolute;
-    bottom: 20px;  /* ⭐ 24px → 20px */
+    bottom: 22px;
     left: 15px;
     right: 15px;
-    height: 65px;  /* ⭐ 70px → 65px */
+    height: 7dvh;
+    max-height: 70px;
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(15px);
-    border-radius: 32px;  /* ⭐ 35px → 32px */
+    border-radius: 35px;
     display: flex;
     justify-content: space-around;
     align-items: center;
@@ -235,26 +281,26 @@
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-.nav-item { 
-    display: flex; 
-    flex-direction: column; 
+.nav-item {
+    display: flex;
+    flex-direction: column;
     align-items: center;
 }
 
-.nav-btn { 
-    width: 26px;  /* ⭐ 28px → 26px */
-    height: 26px;  /* ⭐ 28px → 26px */
-    background: transparent; 
-    background-size: contain; 
-    background-repeat: no-repeat; 
-    border: none; 
+.nav-btn {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    background-size: contain;
+    background-repeat: no-repeat;
+    border: none;
     cursor: pointer;
 }
 
-.nav-text { 
-    font-size: 9px;  /* ⭐ 10px → 9px */
-    color: #4D876E; 
-    margin-top: 3px;  /* ⭐ 4px → 3px */
+.nav-text {
+    font-size: 10px;
+    color: #4D876E;
+    margin-top: 4px;
     font-weight: 600;
 }
 

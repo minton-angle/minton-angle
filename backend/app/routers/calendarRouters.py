@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.models.postModels import Post
 from app.models.fileModels import File
 
-from app.routers.authRouters import get_current_user
+from app.core.security import get_current_user
 from app.models.userModels import User
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])

@@ -10,7 +10,7 @@ from app.models.fileModels import File as FileModel
 from app.models.analysisModels import Analysis
 from app.services.swing.video_analysis_service import VideoAnalysisService, video_analysis_service
 
-from app.routers.authRouters import get_current_user
+from app.routers.userRouters import get_current_user
 from app.models.userModels import User
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
@@ -18,19 +18,23 @@ router = APIRouter(prefix="/api/upload", tags=["upload"])
 
 @router.post("/video")
 async def upload_video(
-    current_user = Depends(get_current_user),
     video: UploadFile = File(...),
     db: Session = Depends(get_db),
-    
+    # current_user = Depends(get_current_user)  # 1. 인증 의존성 제거 (주석 처리)
 ):
-    """영상 업로드 및 분석"""
+    """영상 업로드 및 분석 (개발 테스트용 인증 해제 버전)"""
     
     try:
-        # ⭐ video_analysis_service.video_analysis_service 사용
-        user_id = current_user.id
+        # 2. 로그인 정보가 없으므로 임시 user_id를 강제로 할당합니다.
+        # DB의 User 테이블에 실제로 존재하는 ID를 넣는 것이 가장 안전합니다.
+        user_id = "user_001" 
+        
+        # 3. 서비스 호출 시 직접 할당한 user_id 전달
         result = await video_analysis_service.analyze_video(user_id, video, db)
+        
         print(f"📡 프론트엔드로 보낼 최종 데이터: {result}")
         return result
+        
     except Exception as e:
         import traceback
         traceback.print_exc()
