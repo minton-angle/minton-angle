@@ -20,7 +20,7 @@ try:
     # ✅ 60일치 생성 (1개월(30d) + 여유분) : 0~39일 전
     #    - 1주일(7d) vs 1개월(30d) 비교가 되도록 최소 한 달 이상 데이터 확보
     rows = []
-    for days_ago in range(60):
+    for days_ago in range(300):
         dt = datetime.utcnow() - timedelta(days=days_ago)
         # ------------------------------
         # 1) 현실적인 분포 + 40일 구간에서 약 10점 개선(최신이 높음)
@@ -133,7 +133,7 @@ try:
 
     db.add_all(rows)
     db.commit()
-    print(f"✅ analysis 40일치({len(rows)}건) 생성 완료! post_idx={post_idx_value}")
+    print(f"✅ analysis 300일치({len(rows)}건) 생성 완료! post_idx={post_idx_value}")
 
 except Exception as e:
     db.rollback()
