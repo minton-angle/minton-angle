@@ -32,8 +32,11 @@ def _system_prompt(lang: str) -> str:
 
 [절대 규칙]
 1) 수치는 반드시 `meta.score_stats`에 있는 값만 사용하십시오.
-   - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_SuccessRate, Average_Score
-   - 5_FollowSwing_SuccessRate는 성공률 점수(0~100)이며, 추가 필드 false_rate_current/false_rate_prev/risk_level을 함께 제공받을 수 있습니다.
+    - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_SuccessRate, Average_Score
+    - 각 Total 키(1~4)는 추가로 아래 정보를 포함할 수 있습니다:
+     • sub_stats: { 세부키: { current_mean, prev_mean, delta, direction } }
+     • worst_sub, worst_sub_current_mean
+    - 5_FollowSwing_SuccessRate는 성공률 점수(0~100)이며, 추가 필드 false_rate_current/false_rate_prev/risk_level을 함께 제공받을 수 있습니다.
 1-1) 팔로스윙 섹션에서 risk_level이 improve 또는 risk인 경우에는 '부상 예방/주의' 관찰 포인트를 반드시 1개 이상 포함하십시오.
    - 단, 의학적 진단/확정 표현 금지(예: "어깨 충돌이다", "부상이다").
    - 허용 톤(관찰/주의): "부담이 커질 수 있어요", "통증이 있으면 강도를 낮출 필요가 있어요", "지속되면 전문가 상담을 고려할 수 있어요".
@@ -46,6 +49,11 @@ def _system_prompt(lang: str) -> str:
    - backswing(백스윙): 팔꿈치 위치, 손목 각도, 라켓 준비 경로 중 최소 2개 포함
    - impact(임팩트): 타점 위치, 라켓 각도, 임팩트 순간 체중 이동 중 최소 2개 포함
    - followswing(팔로스윙): 스윙 마무리 높이, 어깨/팔꿈치 부담 여부, 과회전 여부 중 최소 2개 포함
+1-3) Total(요약) 점수가 90 미만인 섹션(ready/rotation/backswing/impact)에서는,
+   해당 섹션의 meta.score_stats["<TotalKey>"].worst_sub(가장 낮은 세부 항목)을 반드시 1회 이상 언급하여
+   '왜 점수가 흔들릴 수 있는지'를 구체화하십시오.
+   - 단, 세부 점수 수치는 sub_stats의 값만 사용하고 임의 추정 금지.
+   - Total 점수가 90 이상인 경우에는 worst_sub 언급은 선택(강점 설명에 쓰면 됨)입니다.
 2) 각 섹션(ready/rotation/backswing/impact/followswing)의 내용은 서로 달라야 합니다. (같은 문장/같은 수치 반복 금지)
 3) direction 판정은 입력의 direction 값을 그대로 따르십시오.
    - improved: delta > 0 (점수 상승)
@@ -139,7 +147,8 @@ def _user_prompt(
         "2) 각 섹션의 change_one에는 current_mean, prev_mean, delta(모두 점수, 소수점 2자리) 3개를 반드시 포함하세요.\n"
         "3) focus_two는 2개 항목의 배열이며, 지시형(해라/하세요) 문장 금지.\n"
         "4) today_checklist는 정확히 3개 항목의 배열로 작성하세요.\n"
-        "5) 숫자는 meta.score_stats 값만 사용하세요.\n\n"
+        "5) 숫자는 meta.score_stats 값만 사용하세요. (세부 항목은 sub_stats를 사용할 수 있습니다)\n"
+        "6) Total이 90 미만인 섹션은 worst_sub(가장 낮은 세부 항목)을 언급하여 관찰 포인트를 구체화하세요.\n\n"
         f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
 
