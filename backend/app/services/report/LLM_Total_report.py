@@ -9,6 +9,8 @@ from typing import Any, Dict, Optional
 
 import httpx
 
+from functools import lru_cache
+
 logger_llm = logging.getLogger("app.llm")
 
 # ------------------------------------------------------------------
@@ -23,6 +25,289 @@ DEFAULT_TEMPERATURE = float(os.getenv("GROQ_TEMPERATURE", "0.8"))
 
 
 # ------------------------------------------------------------------
+# RAG (Chroma) Settings
+# ------------------------------------------------------------------
+COACH_KB_PATH = os.getenv("COACH_KB_PATH", "")  # json or jsonl
+CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_coach_kb")
+CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_kb")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
+COACH_RAG_TOPK = int(os.getenv("COACH_RAG_TOPK", "6"))
+COACH_RAG_MAX_CHARS = int(os.getenv("COACH_RAG_MAX_CHARS", "450"))
+
+
+def _safe_str(x: Any) -> str:
+    try:
+        s = "" if x is None else str(x)
+    except Exception:
+        s = ""
+    return s
+
+
+def _doc_text(d: Dict[str, Any]) -> str:
+    # 검색 성능을 위해 메타+제목+본문을 함께 임베딩
+    stage = _safe_str(d.get("stage"))
+    metric = _safe_str(d.get("metric"))
+    band = _safe_str(d.get("score_band"))
+    title = _safe_str(d.get("title"))
+    content = _safe_str(d.get("content"))
+    return f"[{stage}] [{metric}] [{band}] {title} {content}".strip()
+
+
+def _read_kb(path: str) -> list[Dict[str, Any]]:
+    path = _safe_str(path).strip()
+    if not path:
+        return []
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = f.read().strip()
+    except Exception as e:
+        logger_llm.warning("RAG KB read failed path=%s err=%s", path, str(e))
+        return []
+
+    if not raw:
+        return []
+
+    # jsonl
+    if "\n" in raw and not raw.lstrip().startswith("["):
+        docs: list[Dict[str, Any]] = []
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                docs.append(json.loads(line))
+            except Exception:
+                continue
+        return docs
+
+    # json
+    try:
+        obj = json.loads(raw)
+        if isinstance(obj, list):
+            return [x for x in obj if isinstance(x, dict)]
+        if isinstance(obj, dict) and isinstance(obj.get("documents"), list):
+            return [x for x in obj.get("documents") if isinstance(x, dict)]
+        return []
+    except Exception as e:
+        logger_llm.warning("RAG KB parse failed path=%s err=%s", path, str(e))
+        return []
+
+
+@lru_cache(maxsize=1)
+def _get_chroma():
+    """Lazy-load Chroma + embedding model. Returns (collection, embedder) or (None, None)."""
+    # Optional deps: keep backend running even if RAG deps are not installed yet.
+    try:
+        import chromadb
+        from chromadb.config import Settings
+        from sentence_transformers import SentenceTransformer
+    except Exception as e:
+        logger_llm.warning("RAG deps missing (install chromadb sentence-transformers). err=%s", str(e))
+        return None, None
+
+    try:
+        client = chromadb.Client(
+            Settings(
+                chroma_db_impl="duckdb+parquet",
+                persist_directory=CHROMA_DIR,
+                anonymized_telemetry=False,
+            )
+        )
+        col = client.get_or_create_collection(name=CHROMA_COLLECTION)
+        embedder = SentenceTransformer(EMBED_MODEL)
+    except Exception as e:
+        logger_llm.warning("RAG init failed err=%s", str(e))
+        return None, None
+
+    # KB가 이미 들어있다면 그대로 사용
+    try:
+        existing = col.count() if hasattr(col, "count") else 0
+    except Exception:
+        existing = 0
+
+    if existing and existing > 0:
+        return col, embedder
+
+    # KB 로드 후 1회 적재
+    docs = _read_kb(COACH_KB_PATH)
+    if not docs:
+        logger_llm.info("RAG KB empty; skip ingest")
+        return col, embedder
+
+    ids: list[str] = []
+    documents: list[str] = []
+    metadatas: list[Dict[str, Any]] = []
+    for i, d in enumerate(docs):
+        if not isinstance(d, dict):
+            continue
+        did = _safe_str(d.get("id") or f"kb_{i}").strip() or f"kb_{i}"
+        ids.append(did)
+        documents.append(_doc_text(d))
+        metadatas.append(
+            {
+                "stage": _safe_str(d.get("stage")),
+                "metric": _safe_str(d.get("metric")),
+                "score_band": _safe_str(d.get("score_band")),
+                "title": _safe_str(d.get("title")),
+                "tags": _safe_str(d.get("tags")),
+            }
+        )
+
+    try:
+        embs = embedder.encode(documents, normalize_embeddings=True).tolist()
+        col.add(ids=ids, documents=documents, metadatas=metadatas, embeddings=embs)
+        logger_llm.info("RAG KB ingested count=%d dir=%s", len(ids), CHROMA_DIR)
+    except Exception as e:
+        logger_llm.warning("RAG KB ingest failed err=%s", str(e))
+
+    return col, embedder
+
+
+def _score_band_from_mean(x: Any) -> str:
+    try:
+        v = float(x)
+    except Exception:
+        return ""
+    if v < 80:
+        return "<80"
+    if v < 90:
+        return "80-90"
+    return ">=90"
+
+
+def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
+    """Build deterministic queries from meta.score_stats (worst_sub + risk_level)."""
+    score_stats = (meta or {}).get("score_stats", {}) or {}
+
+    total_to_stage = {
+        "1_Ready_Total": "ready",
+        "2_Rotation_Total": "rotation",
+        "3_Backswing_Total": "backswing",
+        "4_Impact_Total": "impact",
+    }
+
+    queries: list[Dict[str, Any]] = []
+
+    for total_key, stage in total_to_stage.items():
+        node = score_stats.get(total_key, {}) or {}
+        cm = node.get("current_mean")
+        worst_sub = node.get("worst_sub")
+        direction = _safe_str(node.get("direction") or "flat")
+
+        try:
+            cm_f = float(cm)
+        except Exception:
+            cm_f = None
+
+        # Total < 90: 반드시 원인 구체화 대상
+        if cm_f is not None and cm_f < 90 and worst_sub:
+            band = _score_band_from_mean(cm_f)
+            text = f"{stage} {total_key} worst_sub={worst_sub} band={band} direction={direction}".strip()
+            queries.append({"q": text, "where": {"stage": stage, "metric": _safe_str(worst_sub), "score_band": band}})
+        # Total >= 90: 강점/실수방지용(선택) — 과도한 검색 방지 위해 1개만 뽑기
+
+    # FollowSwing: risk_level improve/risk면 부상 예방 관찰 포인트 문서 우선
+    fs = score_stats.get("5_FollowSwing_SuccessRate", {}) or {}
+    risk_level = _safe_str(fs.get("risk_level"))
+    if risk_level in ("improve", "risk"):
+        text = f"followswing injury_prevention risk_level={risk_level}".strip()
+        queries.append({"q": text, "where": {"stage": "followswing", "score_band": risk_level}})
+
+    # Average_Score 트렌드(선택): 요약 문장 톤 다양성용
+    tr = (meta or {}).get("trend", {}) or {}
+    ddir = _safe_str(tr.get("direction") or "flat")
+    text = f"overall trend direction={ddir}".strip()
+    queries.append({"q": text, "where": {}})
+
+    # 중복 제거(텍스트 기준)
+    seen = set()
+    out = []
+    for it in queries:
+        key = _safe_str(it.get("q"))
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(it)
+    return out
+
+
+def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
+    """Retrieve coaching snippets from Chroma and return compact list for prompt injection."""
+    col, embedder = _get_chroma()
+    if col is None or embedder is None:
+        return []
+
+    queries = _build_rag_queries(meta or {})
+    if not queries:
+        return []
+
+    results: list[Dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    # 각 쿼리당 2개씩만, 전체 COACH_RAG_TOPK까지
+    per_q = 2
+
+    for q in queries:
+        if len(results) >= COACH_RAG_TOPK:
+            break
+
+        text = _safe_str(q.get("q"))
+        where = q.get("where") if isinstance(q.get("where"), dict) else {}
+
+        try:
+            qemb = embedder.encode([text], normalize_embeddings=True).tolist()
+            res = col.query(
+                query_embeddings=qemb,
+                n_results=min(per_q, COACH_RAG_TOPK),
+                where=where or None,
+                include=["documents", "metadatas", "distances"],
+            )
+        except TypeError:
+            # older chroma versions may not support include param
+            res = col.query(
+                query_embeddings=qemb,
+                n_results=min(per_q, COACH_RAG_TOPK),
+                where=where or None,
+            )
+        except Exception as e:
+            logger_llm.warning("RAG query failed q=%s err=%s", text, str(e))
+            continue
+
+        ids = (res.get("ids") or [[]])[0] if isinstance(res, dict) else []
+        docs = (res.get("documents") or [[]])[0] if isinstance(res, dict) else []
+        metas = (res.get("metadatas") or [[]])[0] if isinstance(res, dict) else []
+
+        for i, did in enumerate(ids):
+            if len(results) >= COACH_RAG_TOPK:
+                break
+            sid = _safe_str(did)
+            if not sid or sid in seen_ids:
+                continue
+            seen_ids.add(sid)
+
+            doc = _safe_str(docs[i] if i < len(docs) else "")
+            md = metas[i] if i < len(metas) and isinstance(metas[i], dict) else {}
+
+            # prompt 폭발 방지: 문서 길이 제한
+            if COACH_RAG_MAX_CHARS > 0 and len(doc) > COACH_RAG_MAX_CHARS:
+                doc = doc[:COACH_RAG_MAX_CHARS].rstrip() + "…"
+
+            results.append(
+                {
+                    "id": sid,
+                    "stage": _safe_str(md.get("stage")),
+                    "metric": _safe_str(md.get("metric")),
+                    "score_band": _safe_str(md.get("score_band")),
+                    "title": _safe_str(md.get("title")),
+                    "content": doc,
+                }
+            )
+
+    return results
+
+
+# ------------------------------------------------------------------
 # System Prompt (분석 리포트 톤 고정)
 # ------------------------------------------------------------------
 def _system_prompt(lang: str) -> str:
@@ -31,6 +316,9 @@ def _system_prompt(lang: str) -> str:
 당신은 배드민턴 동작 분석 AI 코치입니다.
 
 [절대 규칙]
+0) `meta.retrieved_coaching`가 제공되면, 각 섹션의 focus_two는 해당 근거를 우선 사용하여 작성하십시오.
+   - retrieved_coaching의 문구를 그대로 길게 복붙하지 말고, 핵심 근거를 요약/재서술하여 자연스럽게 반영하십시오.
+   - retrieved_coaching가 비어있는 경우에만 일반 코칭 지식으로 작성하십시오.
 1) 수치는 반드시 `meta.score_stats`에 있는 값만 사용하십시오.
     - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_SuccessRate, Average_Score
     - 각 Total 키(1~4)는 추가로 아래 정보를 포함할 수 있습니다:
@@ -115,6 +403,8 @@ def _user_prompt(
         "trend": m.get("trend", {}),
         "score_stats": m.get("score_stats", {}),
         "insights": m.get("insights", {}),
+        # RAG retrieved snippets (optional)
+        "retrieved_coaching": m.get("retrieved_coaching", []),
     }
 
     schema = {
@@ -167,8 +457,16 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
     report_obj.setdefault("summary", "-")
     report_obj.setdefault(
         "growth",
-        {"direction": "flat", "delta_mean_abs_kf_error": 0.0, "message": "-"}
+        {"direction": "flat", "delta_average_score": 0.0, "message": "-"}
     )
+
+    # Backward-compat: if older key exists, map it
+    if isinstance(report_obj.get("growth"), dict) and "delta_average_score" not in report_obj["growth"]:
+        if "delta_mean_abs_kf_error" in report_obj["growth"]:
+            try:
+                report_obj["growth"]["delta_average_score"] = float(report_obj["growth"].get("delta_mean_abs_kf_error") or 0.0)
+            except Exception:
+                report_obj["growth"]["delta_average_score"] = 0.0
 
     report_obj.setdefault("actions", {})
     for k, title in [
@@ -274,12 +572,21 @@ def generate_report(
     try:
         score_stats = (meta or {}).get("score_stats", {})
         logger_llm.info(
-            "LLM prompt inputs range=%s score_stats=%s",
+            "LLM prompt inputs range=%s score_stats=%s rag=%s",
             (meta or {}).get("range"),
             json.dumps(score_stats, ensure_ascii=False),
+            "on" if ((meta or {}).get("retrieved_coaching") or []) else "off",
         )
     except Exception:
         pass
+
+    # Enrich meta with RAG retrieved coaching snippets (optional)
+    if meta is not None and not (meta.get("retrieved_coaching") or []):
+        try:
+            meta["retrieved_coaching"] = _retrieve_coaching(meta)
+        except Exception as e:
+            logger_llm.warning("RAG retrieve failed err=%s", str(e))
+            meta["retrieved_coaching"] = []
 
     messages = [
         {"role": "system", "content": _system_prompt(lang)},
