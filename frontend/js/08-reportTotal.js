@@ -229,9 +229,6 @@ function renderActionCards(currentSessions, prevSessions){
       const actionScore = clamp(successRate, 0, 100);
       setHalfGauge(c.n, actionScore, fsDir);
 
-      // ✅ 도넛(현재 기간만): 성공/실패율(%)
-      renderFollowSwingDonutCurrent(currentSessions);
-
       const msg = followswingFeedbackFromFalseRate(curFalseRate);
       body.innerHTML = `기간 내 팔로우 스윙을 못한 비율: <b>${curPct == null ? "-" : curPct + "%"}</b> (False ${curFalseN}/${curTotalN})<br/>` +
                        `이전 기간내 못한 비율: <b>${prevPct == null ? "-" : prevPct + "%"}</b> (False ${prevFalseN}/${prevTotalN})<br/>` +
@@ -582,7 +579,7 @@ function setScore(score) {
 
   const ring = document.querySelector(".scoreRing");
   if (ring) ring.setAttribute("aria-label", `점수 ${s}점`);
-  }
+}
 
 // ====== 기간 라벨/성장 요약/스코어 링 색상 헬퍼 ======
 function rangeLabelFromKey(r){
@@ -1195,6 +1192,14 @@ function meanAbsFromAngles(angles){
   return nums.reduce((a,b)=>a+b,0) / nums.length;
 }
 
+// 
+function computeScoreFromAngles(angles){
+  const m = meanAbsFromAngles(angles);
+  if (m == null) return 0;
+  // 각도 평균오차를 kfError로 간주하여 기존 점수 매핑 사용
+  return computeScoreFromKfError(m);
+}
+
 // ✅ KF별 평균 오차(bar) + worst KF 텍스트 표시
 function renderKFBarChart(sessions){
   const ctx = document.getElementById("kfBarChart");
@@ -1471,7 +1476,6 @@ async function generateLLMReportByPostIdx(postIdx, lang = "ko") {
   const r = (__RANGE_FILTER__ || "7d");
   const url = `${API_BASE}/api/report/post/${encodeURIComponent(postIdx)}?lang=${encodeURIComponent(lang)}&range=${encodeURIComponent(r)}`;
   const res = await fetch(url, { method: "POST" });
-
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`LLM report failed: ${res.status} ${text}`);
