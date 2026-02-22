@@ -689,3 +689,46 @@ body {
     color: #888;
     margin: 0;
 }
+
+/* 실시간 탭 컨테이너 */
+.swing-tabs-container {
+    padding: 15px 20px;
+    background: #f8fcf9; /* 아주 연한 그린톤 */
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border-bottom: 1px solid #E0EDE7;
+}
+
+.tabs-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #025B36;
+    white-space: nowrap;
+}
+
+.tabs-group {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px 0;
+    border-radius: 15px;
+    border: 1px solid #E0EDE7;
+    background: #fff;
+    color: #888;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: #025B36;
+    color: #fff;
+    border-color: #025B36;
+    box-shadow: 0 4px 10px rgba(2, 91, 54, 0.2);
+}

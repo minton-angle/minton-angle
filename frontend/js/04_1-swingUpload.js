@@ -25,31 +25,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-async function startAnalysis() {
+// startAnalysis 함수 부분만 교체하시면 됩니다.
+async function startAnalysis(event) {
+    if (event) {
+            event.preventDefault(); 
+            event.stopPropagation();
+        }
+    
+    console.log('🚀 분석 시작 버튼 클릭됨! 이제 새로고침 안 됨!');
+    
     if (!selectedFile) {
         alert('영상을 먼저 선택해주세요.');
         return;
     }
     
     const submitBtn = document.getElementById('submit-btn');
-    
-    // 로딩 상태 시작
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
-    submitBtn.textContent = '분석 중...';
+    submitBtn.textContent = '서버 분석 중...';
     
     try {
-        console.log('🚀 분석 시작...');
+        console.log('🚀 분석 서버로 데이터 전송 시작...');
         
         const formData = new FormData();
         formData.append('video', selectedFile);
 
-        // 타임아웃 2분
+        // 타임아웃 넉넉히 5분 (분석이 1분 넘을 때를 대비)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        const timeoutId = setTimeout(() => controller.abort(), 300000); 
         
-        // ⭐ authFetch 사용!
-        const response = await authFetch(`${API_BASE_URL}/api/upload/video`, {
+        // 🌟 2. authFetch 대신 직접 fetch를 써보세요 (데이터 중복 읽기 에러 방지)
+        const response = await fetch(`${API_BASE_URL}/api/upload/video`, {
             method: 'POST',
             body: formData,
             signal: controller.signal
@@ -58,30 +64,36 @@ async function startAnalysis() {
         clearTimeout(timeoutId);
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || '분석 실패');
+            const errorBody = await response.json().catch(() => ({}));
+            throw new Error(errorBody.detail || `서버 오류 (${response.status})`);
         }
         
-        const result = await response.json();
-        console.log('✅ 분석 완료:', result);
-        
-        const postId = result.post_idx;
-        
-        // 결과 페이지로 이동
-        setTimeout(() => {
-            location.href = `06-reportLoading.html?post_id=${postId}&type=video`;
-        }, 500);
-        
+        const result = await response.json(); 
+        console.log("📥 서버 수신 데이터:", result);
+
+        // 🌟 3. 백엔드 필드명(post_idx)을 최우선으로, 없으면 post_id 사용
+        const postId = result.post_idx || result.post_id; 
+
+        if (postId) {
+            console.log("🔗 로딩창으로 이동 시도. ID:", postId);
+            // 🌟 4. location.assign 보다 window.location.href가 더 안정적일 때가 있습니다.
+            window.location.href = `./06-reportLoading.html?post_id=${postId}&type=video`;
+        } else {
+            console.error("❌ ID 누락됨. 서버 응답 전체:", result);
+            alert("서버 응답에서 ID를 찾을 수 없습니다.");
+            submitBtn.disabled = false;
+            submitBtn.textContent = '분석 시작';
+        }
+                
     } catch (error) {
-        console.error('❌ 에러 발생:', error);
+        console.error('❌ 에러 발생 상세:', error);
         
         if (error.name === 'AbortError') {
-            alert('분석 시간이 너무 오래 걸립니다. 다시 시도해주세요.');
+            alert('분석 시간이 너무 오래 걸려 중단되었습니다.');
         } else {
-            alert(`분석 실패: ${error.message}`);
+            alert(`에러: ${error.message}`);
         }
         
-        // 버튼 복구
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
         submitBtn.textContent = '분석 시작';
