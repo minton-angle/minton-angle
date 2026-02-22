@@ -6,7 +6,7 @@ body {
 
 .mobile-container {
     width: 100%;
-    background-color: #fcfcfc;
+    background-color: #ffffff;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -88,9 +88,9 @@ body {
 input {
     width: 100%;
     box-sizing: border-box;
-    padding: 2.5dvh;
-    border: 1px solid #000;
-    border-radius: 25px;
+    padding: 20px;
+    border: 0.5px solid #4f5d52;
+    border-radius: 12px;
     font-size: 14px;
     outline: none;
     background-color: white;
@@ -271,11 +271,11 @@ input {
 /* 하단 회원가입 제출 버튼 */
 .submit-btn {
     width: 85%;
-    padding: 18px;
-    background-color: #3E6D4F;
+    padding: 20px;
+    background-color: #28805c;
     color: white;
     border: none;
-    border-radius: 25px;
+    border-radius: 12px;
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;
