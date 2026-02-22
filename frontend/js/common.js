@@ -3,7 +3,7 @@
 // ========================================
 
 // API 기본 URL
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = "http://100.30.189.97";
 
 // ⭐ 개발 모드 설정 (배포 시 false로 변경!)
 const DEV_MODE = true;
