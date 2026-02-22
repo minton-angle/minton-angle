@@ -9,120 +9,195 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.db.session import SessionLocal
-from app.models.postModels import Post  # 테이블 등록용
+from app.models.postModels import Post  # 테이블 등록용(임포트 유지)
 from app.models.analysisModels import Analysis
 
 db = SessionLocal()
 
+
+def clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
+    return max(lo, min(hi, v))
+
+
+def score_to_err(score: float, lo: float = 0.02, hi: float = 0.20) -> float:
+    """점수가 높을수록 kf_error는 낮아지는 형태(legacy)"""
+    s = clamp(float(score), 0.0, 100.0)
+    base = hi - (s / 100.0) * (hi - lo)
+    noise = random.uniform(-0.005, 0.005)
+    return round(clamp(base + noise, lo, hi), 4)
+
+
+def make_metric(measured: float | None, target: str | None, diff: float | None, score: float) -> dict:
+    d = {"score": float(clamp(score, 0.0, 100.0))}
+    if measured is not None:
+        d["measured"] = measured
+    if target is not None:
+        d["target"] = target
+    if diff is not None:
+        d["diff"] = diff
+    return d
+
+
+def mean_score(scores: list[float]) -> float:
+    if not scores:
+        return 0.0
+    return round(sum(scores) / len(scores), 2)
+
+
 try:
     post_idx_value = "e70ba785-e705-41f8-b83c-c9ea45da28f5"
-
-    # ✅ 60일치 생성 (1개월(30d) + 여유분) : 0~39일 전
-    #    - 1주일(7d) vs 1개월(30d) 비교가 되도록 최소 한 달 이상 데이터 확보
+    TOTAL_DAYS = 300
     rows = []
-    for days_ago in range(300):
+
+    for days_ago in range(TOTAL_DAYS):
         dt = datetime.utcnow() - timedelta(days=days_ago)
-        # ------------------------------
-        # 1) 현실적인 분포 + 40일 구간에서 약 10점 개선(최신이 높음)
-        #    - 39일 전: base 약 85점
-        #    - 0일 전 : base 약 95점
-        # ------------------------------
-        def clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
-            return max(lo, min(hi, v))
 
-        def to_10(v: float) -> int:
-            """Quantize to 10-point increments within [0,100]."""
-            return int(clamp(round(v / 10.0) * 10.0, 0.0, 100.0))
+        # 0(과거) -> 1(최신)
+        progress = (TOTAL_DAYS - 1 - days_ago) / float(TOTAL_DAYS - 1)
+        base_avg = 85.0 + (10.0 * progress)  # 과거 85 -> 최신 95
 
-        progress = (39 - days_ago) / 39.0  # 0.0(과거) -> 1.0(최신)
-        base_avg = 85.0 + (10.0 * progress)  # 약 10점 차이
-
-        # Total 점수들(0~100): base를 중심으로 약간의 변동
-        ready_total_seed = clamp(random.gauss(base_avg + 1.0, 3.0))
-        rotation_total_seed = clamp(random.gauss(base_avg - 0.5, 3.0))
-        backswing_total_seed = clamp(random.gauss(base_avg - 2.0, 4.0))  # backswing은 조금 흔들리게
-        impact_total_seed = clamp(random.gauss(base_avg + 0.5, 3.0))
-        follow_total_seed = clamp(random.gauss(base_avg + 0.0, 3.0))
+        # stage seed
+        ready_seed = clamp(random.gauss(base_avg + 1.0, 3.0))
+        rotation_seed = clamp(random.gauss(base_avg - 0.5, 3.0))
+        backswing_seed = clamp(random.gauss(base_avg - 2.0, 4.0))
+        impact_seed = clamp(random.gauss(base_avg + 0.5, 3.0))
 
         # ------------------------------
-        # 2) 세부 항목 생성 (Total 규칙을 보장)
-        #    - Ready_Total = (Arm, Height, Stance) 평균
-        #    - Backswing_Total = (WristX, Racket, Elbow) 평균
-        #    - FollowSwing_Total = (Move, Cross) 평균
+        # Ready (4 metrics)
         # ------------------------------
-        # Ready (3개 평균)
-        ready_arm = to_10(random.gauss(ready_total_seed, 6.0))
-        ready_height = to_10(random.gauss(ready_total_seed, 6.0))
-        ready_stance = to_10(random.gauss(ready_total_seed, 6.0))
-        ready_total = round((ready_arm + ready_height + ready_stance) / 3.0, 2)
+        # 점수: seed를 중심으로 흔들리게
+        ready_arm_score = clamp(random.gauss(ready_seed, 6.0))
+        ready_left_wrist_score = clamp(random.gauss(ready_seed, 6.0))
+        ready_stance_score = clamp(random.gauss(ready_seed, 6.0))
+        # Wrist_Height_Ratio는 일부러 변동 크게(가끔 낮아지게)
+        ready_ratio_score = clamp(random.gauss(ready_seed - 10.0, 12.0))
 
-        # Rotation (단일 항목)
-        rotation_hip = to_10(random.gauss(rotation_total_seed, 5.0))
-        rotation_total = round(float(rotation_hip), 2)
+        ready_score = mean_score([ready_arm_score, ready_left_wrist_score, ready_stance_score, ready_ratio_score])
 
-        # Backswing (3개 평균)
-        backswing_wristx = to_10(random.gauss(backswing_total_seed, 10.0))
-        backswing_racket = to_10(random.gauss(backswing_total_seed, 10.0))
-        backswing_elbow = to_10(random.gauss(backswing_total_seed, 10.0))
-        backswing_total = round((backswing_wristx + backswing_racket + backswing_elbow) / 3.0, 2)
-
-        # Impact (단일 항목)
-        impact_angle = to_10(random.gauss(impact_total_seed, 5.0))
-        impact_total = round(float(impact_angle), 2)
-
-        # FollowSwing (boolean)
-        # - 실제 서비스에서는 True/False로 들어올 예정
-        # - 더미데이터는 랜덤으로 생성
-        follow_pass = bool(random.choice([True, False]))
-
-        # 하위호환: 기존 UI/API는 0~100 점수형 Total을 기대하므로
-        # True면 100, False면 0으로 유지
-        follow_total = 100.0 if follow_pass else 0.0
+        ready_node = {
+            "Ready_score": ready_score,
+            "Arm_Angle": make_metric(
+                measured=round(random.uniform(10.0, 80.0), 2),
+                target="18 ~ 70",
+                diff=0.0,
+                score=ready_arm_score,
+            ),
+            "Left_Wrist_Height": make_metric(
+                measured=round(random.uniform(-0.25, 0.15), 4),
+                target="< 0",
+                diff=0.0,
+                score=ready_left_wrist_score,
+            ),
+            "Stance_Width": make_metric(
+                measured=round(random.uniform(0.10, 0.32), 4),
+                target="> 0.158",
+                diff=0.0,
+                score=ready_stance_score,
+            ),
+            "Wrist_Height_Ratio": make_metric(
+                measured=round(random.uniform(-0.60, 0.10), 2),
+                target="-0.5 ~ -0.3",
+                # 예시처럼 diff가 있을 수 있으니 적당히 생성
+                diff=round(random.uniform(0.0, 0.6), 2),
+                score=ready_ratio_score,
+            ),
+        }
 
         # ------------------------------
-        # 3) Average_Score
-        #    - 점수 기반 Total들만 평균 (FollowSwing은 boolean이므로 제외)
+        # Rotation (2 metrics)
         # ------------------------------
-        total_items = [ready_total, rotation_total, backswing_total, impact_total]
-        average_score = round(sum(total_items) / len(total_items), 2)
+        rot_hip_score = clamp(random.gauss(rotation_seed, 6.0))
+        rot_shoulder_score = clamp(random.gauss(rotation_seed, 6.0))
+        rotation_score = mean_score([rot_hip_score, rot_shoulder_score])
+
+        rotation_node = {
+            "Rotation_score": rotation_score,
+            "Hip_Level": make_metric(measured=None, target=None, diff=None, score=rot_hip_score),
+            "Shoulder_Ratio": make_metric(measured=None, target=None, diff=None, score=rot_shoulder_score),
+        }
 
         # ------------------------------
-        # 4) kf 오차는 점수와 반비례하도록(대충) 생성
-        #    - 점수가 높을수록 오차가 낮아지게
+        # Backswing (3 metrics)
         # ------------------------------
-        def score_to_err(score: float, lo: float = 0.02, hi: float = 0.20) -> float:
-            s = max(0.0, min(100.0, float(score)))
-            base = hi - (s / 100.0) * (hi - lo)
-            noise = random.uniform(-0.005, 0.005)
-            return round(max(lo, min(hi, base + noise)), 4)
+        bs_wrist_score = clamp(random.gauss(backswing_seed, 10.0))
+        bs_elbow_score = clamp(random.gauss(backswing_seed - 8.0, 14.0))  # elbow lift는 좀 더 흔들리게
+        bs_lshape_score = clamp(random.gauss(backswing_seed, 10.0))
+        backswing_score = mean_score([bs_wrist_score, bs_elbow_score, bs_lshape_score])
 
-        kf1_err = score_to_err(ready_total)
-        kf2_err = score_to_err(backswing_total)
-        kf3_err = score_to_err(impact_total)
+        backswing_node = {
+            "Backswing_score": backswing_score,
+            "Wrist_X_Depth": make_metric(measured=None, target=None, diff=None, score=bs_wrist_score),
+            "Elbow_Lift": make_metric(measured=None, target=None, diff=None, score=bs_elbow_score),
+            "L_Shape_Angle": make_metric(measured=None, target=None, diff=None, score=bs_lshape_score),
+        }
+
+        # ------------------------------
+        # Impact (2 metrics)
+        # ------------------------------
+        imp_ext_score = clamp(random.gauss(impact_seed, 8.0))
+        # Impact의 Wrist_Height_Ratio는 일부러 낮게 나올 때 있게
+        imp_ratio_score = clamp(random.gauss(impact_seed - 15.0, 15.0))
+        impact_score = mean_score([imp_ext_score, imp_ratio_score])
+
+        impact_node = {
+            "Impact_score": impact_score,
+            "Arm_Extension_Angle": make_metric(
+                measured=round(random.uniform(120.0, 185.0), 2),
+                target="140 ~ 180",
+                diff=0.0,
+                score=imp_ext_score,
+            ),
+            "Wrist_Height_Ratio": make_metric(
+                measured=round(random.uniform(-0.20, 0.20), 2),
+                target="2.5 ~ 4.5",
+                diff=round(random.uniform(0.0, 3.5), 2),
+                score=imp_ratio_score,
+            ),
+        }
+
+        # ------------------------------
+        # FollowSwing (Performance: score + success)
+        # ------------------------------
+        p_success = clamp(0.45 + 0.4 * progress, 0.05, 0.95)
+        follow_success = random.random() < p_success
+        follow_score = 100.0 if follow_success else 0.0
+
+        followswing_node = {
+            "FollowSwing_score": follow_score,
+            "Performance": {
+                "score": follow_score,
+                "success": bool(follow_success),
+            },
+        }
+
+        # ------------------------------
+        # total_score: Ready/Rotation/Backswing/Impact 평균
+        # ------------------------------
+        total_score = mean_score([ready_score, rotation_score, backswing_score, impact_score])
 
         score_json = {
-            "1_Ready_Total": ready_total,
-            "1_Ready_Arm": ready_arm,
-            "1_Ready_Height": ready_height,
-            "1_Ready_Stance": ready_stance,
-            "2_Rotation_Total": rotation_total,
-            "2_Rotation_Hip": rotation_hip,
-            "3_Backswing_Total": backswing_total,
-            "3_Backswing_WristX": backswing_wristx,
-            "3_Backswing_Racket": backswing_racket,
-            "3_Backswing_Elbow": backswing_elbow,
-            "4_Impact_Total": impact_total,
-            "4_Impact_Angle": impact_angle,
-            "5_FollowSwing_Total": follow_total,      # 하위호환(0/100)
-            "5_FollowSwing_Pass": bool(follow_pass),  # 신규(boolean)
-            "Average_Score": average_score,
+            "total_score": total_score,
+            "details": {
+                "Ready": ready_node,
+                "Rotation": rotation_node,
+                "Backswing": backswing_node,
+                "Impact": impact_node,
+                "FollowSwing": followswing_node,
+            },
         }
+
+        # legacy kf_error는 대충 대응(서비스 과거 경로 깨지지 않게)
+        kf1_err = score_to_err(ready_score)
+        kf2_err = score_to_err(backswing_score)
+        kf3_err = score_to_err(impact_score)
 
         rows.append(
             Analysis(
                 idx=str(uuid.uuid4()),
                 post_idx=post_idx_value,
-                kf1=1, kf2=2, kf3=3,
+                kf1=1,
+                kf2=2,
+                kf3=3,
                 kf1_error=kf1_err,
                 kf2_error=kf2_err,
                 kf3_error=kf3_err,
@@ -133,7 +208,7 @@ try:
 
     db.add_all(rows)
     db.commit()
-    print(f"✅ analysis 300일치({len(rows)}건) 생성 완료! post_idx={post_idx_value}")
+    print(f"✅ analysis {TOTAL_DAYS}일치({len(rows)}건) 생성 완료! post_idx={post_idx_value}")
 
 except Exception as e:
     db.rollback()
