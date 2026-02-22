@@ -141,7 +141,7 @@ class SwingService:
         self, 
         request, 
         db, 
-        user_id,  # ⭐ 파라미터 추가!
+        user_id,
         kf1, 
         kf2, 
         kf3, 
@@ -153,7 +153,7 @@ class SwingService:
         
         post = Post(
             idx=post_id,
-            user_id=user_id,  # ⭐ 여기서 사용!
+            user_id=user_id,
             type="REALTIME",
             status="ANALYZING",
             total_score=eval_result['total_score']
@@ -161,10 +161,11 @@ class SwingService:
         db.add(post)
         db.flush()
         
-        # ANALYSIS 생성
+        # ⭐ ANALYSIS 생성 (swing_num 추가)
         analysis = Analysis(
             idx=str(uuid.uuid4()),
             post_idx=post_id,
+            swing_num=1,  # ⭐ 추가!
             kf1=kf1,
             kf2=kf2,
             kf3=kf3,
@@ -186,42 +187,41 @@ class SwingService:
         )
 
     async def _process_swing_2_or_3(self, request, db, kf1, kf2, kf3, eval_result, quick_feedback):
-        """2~3회차 처리: 점수 누적 평균화 및 최종 완료"""
+        """2~3회차 처리: 각 스윙을 개별 ANALYSIS로 저장"""
         post = db.query(Post).filter(Post.idx == request.post_id).first()
         if not post:
             raise ValueError("기존 분석 기록을 찾을 수 없습니다.")
         
-        analysis = db.query(Analysis).filter(Analysis.post_idx == request.post_id).first()
+        # ⭐ 새로운 ANALYSIS 생성 (각 회차마다!)
+        analysis = Analysis(
+            idx=str(uuid.uuid4()),
+            post_idx=request.post_id,
+            swing_num=request.swing_num,  # ⭐ 2 또는 3
+            kf1=kf1,
+            kf2=kf2,
+            kf3=kf3,
+            score_json=eval_result
+        )
+        db.add(analysis)
         
-        if analysis:
-            old_data = analysis.score_json
-            current_s = eval_result['stage_scores']
-            
-            # 단계별 평균 점수 업데이트
-            new_stage_scores = {
-                k: (old_data['stage_scores'].get(k, 0) + current_s[k]) // 2 
-                for k in current_s
-            }
-            
-            # 전체 평균 점수 업데이트
-            new_total = sum(new_stage_scores.values()) // 3
-            
-            analysis.score_json = {
-                "evaluation": eval_result['evaluation'],
-                "stage_scores": new_stage_scores,
-                "total_score": new_total
-            }
-            analysis.kf1, analysis.kf2, analysis.kf3 = kf1, kf2, kf3
-            post.total_score = new_total
-
+        # ⭐ 파일 저장 (swing_num 포함)
         self._save_keyframe_files(db, request.post_id, request.frames, [kf1, kf2, kf3], swing_num=request.swing_num)
         
+        # ⭐ 3회차 완료 시
         if request.swing_num == 3:
+            # POST의 total_score는 3회차 평균으로 업데이트
+            all_analyses = db.query(Analysis).filter(Analysis.post_idx == request.post_id).all()
+            avg_score = sum(a.score_json.get('total_score', 0) for a in all_analyses) // len(all_analyses)
+            
+            post.total_score = avg_score
             post.status = "DONE"
             db.commit()
             
-            # ⭐ FILE 테이블에서 파일 경로 가져오기
-            files = db.query(File).filter(File.post_idx == request.post_id).all()
+            # ⭐ 3회차 파일만 반환 (또는 전체 반환)
+            files = db.query(File).filter(
+                File.post_idx == request.post_id,
+                File.swing_num == 3  # ⭐ 3회차 파일만
+            ).all()
             
             file_paths = {}
             for f in files:
@@ -236,23 +236,23 @@ class SwingService:
                 elif f.file_type == "IMPACT":
                     file_paths['impact_video'] = f.file_path
             
-            # ⭐ 영상 업로드와 동일한 구조로 응답!
             return AnalysisCompleteResponse(
                 swing_num=3,
                 post_id=request.post_id,
                 save_to_db=True,
-                total_score=post.total_score,
-                stage_scores=analysis.score_json['stage_scores'],
+                total_score=avg_score,
+                stage_scores=eval_result['stage_scores'],
                 quick_feedback=quick_feedback,
-                scores=analysis.score_json,  # ⭐ evaluation 포함된 전체 데이터!
+                scores=eval_result,
                 keyframes={
                     "kf1": kf1,
                     "kf2": kf2,
                     "kf3": kf3
                 },
-                files=file_paths  # ⭐ 파일 경로!
+                files=file_paths
             )
         
+        # ⭐ 1~2회차는 기존 로직
         db.commit()
         return QuickFeedbackResponse(
             swing_num=request.swing_num,
@@ -279,6 +279,7 @@ class SwingService:
             db.add(File(
                 idx=str(uuid.uuid4()),
                 post_idx=post_id,
+                swing_num=swing_num,
                 file_type=f"KF{kf_num}",
                 file_name=f"s{swing_num}_kf{kf_num}.jpg",
                 file_path=file_path,
@@ -293,6 +294,7 @@ class SwingService:
             db.add(File(
                 idx=str(uuid.uuid4()),
                 post_idx=post_id,
+                swing_num=swing_num,
                 file_type=t,
                 file_name=f"s{swing_num}_{t.lower()}.mp4",
                 file_path=p,
