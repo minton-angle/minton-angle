@@ -366,7 +366,7 @@ def _system_prompt(lang: str) -> str:
    - retrieved_coaching의 문구를 그대로 길게 복붙하지 말고, 핵심 근거를 요약/재서술하여 자연스럽게 반영하십시오.
    - retrieved_coaching가 비어있는 경우에만 일반 코칭 지식으로 작성하십시오.
 1) 수치는 반드시 `meta.score_stats`에 있는 값만 사용하십시오.
-    - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_SuccessRate, Average_Score
+    - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_SuccessRate, total_score
     - 각 Total 키(1~4)는 추가로 아래 정보를 포함할 수 있습니다:
      • sub_stats: { 세부키: { current_mean, prev_mean, delta, direction } }
      • worst_sub, worst_sub_current_mean

@@ -229,14 +229,6 @@ def get_analysis_by_post_alias(
             prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
 
         def to_sessions(analyses: list[Analysis]) -> list[Dict[str, Any]]:
-            SCORE_KEYS = [
-                "1_Ready_Total",
-                "2_Rotation_Total",
-                "3_Backswing_Total",
-                "4_Impact_Total",
-                "5_FollowSwing_Total",
-            ]
-
             def _clamp_score(v: Any) -> float:
                 try:
                     x = float(v)
@@ -244,31 +236,73 @@ def get_analysis_by_post_alias(
                     return 0.0
                 return max(0.0, min(100.0, x))
 
+            def _stage_score(sj: Dict[str, Any], stage: str) -> Optional[float]:
+                details = sj.get("details") if isinstance(sj, dict) else None
+                if not isinstance(details, dict):
+                    return None
+                node = details.get(stage)
+                if not isinstance(node, dict):
+                    return None
+                v = node.get(f"{stage}_score")
+                try:
+                    return _clamp_score(v) if v is not None else None
+                except Exception:
+                    return None
+
+            def _followswing_success(sj: Dict[str, Any]) -> Optional[bool]:
+                details = sj.get("details") if isinstance(sj, dict) else None
+                if not isinstance(details, dict):
+                    return None
+                fs = details.get("FollowSwing")
+                if not isinstance(fs, dict):
+                    return None
+                perf = fs.get("Performance")
+                if not isinstance(perf, dict):
+                    return None
+                v = perf.get("success")
+                if v is True:
+                    return True
+                if v is False:
+                    return False
+                return None
+
             out = []
             for a in analyses:
                 # legacy KF-based score
                 mean_err = _mean_abs_kf_error(a)
 
-                # new stage scores from score_json
                 sj = getattr(a, "score_json", None) or {}
-                stage_scores = {k: _clamp_score(sj.get(k)) for k in SCORE_KEYS}
-                avg_score = sj.get("Average_Score", None)
-                avg_score_num = None
-                try:
-                    if avg_score is not None:
-                        avg_score_num = _clamp_score(avg_score)
-                except Exception:
-                    avg_score_num = None
 
-                # session score: strictly use Average_Score (no KF fallback)
-                session_score = int(round(avg_score_num)) if avg_score_num is not None else 0
+                # stage mean scores (for charts/cards)
+                stage_scores = {
+                    "1_Ready_Total": _clamp_score(_stage_score(sj, "Ready") or 0.0),
+                    "2_Rotation_Total": _clamp_score(_stage_score(sj, "Rotation") or 0.0),
+                    "3_Backswing_Total": _clamp_score(_stage_score(sj, "Backswing") or 0.0),
+                    "4_Impact_Total": _clamp_score(_stage_score(sj, "Impact") or 0.0),
+                    # FollowSwing is still rendered as a stage score for UI; use stage score if present, else 0
+                    "5_FollowSwing_Total": _clamp_score(_stage_score(sj, "FollowSwing") or 0.0),
+                }
+
+                # total score for ring/chart (strictly total_score)
+                total_score = sj.get("total_score", None)
+                total_score_num = None
+                try:
+                    if total_score is not None:
+                        total_score_num = _clamp_score(total_score)
+                except Exception:
+                    total_score_num = None
+
+                session_score = int(round(total_score_num)) if total_score_num is not None else 0
+
+                # boolean followswing pass for donut/false-rate logic on FE
+                followswing_pass = _followswing_success(sj)
 
                 out.append({
                     "idx": a.idx,
                     "created_at": a.create_date.isoformat() if a.create_date else None,
                     "frame": "ALL",
 
-                    # score for ring/chart (strictly Average_Score)
+                    # score for ring/chart (strictly total_score)
                     "score": session_score,
 
                     # legacy fields (keep)
@@ -279,7 +313,8 @@ def get_analysis_by_post_alias(
 
                     # new fields
                     "stage_scores": stage_scores,
-                    "average_score": avg_score_num,
+                    "total_score": total_score_num,
+                    "followswing_pass": followswing_pass,
                 })
             return out
 
@@ -430,55 +465,91 @@ def posture_report_from_post(
         # 점수 기반 리포트로 전환: angles(단일 세션)은 사용하지 않음
         angles = {}
 
-        # ===== 점수 기반: Total들 + Average_Score 통계 =====
+        # ===== 점수 기반: Stage score들 + total_score 통계 =====
         SCORE_KEYS = [
             "1_Ready_Total",
             "2_Rotation_Total",
             "3_Backswing_Total",
             "4_Impact_Total",
-            # FollowSwing은 boolean 기반 → 성공률 점수로 meta에 제공
             "5_FollowSwing_SuccessRate",
-            "Average_Score",
+            "total_score",
         ]
 
         # ===== stage breakdown(세부 항목) 정의 =====
-        # Total은 UI/게이지/시계열 유지용, breakdown은 LLM 문장 다양성/원인 후보 추정용
-        STAGE_BREAKDOWN_KEYS: Dict[str, list[str]] = {
-            "1_Ready_Total": ["1_Ready_Arm", "1_Ready_Height", "1_Ready_Stance"],
-            "2_Rotation_Total": ["2_Rotation_Hip"],
-            "3_Backswing_Total": ["3_Backswing_WristX", "3_Backswing_Racket", "3_Backswing_Elbow"],
-            "4_Impact_Total": ["4_Impact_Angle"],
-            # FollowSwing은 boolean 기반(5_FollowSwing_Pass)으로 별도 처리
+        # 새로운 score_json 스키마(details 기반)에서 stage별 세부 metric명을 동적으로 수집합니다.
+        STAGES = {
+            "1_Ready_Total": "Ready",
+            "2_Rotation_Total": "Rotation",
+            "3_Backswing_Total": "Backswing",
+            "4_Impact_Total": "Impact",
         }
 
-        def _sub_score_of(row: Analysis, key: str) -> Optional[float]:
+        def _details_node(row: Analysis) -> Dict[str, Any]:
+            sj = getattr(row, "score_json", None) or {}
+            details = sj.get("details") if isinstance(sj, dict) else None
+            return details if isinstance(details, dict) else {}
+
+        def _stage_node(row: Analysis, stage_name: str) -> Dict[str, Any]:
+            details = _details_node(row)
+            node = details.get(stage_name)
+            return node if isinstance(node, dict) else {}
+
+        def _metric_score(row: Analysis, stage_name: str, metric_name: str) -> Optional[float]:
+            node = _stage_node(row, stage_name)
+            metric = node.get(metric_name)
+            if not isinstance(metric, dict):
+                return None
+            v = metric.get("score")
             try:
-                sj = getattr(row, "score_json", None) or {}
-                v = sj.get(key)
                 return float(v) if v is not None else None
             except Exception:
                 return None
 
-        def _mean_sub_score(rows: list[Analysis], key: str) -> float:
+        def _stage_score(row: Analysis, stage_name: str) -> Optional[float]:
+            node = _stage_node(row, stage_name)
+            v = node.get(f"{stage_name}_score")
+            try:
+                return float(v) if v is not None else None
+            except Exception:
+                return None
+
+        def _mean_metric_score(rows: list[Analysis], stage_name: str, metric_name: str) -> float:
             vals: list[float] = []
             for rr in rows:
-                v = _sub_score_of(rr, key)
+                v = _metric_score(rr, stage_name, metric_name)
                 if v is None:
                     continue
                 v = max(0.0, min(100.0, float(v)))
                 vals.append(v)
             return sum(vals) / len(vals) if vals else 0.0
 
-        def _compute_breakdown_stats(total_key: str, cur_rows: list[Analysis], prev_rows: list[Analysis]) -> Dict[str, Any]:
-            """각 Total에 대해 세부 항목 통계 + worst_sub(가장 낮은 세부 점수) 요약을 생성."""
-            sub_keys = STAGE_BREAKDOWN_KEYS.get(total_key, [])
+        def _collect_stage_metrics(rows: list[Analysis], stage_name: str) -> list[str]:
+            # rows에서 stage_name 아래의 metric key들을 수집( *_score 제외 )
+            keys: set[str] = set()
+            for rr in rows:
+                node = _stage_node(rr, stage_name)
+                for k, v in node.items():
+                    if k == f"{stage_name}_score":
+                        continue
+                    # FollowSwing의 경우 Performance는 stage breakdown에 포함하지 않음(별도 성공률 처리)
+                    if stage_name == "FollowSwing" and k == "Performance":
+                        continue
+                    if isinstance(v, dict) and "score" in v:
+                        keys.add(str(k))
+            return sorted(keys)
+
+        def _compute_breakdown_stats(total_key: str, stage_name: str, cur_rows: list[Analysis], prev_rows: list[Analysis]) -> Dict[str, Any]:
+            """각 Stage Total에 대해 세부 항목 통계 + worst_sub(가장 낮은 세부 점수) 요약을 생성."""
+            sub_keys = _collect_stage_metrics(cur_rows, stage_name)
             sub_stats: Dict[str, Any] = {}
             for sk in sub_keys:
-                cm = _mean_sub_score(cur_rows, sk)
-                pm = _mean_sub_score(prev_rows, sk) if prev_rows else cm
+                cm = _mean_metric_score(cur_rows, stage_name, sk)
+                pm = _mean_metric_score(prev_rows, stage_name, sk) if prev_rows else cm
                 d = cm - pm
                 sd = "improved" if d > 1e-9 else ("worsened" if d < -1e-9 else "flat")
-                sub_stats[sk] = {
+                # metric id는 RAG/KB 매칭을 위해 stage 접두를 붙여 저장
+                metric_id = f"{stage_name}.{sk}"
+                sub_stats[metric_id] = {
                     "current_mean": round(cm, 2),
                     "prev_mean": round(pm, 2),
                     "delta": round(d, 2),
@@ -504,12 +575,28 @@ def posture_report_from_post(
             }
 
         def _score_of(row: Analysis, key: str) -> Optional[float]:
-            try:
-                sj = getattr(row, "score_json", None) or {}
-                v = sj.get(key)
-                return float(v) if v is not None else None
-            except Exception:
+            sj = getattr(row, "score_json", None) or {}
+            if not isinstance(sj, dict):
                 return None
+
+            # total_score
+            if key == "total_score":
+                v = sj.get("total_score")
+                try:
+                    return float(v) if v is not None else None
+                except Exception:
+                    return None
+
+            # stage totals
+            stage_name = STAGES.get(key)
+            if stage_name:
+                v = _stage_score(row, stage_name)
+                try:
+                    return float(v) if v is not None else None
+                except Exception:
+                    return None
+
+            return None
 
         def _mean_score(rows: list[Analysis], key: str) -> float:
             vals: list[float] = []
@@ -517,7 +604,6 @@ def posture_report_from_post(
                 v = _score_of(r, key)
                 if v is None:
                     continue
-                # 점수는 0~100 범위로 안전하게 클램프
                 v = max(0.0, min(100.0, float(v)))
                 vals.append(v)
             return sum(vals) / len(vals) if vals else 0.0
@@ -528,19 +614,18 @@ def posture_report_from_post(
             false_n = 0
             for rr in rows:
                 sj = getattr(rr, "score_json", None) or {}
-
-                v = sj.get("5_FollowSwing_Pass", None)
-                if v is None:
-                    # fallback: 기존 0/100 Total로 추정
-                    t = sj.get("5_FollowSwing_Total", None)
-                    try:
-                        if t is None:
-                            continue
-                        passed = float(t) >= 50.0
-                    except Exception:
-                        continue
-                else:
-                    passed = bool(v)
+                details = sj.get("details") if isinstance(sj, dict) else None
+                if not isinstance(details, dict):
+                    continue
+                fs = details.get("FollowSwing")
+                if not isinstance(fs, dict):
+                    continue
+                perf = fs.get("Performance")
+                if not isinstance(perf, dict):
+                    continue
+                passed = perf.get("success")
+                if passed is not True and passed is not False:
+                    continue
 
                 total += 1
                 if not passed:
@@ -598,14 +683,14 @@ def posture_report_from_post(
             }
 
             # Total 키는 세부 항목 breakdown 요약을 추가(LLM 문장 다양성 목적)
-            if k in STAGE_BREAKDOWN_KEYS:
-                node.update(_compute_breakdown_stats(k, analyses, prev_analyses))
+            if k in STAGES:
+                node.update(_compute_breakdown_stats(k, STAGES[k], analyses, prev_analyses))
 
             score_stats[k] = node
 
-        # 전체 트렌드는 Average_Score 기준으로 요약
-        cur_avg = float(score_stats.get("Average_Score", {}).get("current_mean", 0.0))
-        prev_avg = float(score_stats.get("Average_Score", {}).get("prev_mean", cur_avg))
+        # 전체 트렌드는 total_score 기준으로 요약
+        cur_avg = float(score_stats.get("total_score", {}).get("current_mean", 0.0))
+        prev_avg = float(score_stats.get("total_score", {}).get("prev_mean", cur_avg))
         avg_delta = round(cur_avg - prev_avg, 2)
         trend = "improved" if avg_delta > 1e-9 else ("worsened" if avg_delta < -1e-9 else "flat")
 
