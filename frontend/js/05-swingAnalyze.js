@@ -462,14 +462,16 @@ function captureFrame() {
 // 8. 백엔드로 전송
 // ========================================
 async function sendFramesToBackend(swingNum, frames) {
-    const keypoints = frames.map(f => f.keypoints);
-    
-    console.log(`🔑 Keypoints: ${keypoints.length}개`);
-    
     try {
-        const result = await apiCall('/api/realtime/analyze-swing', {
+        console.log(`📤 API 호출: swing_num=${swingNum}, frames=${frames.length}개`);
+        
+        const keypoints = frames.map(f => f.keypoints);
+        console.log(`🔑 Keypoints: ${keypoints.length}개`);
+        
+        const response = await apiCall('/api/realtime/analyze-swing', {
             method: 'POST',
             body: JSON.stringify({
+                user_id: 'user_001',
                 swing_num: swingNum,
                 post_id: swingNum > 1 ? getData('post_id') : null,
                 keypoints: keypoints,
@@ -477,30 +479,21 @@ async function sendFramesToBackend(swingNum, frames) {
             })
         });
         
-        // ⭐ 응답 전체 로그!
-        console.log('📦 백엔드 응답:', result);
-        console.log('🔑 result.post_id:', result.post_id);
+        console.log('✅ API 응답:', response);
         
+        // ⭐ 1회차에서 post_id 저장
         if (swingNum === 1) {
-            const postId = result.post_id;
-            
+            const postId = response.post_id || response.post_idx;
             if (postId) {
                 saveData('post_id', postId);
-                console.log(`✅ post_id 저장 성공: ${postId}`);
-                
-                // 저장 확인
-                const saved = getData('post_id');
-                console.log(`🔍 저장 확인: ${saved}`);
+                console.log(`💾 post_id 저장: ${postId}`);
             } else {
-                console.error('❌ result.post_id가 없습니다!', result);
+                console.error('❌ 응답에 post_id 없음!', response);
             }
-        } else {
-            // 2~3회차에서 post_id 확인
-            const storedPostId = getData('post_id');
-            console.log(`📋 ${swingNum}회차 - 저장된 post_id: ${storedPostId}`);
         }
         
-        return result;
+        // ⭐ 응답 반환!
+        return response;
         
     } catch (error) {
         console.error('❌ API 호출 실패:', error);

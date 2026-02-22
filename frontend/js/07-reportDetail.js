@@ -256,4 +256,3 @@ function showError(message) {
         </div>
     `;
 }
-message.txt

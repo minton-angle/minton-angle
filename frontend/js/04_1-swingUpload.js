@@ -48,18 +48,27 @@ async function startAnalysis() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
         
-        // ⭐ authFetch 사용!
-        const response = await authFetch(`${API_BASE_URL}/api/upload/video`, {
+        // ⭐ authFetch 대신 fetch 직접 사용!
+        const response = await fetch(`${API_BASE_URL}/api/upload/video`, {
             method: 'POST',
             body: formData,
             signal: controller.signal
+            // ⭐ headers 추가 안 함! (multipart는 브라우저가 자동 설정)
         });
 
         clearTimeout(timeoutId);
         
+        console.log('📥 응답 수신:', response.status, response.ok);
+        
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || '분석 실패');
+            let errorMessage = '분석 실패';
+            try {
+                const error = await response.json();
+                errorMessage = error.detail || errorMessage;
+            } catch {
+                errorMessage = `HTTP ${response.status}`;
+            }
+            throw new Error(errorMessage);
         }
         
         const result = await response.json();
