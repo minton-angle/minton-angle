@@ -100,20 +100,24 @@ def _get_chroma():
     # Optional deps: keep backend running even if RAG deps are not installed yet.
     try:
         import chromadb
-        from chromadb.config import Settings
         from sentence_transformers import SentenceTransformer
     except Exception as e:
         logger_llm.warning("RAG deps missing (install chromadb sentence-transformers). err=%s", str(e))
         return None, None
 
     try:
-        client = chromadb.Client(
-            Settings(
-                chroma_db_impl="duckdb+parquet",
-                persist_directory=CHROMA_DIR,
-                anonymized_telemetry=False,
+        # ✅ CHROMA_DIR 없으면 자동 생성
+        try:
+            os.makedirs(CHROMA_DIR, exist_ok=True)
+        except Exception as e:
+            logger_llm.warning(
+                "RAG chroma dir mkdir failed dir=%s err=%s",
+                CHROMA_DIR,
+                str(e),
             )
-        )
+        # NOTE: Newer Chroma versions deprecate `chroma_db_impl` Settings.
+        # Use PersistentClient for on-disk persistence.
+        client = chromadb.PersistentClient(path=CHROMA_DIR)
         col = client.get_or_create_collection(name=CHROMA_COLLECTION)
         embedder = SentenceTransformer(EMBED_MODEL)
     except Exception as e:
@@ -175,7 +179,7 @@ def _score_band_from_mean(x: Any) -> str:
         return "80-90"
     return ">=90"
 
-
+# 쿼리 빌더: meta.score_stats의 Total과 worst_sub, risk_level을 기반으로 검색 의도에 맞는 텍스트 쿼리를 생성하여 RAG 검색에 사용
 def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
     """Build deterministic queries from meta.score_stats (worst_sub + risk_level)."""
     score_stats = (meta or {}).get("score_stats", {}) or {}
@@ -239,6 +243,33 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
         return []
 
     queries = _build_rag_queries(meta or {})
+
+    def _normalize_where(where: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Chroma where clause normalizer.
+
+        Chroma expects where to be expressed with exactly one operator at the top-level.
+        This converts simple equality dicts into operator form.
+
+        - {} or invalid -> None
+        - {"k": v} -> {"k": {"$eq": v}}
+        - {"k1": v1, "k2": v2} -> {"$and": [{"k1": {"$eq": v1}}, {"k2": {"$eq": v2}}]}
+        """
+        if not isinstance(where, dict) or not where:
+            return None
+
+        items = [(str(k), where[k]) for k in where.keys() if k is not None]
+        if not items:
+            return None
+
+        if len(items) == 1:
+            k, v = items[0]
+            return {k: {"$eq": v}}
+
+        return {"$and": [{k: {"$eq": v}} for k, v in items]}
+
+    # RAG 쿼리 로그: 검색 의도 파악 및 디버깅용
+    logger_llm.info("RAG queries=%s", json.dumps(queries, ensure_ascii=False))
+
     if not queries:
         return []
 
@@ -253,14 +284,16 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
             break
 
         text = _safe_str(q.get("q"))
-        where = q.get("where") if isinstance(q.get("where"), dict) else {}
+        where_raw = q.get("where") if isinstance(q.get("where"), dict) else {}
+        where = _normalize_where(where_raw)
 
         try:
             qemb = embedder.encode([text], normalize_embeddings=True).tolist()
+            # 쿼리가 들어오면 검색 시도 로그
             res = col.query(
                 query_embeddings=qemb,
                 n_results=min(per_q, COACH_RAG_TOPK),
-                where=where or None,
+                where=where,
                 include=["documents", "metadatas", "distances"],
             )
         except TypeError:
@@ -268,7 +301,7 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
             res = col.query(
                 query_embeddings=qemb,
                 n_results=min(per_q, COACH_RAG_TOPK),
-                where=where or None,
+                where=where,
             )
         except Exception as e:
             logger_llm.warning("RAG query failed q=%s err=%s", text, str(e))
@@ -303,6 +336,19 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
                     "content": doc,
                 }
             )
+        # 각 쿼리 처리 후 누적 결과 로그(쿼리별)
+        logger_llm.info(
+            "RAG retrieved 누적 개수 count=%d ids=%s",
+            len(results),
+            [r.get("id") for r in results],
+        )
+
+    # 최종 누적 결과 로그
+    logger_llm.info(
+        "RAG retrieved 최종 누적(주입문서) 개수 count=%d ids=%s",
+        len(results),
+        [r.get("id") for r in results],
+    )
 
     return results
 
@@ -569,6 +615,20 @@ def generate_report(
     model: str = GROQ_MODEL,
 ) -> Dict[str, Any]:
 
+    # Enrich meta with RAG retrieved coaching snippets (optional)
+    if meta is not None and not (meta.get("retrieved_coaching") or []):
+        try:
+            meta["retrieved_coaching"] = _retrieve_coaching(meta)
+            # RAG 검색 결과 로그: 검색 결과 파악 및 디버깅용
+            logger_llm.info(
+                "RAG injected into meta count=%d",
+                len(meta.get("retrieved_coaching") or []),
+            )
+        except Exception as e:
+            logger_llm.warning("RAG retrieve failed err=%s", str(e))
+            meta["retrieved_coaching"] = []
+
+    # 최종 prompt 입력 로그(rag on/off는 enrichment 이후 상태 기준)
     try:
         score_stats = (meta or {}).get("score_stats", {})
         logger_llm.info(
@@ -579,14 +639,6 @@ def generate_report(
         )
     except Exception:
         pass
-
-    # Enrich meta with RAG retrieved coaching snippets (optional)
-    if meta is not None and not (meta.get("retrieved_coaching") or []):
-        try:
-            meta["retrieved_coaching"] = _retrieve_coaching(meta)
-        except Exception as e:
-            logger_llm.warning("RAG retrieve failed err=%s", str(e))
-            meta["retrieved_coaching"] = []
 
     messages = [
         {"role": "system", "content": _system_prompt(lang)},
