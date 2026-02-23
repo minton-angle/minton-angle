@@ -3,7 +3,7 @@
 // ========================================
 
 // API 기본 URL
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://172.31.98.95:8000';
 
 // ========================================
 // 인증 관련
@@ -61,22 +61,20 @@ function logout() {
 function checkAuth() {
     // 공개 페이지 목록 (로그인 없이 접근 가능)
     const publicPages = [
-        '12-login.html',
-        '11-signUp.html',
         '00-onboarding.html',
+        '01-home.html',
+        '02-gripMode.html',
+        '03-swingMode.html',
         '04_1-swingUpload.html',
+        '04-swingGuide.html',
         '05-swingAnalyze.html',
         '06-reportLoading.html',
         '07-reportDetaile.html',
-        '06-reportLoading.html',
-        '02-gripMode.html'
-        // '03-swingMode.html',
-        // '04-swingGuide.html',
-        // '10_1-editProfile.html',
-        // '10-myPage.html',
-        // '11-signUp.html',
-        // '12-logIn.html',
-        // '01-home.html'
+        '10_1-editProfile.html',
+        '10-myPage.html',
+        '11-signUp.html',
+        '12-logIn.html',
+        
         
     ];
     

@@ -2,49 +2,55 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>마이페이지</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style/css">
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/10-myPage.css">
 </head>
 <body>
     <div class="mobile-container">
-        <div class="content-wrapper">
-            <header class="header-nav">
-                <button class="btn-back" id="backMain"></button>
-                <h1 class="header-title">마이페이지</h1>
-            </header>
+        <header class="header">
+            <button class="back-btn" id="backMain">
+                <img src="assets/images/arrow_back.png" alt="뒤로가기">
+            </button>
+            <h1 class="header-title">마이 페이지</h1>
+        </header>
 
-            <div class="scroll-container">
-                <section class="user-profile">
-                    <div class="avatar-box">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
-                    <div class="user-info">
-                        <span class="name" id="userName">김고수</span>
-                        <span class="nim">님</span>
-                    </div>
-                </section>
+        <div class="scroll-container">
+            <section class="user-profile">
+                <div class="avatar-box" id="avatarBox">
+                    <img id="profileImg" src="" alt="프로필 사진" style="display: none;">
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                </div>
+                <div class="user-info">
+                    <span class="name" id="userName">김고수</span>
+                    <span class="nim">님</span>
+                </div>
+            </section>
 
-                <nav class="menu-section">
-                    <h3 class="section-label">서비스</h3>
-                    <div class="menu-list">
-                        <a href="10_1-editProfile.html" class="menu-item">
-                            <i class="fa-solid fa-gear"></i>
-                            <span>개인 정보 수정</span>
-                        </a>
-                        <button class="menu-item" id="withdrawBtn">
-                            <i class="fa-solid fa-gear"></i>
-                            <span>회원 탈퇴</span>
-                        </button>
-                    </div>
-                </nav>
-            </div>
+            <nav class="menu-section">
+                <h3 class="section-label">서비스</h3>
+                <div class="menu-list">
+                    <button class="menu-item" onclick="location.href='10_1-editProfile.html'">
+                        <span class="menu-icon icon-edit"></span>
+                        <span>개인정보 수정</span>
+                    </button>
+
+                    <button class="menu-item" id="withdrawBtn">
+                        <span class="menu-icon icon-withdraw"></span>
+                        <span>회원 탈퇴</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+        
+        <div class="bottom-indicator">
             <div class="bottom-bar"></div>
         </div>
     </div>
+
     <script src="js/common.js"></script>
     <script src="js/10-myPage.js"></script>
 </body>
