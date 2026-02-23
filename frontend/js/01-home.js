@@ -97,4 +97,45 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.style.display = 'none';
         document.body.style.overflow = 'auto';
     });
+
+    // 6. 메인 화면 모드 선택 버튼 이벤트
+    const btnGrip = document.querySelector('.btn-grib');
+    const btnPose = document.querySelector('.btn-pose');
+
+    btnGrip?.addEventListener('click', () => {
+        console.log('그립 교정 모드로 이동!');
+        // 실제 페이지가 있다면 아래 코드의 주석을 풀고 경로를 수정해 주세요!
+        window.location.href = '02-gripMode.html'; 
+    });
+
+    btnPose?.addEventListener('click', () => {
+        console.log('기본 스윙 교정 모드로 이동!');
+        window.location.href = '03-swingMode.html';
+    });
+
+    // 7. 하단 네비게이션 바 버튼 이벤트
+    const navHome = document.querySelector('.nav-home');
+    const navPlay = document.querySelector('.nav-play');
+    const navHistory = document.querySelector('.nav-history');
+    const navMyPage = document.querySelector('.nav-myPage');
+
+    navHome?.addEventListener('click', () => {
+        console.log('홈 화면 클릭됨');
+        // window.location.href = 'home.html';
+    });
+    
+    navPlay?.addEventListener('click', () => {
+        console.log('플레이 화면 클릭됨');
+        window.location.href = '13-playMode.html';
+    });
+    
+    navHistory?.addEventListener('click', () => {
+        console.log('히스토리 화면 클릭됨');
+        window.location.href = '09-reportHistory.html';
+    });
+    
+    navMyPage?.addEventListener('click', () => {
+        console.log('마이페이지 클릭됨');
+        window.location.href = '10-myPage.html';
+    });
 });
