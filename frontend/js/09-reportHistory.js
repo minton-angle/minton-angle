@@ -44,6 +44,11 @@ function initCalendar() {
         locale: 'en',
         showNonCurrentDates: false,
         fixedWeekCount: false,
+        height: '100%',
+        contentHeight: '100%',
+        expandRows: true,
+        stickyHeaderDates: false,
+        handleWindowResize: true,
         headerToolbar: { 
             left: 'title', 
             center: '', 

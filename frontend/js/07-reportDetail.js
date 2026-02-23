@@ -43,7 +43,12 @@ async function loadAnalysisResult() {
         
         const result = await response.json();
         console.log('✅ 서버로부터 받은 전체 데이터:', result);
-        
+
+        // ⭐ 디버깅 추가
+        console.log('📊 result.success:', result.success);
+        console.log('📊 result.scores:', result.scores);
+        console.log('📊 currentType:', currentType);
+
         // 🌟 실시간 모드일 때 탭 처리
         if (currentType === 'realtime') {
             document.getElementById('realtime-tabs').style.display = 'flex';
@@ -51,9 +56,12 @@ async function loadAnalysisResult() {
             switchSwing(1);
         } else {
             // 일반 영상 업로드 모드
-            if (result.success && result.scores) {
+            console.log('📊 displayResult 호출 시작');
+            if (result.success) {  // ⭐ result.scores 조건 제거
                 displayResult(result);
+                console.log('✅ displayResult 완료');
             } else {
+                console.error('❌ result.success가 false:', result);
                 throw new Error('결과 데이터 형식이 올바르지 않습니다.');
             }
         }
@@ -195,38 +203,62 @@ function displayMediaComparison(files) {
         return cleanPath;
     };
 
-    // 1단계 준비자세
+    console.log('🎨 미디어 표시 시작:', files);
+
+    // ⭐ Phase 1: 준비자세
     if (files.kf1_image) {
-        document.getElementById('phase1-user-img').src = `${API_BASE_URL}${fixPath(files.kf1_image)}`;
+        const img = document.getElementById('phase1-user-img');
+        if (img) {
+            img.src = `${API_BASE_URL}${fixPath(files.kf1_image)}`;
+            console.log('✅ Phase1 이미지 설정:', img.src);
+        }
     }
     
-    // 2단계 스윙 영상
+    // ⭐ Phase 2: 스윙 과정 (시퀀스 이미지 6개)
+    // 영상 업로드는 실제 영상이 없으므로 시퀀스 이미지로 대체
+    const phase2Images = [
+        { id: 'seq1', file: files.seq1_ready },
+        { id: 'seq2', file: files.seq2_takeaway },
+        { id: 'seq3', file: files.seq3_backswing },
+        { id: 'seq4', file: files.seq4_downswing1 },
+        { id: 'seq5', file: files.seq5_downswing2 },
+        { id: 'seq6', file: files.seq6_impact }
+    ];
+
+    phase2Images.forEach(item => {
+        if (item.file) {
+            const img = document.getElementById(`phase2-${item.id}-img`);
+            if (img) {
+                img.src = `${API_BASE_URL}${fixPath(item.file)}`;
+                console.log(`✅ Phase2 ${item.id} 이미지 설정`);
+            }
+        }
+    });
+
+    // Phase 2 영상 컨테이너는 숨김 (영상 없음)
     const v2User = document.getElementById('phase2-user-video');
     const v2Expert = document.getElementById('phase2-expert-video');
+    if (v2User) v2User.style.display = 'none';
+    if (v2Expert) v2Expert.style.display = 'none';
 
-    if (files.backswing_video) {
-        v2User.src = `${API_BASE_URL}${fixPath(files.backswing_video)}`;
-        v2Expert.src = "assets/2_rotation_hybrid.mp4"; 
-        
-        v2User.onloadedmetadata = () => { syncToFrame(kf1_frame); };
-        v2Expert.onloadedmetadata = () => { syncToFrame(kf1_frame); };
-        v2User.load();
-        v2Expert.load();
-    }
-
-    // 2단계 고정 키프레임
-    if (files.kf2_image) {
-        document.getElementById('phase2-backswing-img').src = `${API_BASE_URL}${fixPath(files.kf2_image)}`;
-    }
+    // ⭐ Phase 3: 임팩트 이미지
     if (files.kf3_image) {
-        document.getElementById('phase2-impact-img').src = `${API_BASE_URL}${fixPath(files.kf3_image)}`;
+        const img = document.getElementById('phase3-impact-img');
+        if (img) {
+            img.src = `${API_BASE_URL}${fixPath(files.kf3_image)}`;
+            console.log('✅ Phase3 임팩트 이미지 설정');
+        }
     }
 
-    // 3단계 팔로우스루
+    // ⭐ Phase 3: 팔로우스루 영상
     if (files.impact_video) {
         const v3 = document.getElementById('phase3-user-video');
-        v3.src = `${API_BASE_URL}${fixPath(files.impact_video)}`;
-        v3.load();
+        if (v3) {
+            const videoSrc = `${API_BASE_URL}${fixPath(files.impact_video)}`;
+            v3.src = videoSrc;
+            v3.load();
+            console.log('✅ Phase3 팔로우스루 영상 설정:', videoSrc);
+        }
     }
 }
 
