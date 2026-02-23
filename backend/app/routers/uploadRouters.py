@@ -1,7 +1,7 @@
 """
 영상 업로드 라우터
 """
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -18,7 +18,8 @@ router = APIRouter(prefix="/api/upload", tags=["upload"])
 
 @router.post("/video")
 async def upload_video(
-    current_user = Depends(get_current_user),
+    #current_user = Depends(get_current_user),
+    user_id: str = Form(...),
     video: UploadFile = File(...),
     db: Session = Depends(get_db),
     
@@ -27,7 +28,7 @@ async def upload_video(
     
     try:
         # ⭐ video_analysis_service.video_analysis_service 사용
-        user_id = current_user.id
+        # user_id = current_user.id
         result = await video_analysis_service.analyze_video(user_id, video, db)
         print(f"📡 프론트엔드로 보낼 최종 데이터: {result}")
         return result

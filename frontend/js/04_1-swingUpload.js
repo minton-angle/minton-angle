@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = e.target.files[0];
         if (file) {
             selectedFile = file;
-            
+        
             const videoURL = URL.createObjectURL(file);
             const previewVideo = document.getElementById('preview-video');
             const placeholder = document.getElementById('upload-placeholder');
@@ -30,7 +30,15 @@ async function startAnalysis() {
         alert('영상을 먼저 선택해주세요.');
         return;
     }
-    
+
+    const userId = localStorage.getItem('user_id');
+        console.log('현재 로그인된 ID:', userId); 
+
+        if (!userId) {
+            alert('로그인 정보가 없습니다. 다시 로그인해주세요.');
+            location.href = '12-login.html';
+            return;
+        }
     const submitBtn = document.getElementById('submit-btn');
     
     // 로딩 상태 시작
@@ -42,7 +50,11 @@ async function startAnalysis() {
         console.log('🚀 분석 시작...');
         
         const formData = new FormData();
+
+        formData.append('user_id', userId);
         formData.append('video', selectedFile);
+
+        
 
         // 타임아웃 2분
         const controller = new AbortController();

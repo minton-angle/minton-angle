@@ -3,10 +3,10 @@
 // ========================================
 
 // API 기본 URL
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = "http://98.86.191.189";
 
 // ⭐ 개발 모드 설정 (배포 시 false로 변경!)
-const DEV_MODE = true;
+const DEV_MODE = false;
 
 // ========================================
 // 개발 모드 초기화
@@ -25,21 +25,21 @@ if (DEV_MODE) {
  * 토큰 가져오기
  */
 function getToken() {
-    return sessionStorage.getItem('access_token');
+    return localStorage.getItem('access_token');
 }
 
 /**
  * 사용자 ID 가져오기
  */
 function getUserId() {
-    return sessionStorage.getItem('user_id');
+    return localStorage.getItem('user_id');
 }
 
 /**
  * 사용자 이름 가져오기
  */
 function getUserName() {
-    return sessionStorage.getItem('user_name');
+    return localStorage.getItem('user_name');
 }
 
 /**
@@ -53,9 +53,9 @@ function isLoggedIn() {
  * 로그인 정보 저장
  */
 function saveLoginInfo(accessToken, userId, userName) {
-    sessionStorage.setItem('access_token', accessToken);
-    sessionStorage.setItem('user_id', userId);
-    sessionStorage.setItem('user_name', userName);
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('user_id', userId);
+    localStorage.setItem('user_name', userName);
     console.log('✅ 로그인 완료:', userId);
 }
 
@@ -63,9 +63,9 @@ function saveLoginInfo(accessToken, userId, userName) {
  * 로그아웃
  */
 function logout() {
-    sessionStorage.clear();
+    localStorage.clear();
     alert('로그아웃 되었습니다.');
-    window.location.href = '12-logIn.html';
+    window.location.href = '12-login.html';
 }
 
 /**
@@ -81,7 +81,7 @@ function checkAuth() {
     const publicPages = [
         '00-onboarding.html',
         '11-signUp.html',
-        '12-logIn.html'
+        '12-login.html'
     ];
     
     const currentPage = window.location.pathname;
@@ -89,13 +89,11 @@ function checkAuth() {
     
     if (!isLoggedIn() && !isPublicPage) {
         alert('로그인이 필요한 서비스입니다.');
-        window.location.href = '12-logIn.html';
+        window.location.href = '12-login.html';
     }
 }
 
-/**
- * 로그인 필수 페이지 체크 (개별 페이지에서 사용)
- */
+
 function requireLogin() {
     // ⭐ 개발 모드: 항상 true 반환
     if (DEV_MODE) {
@@ -105,7 +103,7 @@ function requireLogin() {
     
     if (!isLoggedIn()) {
         alert('로그인이 필요합니다.');
-        window.location.href = '12-logIn.html';
+        window.location.href = '12-login.html';
         return false;
     }
     return true;
@@ -177,17 +175,17 @@ async function apiCall(endpoint, options = {}) {
 // ========================================
 
 /**
- * sessionStorage에 저장
+ * localStorage에 저장
  */
 function saveData(key, value) {
-    sessionStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(key, JSON.stringify(value));
 }
 
 /**
- * sessionStorage에서 가져오기
+ * localStorage에서 가져오기
  */
 function getData(key, defaultValue = null) {
-    const data = sessionStorage.getItem(key);
+    const data = localStorage.getItem(key);
     if (!data) return defaultValue;
     
     try {
@@ -198,10 +196,10 @@ function getData(key, defaultValue = null) {
 }
 
 /**
- * sessionStorage에서 삭제
+ * localStorage에서 삭제
  */
 function removeData(key) {
-    sessionStorage.removeItem(key);
+    localStorage.removeItem(key);
 }
 
 // ========================================

@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('file', blob, 'grip.jpg');
 
             try {
-                const res = await fetch('http://localhost:8000/api/grip/analyze', { 
+                const res = await fetch('http://98.86.191.189/api/grip/analyze', { 
                     method: 'POST', 
                     body: formData 
                 });

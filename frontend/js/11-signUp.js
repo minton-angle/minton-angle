@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isIdChecked = false;
 
     const nameRegex = /^[가-힣a-zA-Z]+$/; 
-    const idRegex = /^[a-zA-Z0-9]{4,12}$/; 
-    const pwRegex = /^[a-zA-Z0-9]{8,20}$/; 
+    const idRegex = /^[a-zA-Z0-9]{4,20}$/; 
+    const pwRegex = /^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]{8,20}$/;
 
     // 뒤로가기
     if (backBtn) {
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
             signupForm.reset(); 
             genderBtns.forEach(btn => btn.classList.remove('active'));
             handBtns.forEach(btn => btn.classList.remove('active'));
-            window.location.href = '12-logIn.html';
+            window.location.href = '12-login.html';
         });
     }
 
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             alert(data.message);
-            window.location.href = '12-logIn.html';
+            window.location.href = '12-login.html';
         } catch (error) {
             alert(error.message || '회원가입에 실패했습니다.');
             console.error(error);
