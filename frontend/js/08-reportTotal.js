@@ -1544,11 +1544,14 @@ function renderActionCardsFromLLM(reportObj){
     let title = null;
     let changeOne = null;
     let focusTwo = [];
+    let miniSummary = "-";
 
     if (hasSections){
       const s = reportObj?.sections?.[sectionMap[i].skey] || {};
       title = s?.title || sectionMap[i].fallbackTitle;
       changeOne = s?.change_one || "-";
+      const mini_summary = s?.mini_summary || "-";
+      miniSummary = mini_summary;
       focusTwo = Array.isArray(s?.focus_two) ? s.focus_two : [];
     } else {
       const legacyKey = legacyMap[i].key;
@@ -1562,14 +1565,19 @@ function renderActionCardsFromLLM(reportObj){
       ? `<ul>${focusTwo.map((x)=>`<li>${String(x)}</li>`).join("")}</ul>`
       : "-";
 
+    const miniSummaryHtml = `<div style="margin-top:6px;"><br/>${String(miniSummary || "-")}</div>`;
+
     // 2) inject/replace LLM block only
+
+    // changeOne은 주석처리하여 숨김 (피드백이 너무 길거나 기술적일 수 있어 UX상 부담될 수 있음)
+    // <div style="margin-top:6px;"><b>이전 기간 대비 변화</b><br/>${String(changeOne || "-")}</div>
     const body = document.getElementById(`a${n}Body`);
     if (body){
       const existing = body.querySelector(".llmActionBlock");
       const html = `
         <div class="llmActionBlock" style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(17,24,39,.18);">
-          <div style="margin-top:6px;"><b>이전 기간 대비 변화</b><br/>${String(changeOne || "-")}</div>
-          <div style="margin-top:6px;"><b>관찰 포인트</b><br/>${focusHtml}</div>
+          ${miniSummaryHtml}
+          <div style="margin-top:20px;"><b> -Tip- </b><br/>${focusHtml}</div>
         </div>
       `;
 
