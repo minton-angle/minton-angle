@@ -199,22 +199,42 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
         worst_sub = node.get("worst_sub")
         direction = _safe_str(node.get("direction") or "flat")
 
-        try:
-            cm_f = float(cm)
-        except Exception:
-            cm_f = None
+        sub_stats = node.get("sub_stats") or {}
 
-        # Total < 90: 반드시 원인 구체화 대상
-        if cm_f is not None and cm_f < 90 and worst_sub:
-            band = _score_band_from_mean(cm_f)
-            # worst_sub may come as "Stage.Metric" (e.g., "Impact.Wrist_Height_Ratio")
-            # For RAG metric matching, use metric-only (remove stage prefix if present)
+        # worst_sub 점수 추출
+        worst_sub_score = None
+        if worst_sub and isinstance(sub_stats, dict):
+            sub_node = sub_stats.get(worst_sub)
+            if isinstance(sub_node, dict):
+                try:
+                    worst_sub_score = float(sub_node.get("current_mean"))
+                except Exception:
+                    worst_sub_score = None
+
+        # fallback: worst_sub_score 없으면 total 사용
+        if worst_sub_score is None:
+            try:
+                worst_sub_score = float(cm)
+            except Exception:
+                worst_sub_score = None
+        # total 점수가 아닌 worst_sub_score 기준으로 검색 쿼리 생성
+        if worst_sub_score is not None and worst_sub_score < 90 and worst_sub:
+            band = _score_band_from_mean(worst_sub_score)
+
             metric_only = _safe_str(worst_sub)
             if "." in metric_only:
                 metric_only = metric_only.split(".")[-1]
-            text = f"{stage} {total_key} worst_sub={worst_sub} band={band} direction={direction}".strip()
-            queries.append({"q": text, "where": {"stage": stage, "metric": metric_only, "score_band": band}})
-        # Total >= 90: 강점/실수방지용(선택) — 과도한 검색 방지 위해 1개만 뽑기
+
+            text = f"{stage} metric={metric_only} band={band} direction={direction}"
+
+            queries.append({
+                "q": text,
+                "where": {
+                    "stage": stage,
+                    "metric": metric_only,
+                    "score_band": band
+                }
+            })
 
     # FollowSwing: risk_level improve/risk면 부상 예방 관찰 포인트 문서 우선
     fs = score_stats.get("5_FollowSwing_SuccessRate", {}) or {}
@@ -395,11 +415,12 @@ def _system_prompt(lang: str) -> str:
    - backswing(백스윙): 팔꿈치 위치, 손목 각도, 라켓 준비 경로 중 최소 2개 포함
    - impact(임팩트): 타점 위치, 라켓 각도, 임팩트 순간 체중 이동 중 최소 2개 포함
    - followswing(팔로스윙): 스윙 마무리 높이, 어깨/팔꿈치 부담 여부, 과회전 여부 중 최소 2개 포함
-1-3) Total(요약) 점수가 90 미만인 섹션(ready/rotation/backswing/impact)에서는,
+1-3) 각 섹션(ready/rotation/backswing/impact)에서,
+   Total(요약) 점수와 무관하게 worst_sub_current_mean(가장 낮은 세부 항목 점수)가 90 미만이면,
    해당 섹션의 meta.score_stats["<TotalKey>"].worst_sub(가장 낮은 세부 항목)을 반드시 1회 이상 언급하여
-   '왜 점수가 흔들릴 수 있는지'를 구체화하십시오.
+   'Total은 높아도 어떤 세부가 흔들려 보강이 필요한지'를 구체화하십시오.
    - 단, 세부 점수 수치는 sub_stats의 값만 사용하고 임의 추정 금지.
-   - Total 점수가 90 이상인 경우에는 worst_sub 언급은 선택(강점 설명에 쓰면 됨)입니다.
+   - worst_sub_current_mean이 90 이상인 경우에는 worst_sub 언급은 선택입니다.
 2) 각 섹션(ready/rotation/backswing/impact/followswing)의 내용은 서로 달라야 합니다. (같은 문장/같은 수치 반복 금지)
 3) direction 판정은 입력의 direction 값을 그대로 따르십시오.
    - improved: delta > 0 (점수 상승)
@@ -427,7 +448,9 @@ def _system_prompt(lang: str) -> str:
    - 같은 문장 구조나 어미를 반복하지 마십시오.
 8) today_checklist는 정확히 3개 항목의 배열로 작성하십시오.
 9) 각 섹션은 current_mean(점수)에 따라 피드백 목적이 달라야 합니다.
-   - current_mean >= 90: "유지/강점 확인" 중심으로 작성 (문제 지적 금지)
+   - current_mean >= 90: "유지/강점 확인" 중심으로 작성합니다.
+     단, worst_sub_current_mean이 90 미만인 경우에는 '문제 지적'이 아니라
+     '보강/흔들림 방지' 관점으로 worst_sub를 1회 이상 언급할 수 있습니다.
    - 80 <= current_mean < 90: "안정화/흔들림 방지" 중심으로 작성
    - current_mean < 80: "개선 필요" 중심으로 작성
 10) focus_two의 2개 문장은 current_mean에 따라 다음 성격을 따라야 합니다.
