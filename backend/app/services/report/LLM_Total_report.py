@@ -431,15 +431,24 @@ def _system_prompt(lang: str) -> str:
    - summary: string
    - growth: { direction: improved|worsened|flat, delta_average_score: number, message: string }
    - sections: {
-       ready: { title, change_one, focus_two },
-       rotation: { title, change_one, focus_two },
-       backswing: { title, change_one, focus_two },
-       impact: { title, change_one, focus_two },
-       followswing: { title, change_one, focus_two }
+       ready: { title, change_one, mini_summary, focus_two },
+       rotation: { title, change_one, mini_summary, focus_two },
+       backswing: { title, change_one, mini_summary, focus_two },
+       impact: { title, change_one, mini_summary, focus_two },
+       followswing: { title, change_one, mini_summary, focus_two }
      }
    - today_checklist: string[]
 6) change_one에는 아래 3개 값을 반드시 포함하십시오(점수 표기, 소수점 2자리):
    - current_mean, prev_mean, delta
+6-1) 각 섹션에는 mini_summary 필드를 반드시 포함하십시오.
+       - mini_summary는 해당 Stage의 sub_stats를 기반으로 "지난 기간 대비 → 이번 기간"의 세부 흐름을 설명하는 문장입니다.
+       - 반드시 sub_stats 내부 세부 항목명을 2개 이상 직접 언급하십시오. (예: Arm_Angle, Wrist_Height_Ratio 등)
+       - 반드시 delta 값을 기준으로 가장 크게 개선된 항목 1개와, 가장 크게 악화된 항목 1개를 비교 서술하십시오.
+         (악화 항목이 없는 경우에는 개선 항목 2개를 비교 서술하십시오.)
+       - Total 점수의 direction만으로 요약하는 문장은 금지합니다.
+       - worst_sub_current_mean이 90 미만인 경우, 해당 worst_sub를 mini_summary에 반드시 포함하여
+         "전체 점수와 별개로 어떤 세부가 흔들렸는지"를 명확히 드러내십시오.
+       - 단순 점수 나열은 금지하며, 세부 항목 간의 흐름 변화(어떤 항목이 끌어내렸는지 / 어떤 항목이 보완했는지)를 설명해야 합니다.
 7) focus_two는 2개 항목의 배열로 작성하십시오.
    - 각 항목은 1~2문장으로 구성된 문장형 코치 피드백이어야 합니다.
    - 단순 체크형 표현("~이 유지되는지") 대신,
@@ -496,11 +505,11 @@ def _user_prompt(
             "message": "string",
         },
         "sections": {
-            "ready": {"title": "준비", "change_one": "string", "focus_two": "string[]"},
-            "rotation": {"title": "회전", "change_one": "string", "focus_two": "string[]"},
-            "backswing": {"title": "백스윙", "change_one": "string", "focus_two": "string[]"},
-            "impact": {"title": "임팩트", "change_one": "string", "focus_two": "string[]"},
-            "followswing": {"title": "팔로스윙", "change_one": "string", "focus_two": "string[]"},
+            "ready": {"title": "준비", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
+            "rotation": {"title": "회전", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
+            "backswing": {"title": "백스윙", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
+            "impact": {"title": "임팩트", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
+            "followswing": {"title": "팔로스윙", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
         },
         "today_checklist": "string[]",
     }
@@ -572,8 +581,9 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
     ]:
         node = report_obj["sections"].setdefault(
             key,
-            {"title": title, "change_one": "-", "focus_two": []},
+            {"title": title, "change_one": "-", "mini_summary": "-", "focus_two": []},
         )
+        node.setdefault("mini_summary", "-")
         node["focus_two"] = _ensure_list(node.get("focus_two"))
 
     # Backward-compat: map score sections -> legacy actions(kf1/kf2/kf3) if actions missing
