@@ -207,8 +207,13 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
         # Total < 90: 반드시 원인 구체화 대상
         if cm_f is not None and cm_f < 90 and worst_sub:
             band = _score_band_from_mean(cm_f)
+            # worst_sub may come as "Stage.Metric" (e.g., "Impact.Wrist_Height_Ratio")
+            # For RAG metric matching, use metric-only (remove stage prefix if present)
+            metric_only = _safe_str(worst_sub)
+            if "." in metric_only:
+                metric_only = metric_only.split(".")[-1]
             text = f"{stage} {total_key} worst_sub={worst_sub} band={band} direction={direction}".strip()
-            queries.append({"q": text, "where": {"stage": stage, "metric": _safe_str(worst_sub), "score_band": band}})
+            queries.append({"q": text, "where": {"stage": stage, "metric": metric_only, "score_band": band}})
         # Total >= 90: 강점/실수방지용(선택) — 과도한 검색 방지 위해 1개만 뽑기
 
     # FollowSwing: risk_level improve/risk면 부상 예방 관찰 포인트 문서 우선
@@ -218,11 +223,18 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
         text = f"followswing injury_prevention risk_level={risk_level}".strip()
         queries.append({"q": text, "where": {"stage": "followswing", "score_band": risk_level}})
 
-    # Average_Score 트렌드(선택): 요약 문장 톤 다양성용
-    tr = (meta or {}).get("trend", {}) or {}
-    ddir = _safe_str(tr.get("direction") or "flat")
-    text = f"overall trend direction={ddir}".strip()
-    queries.append({"q": text, "where": {}})
+    # # Average_Score 트렌드(선택): 요약 문장 톤 다양성용
+    """
+    Average_Score을 주석처리 함으로써:
+    Total < 90 + worst_sub 기반 쿼리
+    FollowSwing risk/improve 기반 쿼리
+    만 생성하고,
+    where={} 전체 검색은 더 이상 실행되지 않음(어떤 쿼리든지 항상 참조하던 "overall trend direction=..." 텍스트 쿼리 제거)
+    """
+    # tr = (meta or {}).get("trend", {}) or {}
+    # ddir = _safe_str(tr.get("direction") or "flat")
+    # text = f"overall trend direction={ddir}".strip()
+    # queries.append({"q": text, "where": {}})
 
     # 중복 제거(텍스트 기준)
     seen = set()
