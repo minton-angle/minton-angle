@@ -21,6 +21,12 @@
     padding: 5dvh 20px 12dvh 20px; 
 }
 
+.top-bar {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
 .logo-box {
     background-image: url('../assets/images/logo2.png');
     width: 140px;
@@ -31,6 +37,18 @@
     background-position: left center;
     margin-top: 1dvh;
     /*margin-left: 20px;*/
+}
+
+.info-box {
+    background-image: url('../assets/images/info.png');
+    width: 35px;
+    height: 35px;
+    flex-shrink: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: right center;
+    margin-left: auto;
+    margin-right: 3dvh;
 }
 
 /* 2. 유저 섹션 스타일 (피그마 투명도 반영) */
@@ -192,5 +210,77 @@
 
 .nav-home { background-image: url('../assets/images/home.png'); }
 .nav-play { background-image: url('../assets/images/play.png'); }
-.nav-history { background-image: url('../assets/images/history.png'); }
+.nav-history { background-image: url('../assets/images/calendar.png'); }
 .nav-myPage { background-image: url('../assets/images/myPage.png'); }
+
+/* 모달 배경 (어둡고 블러 처리) */
+/* 모달 배경 */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 모달 박스 */
+.modal-content {
+    background: white;
+    width: 90%; max-width: 400px;
+    border-radius: 30px;
+    padding: 20px;
+    position: relative;
+    text-align: center;
+}
+
+/* 슬라이더 창 (이미지 한 장 크기만 보여주는 틀) */
+.tutorial-wrapper {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 15px;
+    touch-action: none; /* [필수] 모바일 브라우저 제스처 차단 */
+}
+
+/* 실제 움직이는 이미지 줄 */
+.tutorial-slider {
+    display: flex;
+    width: 100%;
+    transition: transform 0.3s ease-out;
+}
+
+.t-img {
+    width: 100%;
+    flex: 0 0 100%; /* 너비 100% 고정 */
+    object-fit: contain;
+    pointer-events: none; /* 이미지 클릭 방해 금지 */
+    -webkit-user-drag: none;
+}
+
+/* 점 (Indicator) 스타일 */
+.dot-container {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.t-dot {
+    width: 8px; height: 8px;
+    background: #ccc;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.t-dot.active {
+    width: 22px; /* 활성화 시 길어짐 */
+    border-radius: 10px;
+    background: #025B36;
+}
+
+.close-btn {
+    position: absolute; top: 15px; right: 20px;
+    font-size: 28px; border: none; background: none; color: #999; cursor: pointer;
+}

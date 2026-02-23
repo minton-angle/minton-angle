@@ -4,21 +4,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const pwInput = loginForm.querySelector('input[type="password"]');
     const gotoSignupBtn = document.querySelector('.goto-signup-btn');
 
-    const alphanumericRegex = /^[a-zA-Z0-9]+$/;
+    const flexibleRegex = /^[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+$/;
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const idValue = idInput.value.trim();
+        const idValue = idInput.value.trim().toLowerCase();
         const pwValue = pwInput.value.trim();
 
-        if (idValue.length < 4 || !alphanumericRegex.test(idValue)) {
-            alert('아이디는 4자 이상의 영문 또는 숫자여야 합니다.');
+        if (idValue.length < 4 || !flexibleRegex.test(idValue)) {
+            alert('아이디는 4자 이상의 영문 또는 숫자, 특수문자여야 합니다.');
             return idInput.focus();
         }
 
-        if (pwValue.length < 8 || !alphanumericRegex.test(pwValue)) {
-            alert('비밀번호는 8자 이상의 영문 또는 숫자여야 합니다.');
+        if (pwValue.length < 8 || !flexibleRegex.test(pwValue)) {
+            alert('비밀번호는 8자 이상의 영문 또는 숫자, 특수문자여야 합니다.');
             return pwInput.focus();
         }
 
