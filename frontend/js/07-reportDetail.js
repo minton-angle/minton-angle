@@ -28,7 +28,17 @@ async function loadAnalysisResult() {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/api/report/upload/result/${postIdx}`);
+        // ⭐ 타입별로 다른 API 경로 사용
+        let apiUrl;
+        if (currentType === 'video') {
+            apiUrl = `${API_BASE_URL}/api/upload/result/${postIdx}`;
+        } else {
+            apiUrl = `${API_BASE_URL}/api/report/realtime/result/${postIdx}`;
+        }
+        
+        console.log(`📡 API 호출: ${apiUrl}`);
+        
+        const response = await fetch(apiUrl);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -37,12 +47,7 @@ async function loadAnalysisResult() {
         // 🌟 실시간 모드일 때 탭 처리
         if (currentType === 'realtime') {
             document.getElementById('realtime-tabs').style.display = 'flex';
-            
-            // 백엔드가 스윙별로 데이터를 묶어서 준다고 가정 (예: result.swings[1], result.swings[2]...)
-            // 만약 구조가 다르면 이 부분을 백엔드 구조에 맞게 매핑하면 됩니다.
             allSwingData = result.swings || { 1: result }; 
-            
-            // 처음에는 1회차 결과 표시
             switchSwing(1);
         } else {
             // 일반 영상 업로드 모드

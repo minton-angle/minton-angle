@@ -73,8 +73,17 @@ async function startAnalysis() {
         
         const result = await response.json();
         console.log('✅ 분석 완료:', result);
+
+        const postId = result.post_id || result.post_idx;
+
+        console.log('🔍 디버깅:');  // ← 이 로그가 안 나왔어요!
+        console.log('  - result.post_id:', result.post_id);
+        console.log('  - result.post_idx:', result.post_idx);
+        console.log('  - 최종 postId:', postId);
+
+
         
-        const postId = result.post_idx;
+        // const postId = result.post_idx || result.post_idx;
         
         // 결과 페이지로 이동
         setTimeout(() => {

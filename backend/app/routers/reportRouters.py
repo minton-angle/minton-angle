@@ -249,126 +249,198 @@ def posture_report_from_post(post_idx: str, lang: str = "ko", db: Session = Depe
     
 # --------------- GET /api/upload/result/{post_idx} ---------------
 @router.get("/upload/result/{post_idx}")
-async def get_analysis_result(
-    post_idx: str,
-    db: Session = Depends(get_db)
-):
-    """
-    분석 결과 조회 (실시간 3회 스윙 탭 지원)
-    
-    - type=REALTIME: swings 객체 반환 (탭 전환용)
-    - type=VIDEO: 단일 분석 결과 반환
-    """
+async def get_upload_result(post_idx: str, db: Session = Depends(get_db)):
+    """동영상 업로드 결과 조회"""
     
     try:
-        # POST 조회
         post = db.query(Post).filter(Post.idx == post_idx).first()
+        
         if not post:
-            raise HTTPException(status_code=404, detail="결과를 찾을 수 없습니다")
+            raise HTTPException(status_code=404, detail="분석 결과를 찾을 수 없습니다.")
         
-        # ⭐ 실시간 분석 (3회 스윙)
-        if post.type == "REALTIME":
-            # 모든 스윙 조회
-            analyses = db.query(Analysis).filter(
-                Analysis.post_idx == post_idx
-            ).order_by(Analysis.swing_num).all()
-            
-            if not analyses:
-                raise HTTPException(status_code=404, detail="분석 결과가 없습니다")
-            
-            # 모든 파일 조회
-            files = db.query(File).filter(File.post_idx == post_idx).all()
-            
-            # 스윙별로 그룹화
-            swings = {}
-            for analysis in analyses:
-                swing_num = analysis.swing_num
-                
-                # 해당 스윙의 파일들 필터링
-                swing_files = [f for f in files if f.swing_num == swing_num]
-                
-                files_dict = {}
-                for file in swing_files:
-                    if file.file_type == 'KF1':
-                        files_dict['kf1_image'] = file.file_path
-                    elif file.file_type == 'KF2':
-                        files_dict['kf2_image'] = file.file_path
-                    elif file.file_type == 'KF3':
-                        files_dict['kf3_image'] = file.file_path
-                    elif file.file_type == 'BACKSWING':
-                        files_dict['backswing_video'] = file.file_path
-                    elif file.file_type == 'IMPACT':
-                        files_dict['impact_video'] = file.file_path
-                
-                # score_json에서 데이터 추출
-                score_data = analysis.score_json or {}
-                
-                swings[str(swing_num)] = {
-                    "total_score": score_data.get('total_score', 0),
-                    "kf1": analysis.kf1,
-                    "kf2": analysis.kf2,
-                    "kf3": analysis.kf3,
-                    "scores": score_data,
-                    "stage_scores": score_data.get('stage_scores', {}),
-                    "evaluation": score_data.get('evaluation', []),
-                    "files": files_dict
-                }
-            
-            logger_api.info(
-                "[GET RESULT] post_idx=%s type=REALTIME swing_count=%d",
-                post_idx,
-                len(swings)
-            )
-            
-            return {
-                "success": True,
-                "type": "realtime",
-                "swings": swings
-            }
+        analysis = db.query(Analysis).filter(Analysis.post_idx == post_idx).first()
+        files = db.query(FileModel).filter(FileModel.post_idx == post_idx).all()
         
-        # ⭐ 동영상 업로드 (단일 분석)
-        else:
-            analysis = db.query(Analysis).filter(
-                Analysis.post_idx == post_idx
-            ).first()
+        print(f"\n{'='*50}")
+        print(f"📊 결과 조회: {post_idx}")
+        print(f"파일 개수: {len(files)}")
+        
+        # ⭐ 경로 변환 함수
+        def fix_path(raw_path):
+            if not raw_path:
+                return ""
+            clean_path = raw_path.replace("\\", "/")
+            marker = "backend/data/"
+            index = clean_path.find(marker)
+            if index != -1:
+                return "/" + clean_path[index:]
+            return clean_path
+        
+        file_paths = {}
+        for file in files:
+            print(f"  {file.file_type}: {file.file_path}")
             
-            if not analysis:
-                raise HTTPException(status_code=404, detail="분석 결과가 없습니다")
-            
-            files = db.query(File).filter(File.post_idx == post_idx).all()
-            
-            files_dict = {}
-            for file in files:
-                if file.file_type == 'KF1':
-                    files_dict['kf1_image'] = file.file_path
-                elif file.file_type == 'KF2':
-                    files_dict['kf2_image'] = file.file_path
-                elif file.file_type == 'KF3':
-                    files_dict['kf3_image'] = file.file_path
-                elif file.file_type == 'BACKSWING':
-                    files_dict['backswing_video'] = file.file_path
-                elif file.file_type == 'IMPACT':
-                    files_dict['impact_video'] = file.file_path
-            
-            score_data = analysis.score_json or {}
-            
-            logger_api.info(
-                "[GET RESULT] post_idx=%s type=VIDEO",
-                post_idx
-            )
-            
-            return {
-                "success": True,
-                "type": "video",
-                "total_score": score_data.get('total_score', 0),
-                "scores": score_data,
-                "stage_scores": score_data.get('stage_scores', {}),
-                "evaluation": score_data.get('evaluation', []),
-                "files": files_dict
-            }
+            # ⭐ 경로 변환 적용
+            clean_path = fix_path(file.file_path)
+            file_paths[file.file_type] = clean_path
+        
+        print(f"변환된 경로:")
+        for key, value in file_paths.items():
+            print(f"  {key}: {value}")
+        print(f"{'='*50}\n")
+        
+        return {
+            "success": True,
+            "post_idx": post_idx,
+            "type": post.type.lower(),
+            "total_score": post.total_score,
+            "files": {
+                "kf1_image": file_paths.get("READY"),
+                "seq1_ready": file_paths.get("SEQ1_READY"),
+                "seq2_takeaway": file_paths.get("SEQ2_TAKEAWAY"),
+                "seq3_backswing": file_paths.get("SEQ3_BACKSWING"),
+                "seq4_downswing1": file_paths.get("SEQ4_DOWNSWING1"),
+                "seq5_downswing2": file_paths.get("SEQ5_DOWNSWING2"),
+                "seq6_impact": file_paths.get("SEQ6_IMPACT"),
+                "kf3_image": file_paths.get("IMPACT"),
+                "impact_video": file_paths.get("FOLLOWSWING")
+            },
+            "keyframes": {
+                "kf1": analysis.kf1 if analysis else None,
+                "kf2": analysis.kf2 if analysis else None,
+                "kf3": analysis.kf3 if analysis else None
+            },
+            "scores": analysis.score_json if analysis else {},
+            "stage_scores": _extract_stage_scores(analysis.score_json) if analysis else {},
+            "evaluation": []
+        }
     
     except HTTPException:
         raise
     except Exception as e:
-        logger_api.exception("[GET RESULT] failed post_idx=%s err=%s", post_idx, str(e))
+        print(f"❌ 에러: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ⭐ stage_scores 추출 함수 추가
+def _extract_stage_scores(score_json):
+    """eval_result에서 stage_scores 추출"""
+    
+    details = score_json.get('details', {})
+    
+    def calc_phase_score(phase_name):
+        phase_data = details.get(phase_name, {})
+        if not phase_data:
+            return 0
+        
+        scores = []
+        for key, value in phase_data.items():
+            if isinstance(value, dict) and 'score' in value:
+                scores.append(value['score'])
+        
+        return round(sum(scores) / len(scores), 2) if scores else 0
+    
+    return {
+        'ready': calc_phase_score('Ready'),
+        'rotation': calc_phase_score('Rotation'),
+        'backswing': calc_phase_score('Backswing'),
+        'impact': calc_phase_score('Impact'),
+        'followswing': calc_phase_score('FollowSwing')
+    }
+
+@router.get("/realtime/result/{post_idx}")
+async def get_realtime_result(post_idx: str, db: Session = Depends(get_db)):
+    """실시간 분석 결과 조회 (3회 스윙)"""
+    
+    try:
+        post = db.query(Post).filter(Post.idx == post_idx).first()
+        
+        if not post:
+            raise HTTPException(status_code=404, detail="분석 결과를 찾을 수 없습니다.")
+        
+        # 모든 스윙 조회 (1, 2, 3회차)
+        analyses = db.query(Analysis).filter(
+            Analysis.post_idx == post_idx
+        ).order_by(Analysis.swing_num).all()
+        
+        print(f"\n{'='*50}")
+        print(f"📊 실시간 분석 결과 조회: {post_idx}")
+        print(f"스윙 개수: {len(analyses)}")
+        
+        # ⭐ 경로 변환 함수
+        def fix_path(raw_path):
+            if not raw_path:
+                return ""
+            clean_path = raw_path.replace("\\", "/")
+            marker = "backend/data/"
+            index = clean_path.find(marker)
+            if index != -1:
+                return "/" + clean_path[index:]
+            return clean_path
+        
+        # 스윙별 데이터 구성
+        swings = {}
+        
+        for analysis in analyses:
+            swing_num = analysis.swing_num
+            
+            # 해당 스윙의 파일들 조회
+            swing_files = db.query(File).filter(
+                File.post_idx == post_idx,
+                File.swing_num == swing_num
+            ).all()
+            
+            print(f"\n스윙 {swing_num}회차: 파일 {len(swing_files)}개")
+            
+            file_paths = {}
+            for f in swing_files:
+                print(f"  {f.file_type}: {f.file_path}")
+                clean_path = fix_path(f.file_path)
+                file_paths[f.file_type] = clean_path
+            
+            # stage_scores 추출
+            stage_scores = _extract_stage_scores(analysis.score_json)
+            
+            swings[str(swing_num)] = {
+                "swing_num": swing_num,
+                "total_score": analysis.score_json.get('total_score', 0),
+                "stage_scores": stage_scores,
+                "evaluation": [],
+                "keyframes": {
+                    "kf1": analysis.kf1,
+                    "kf2": analysis.kf2,
+                    "kf3": analysis.kf3
+                },
+                "scores": analysis.score_json,
+                "files": {
+                    "kf1_image": file_paths.get("READY"),
+                    "seq1_ready": file_paths.get("SEQ1_READY"),
+                    "seq2_takeaway": file_paths.get("SEQ2_TAKEAWAY"),
+                    "seq3_backswing": file_paths.get("SEQ3_BACKSWING"),
+                    "seq4_downswing1": file_paths.get("SEQ4_DOWNSWING1"),
+                    "seq5_downswing2": file_paths.get("SEQ5_DOWNSWING2"),
+                    "seq6_impact": file_paths.get("SEQ6_IMPACT"),
+                    "kf3_image": file_paths.get("IMPACT"),
+                    "impact_video": file_paths.get("FOLLOWSWING")
+                }
+            }
+        
+        print(f"{'='*50}\n")
+        
+        return {
+            "success": True,
+            "post_idx": post_idx,
+            "type": "realtime",
+            "total_score": post.total_score,
+            "swings": swings
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ 에러: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
