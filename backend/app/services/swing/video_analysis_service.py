@@ -15,7 +15,7 @@ from app.models.analysisModels import Analysis
 from app.services.swing.engine.pose_detector import PoseDetector
 from app.services.swing.engine.merged_keyframes import KeyframeDetector
 from app.services.swing.engine.score_calculator import ScoreCalculator
-from app.services.swing.engine.analyze_single_user_overlay import OverlayGenerator
+# from app.services.swing.engine.analyze_single_user_overlay import OverlayGenerator
 
 
 class VideoAnalysisService:
@@ -32,7 +32,7 @@ class VideoAnalysisService:
         
         self.pose_detector = PoseDetector()
         self.keyframe_detector = KeyframeDetector()
-        self.overlay_generator = OverlayGenerator()
+        # self.overlay_generator = OverlayGenerator()
         
         gt_json_path = os.path.join(project_root, "data", "standard", "gt_evaluation.json")
         
@@ -51,6 +51,8 @@ class VideoAnalysisService:
     
     async def analyze_video(self, user_id: str, video: UploadFile, db: Session):
         """영상 업로드 및 3단계 9개 항목 종합 분석 실행"""
+        
+        print(f"🔥 analyze_video 시작! user_id={user_id}")  # ⭐ 추가
         
         post_id = str(uuid.uuid4())
         try:
@@ -107,26 +109,33 @@ class VideoAnalysisService:
             
             # ⭐ 7. 통합 엔진을 이용한 9개 항목 점수 계산 (중복 로직 제거)
             # evaluate_user는 1/0 정수값을 반환하므로 JSON 직렬화 에러가 없습니다.
-            evaluation_result = self.score_calculator.evaluate_user(df, kf_indices)
-            
+            # evaluation_result = self.score_calculator.evaluate_user(df, kf_indices)
+            evaluation_result = self.score_calculator.evaluate_user(
+                df, 
+                kf_indices, 
+                video_path,      # 원본 영상 경로
+                upload_path      # 저장 폴더 (post_id 폴더)
+            )
+
             total_score = evaluation_result['total_score']
             print(f"✅ 점수 산출 완료: {total_score}점")
             
             # 8. 오버레이 시각화 자료 생성 (이미지 3개 + 비디오 2개)
-            keyframe_folder = os.path.join(self.keyframe_dir, post_id)
-            os.makedirs(keyframe_folder, exist_ok=True)
+            # keyframe_folder = os.path.join(self.keyframe_dir, post_id)
+            # os.makedirs(keyframe_folder, exist_ok=True)
             
-            # OverlayGenerator 호출 (기존 시각화 기능 유지)
-            self.overlay_generator.generate_all_outputs(
-                video_path,
-                kf_indices,
-                keyframe_folder
-            )
-            print(f"✅ 전문가 비교 오버레이 파일 생성 완료")
+            # # OverlayGenerator 호출 (기존 시각화 기능 유지)
+            # self.overlay_generator.generate_all_outputs(
+            #     video_path,
+            #     kf_indices,
+            #     keyframe_folder
+            # )
+            # print(f"✅ 전문가 비교 오버레이 파일 생성 완료")
             
             # 9. 생성된 파일 정보를 DB File 테이블에 등록
-            self._register_files_to_db(post_id, keyframe_folder, db)
-            
+            # self._register_files_to_db(post_id, keyframe_folder, db)
+            self._register_files_to_db(post_id, upload_path, db)
+
             # 10. ANALYSIS 데이터 저장 (상세 평가 데이터 포함)
             analysis = Analysis(
                 idx=str(uuid.uuid4()),
@@ -134,12 +143,18 @@ class VideoAnalysisService:
                 kf1=kf_indices['ready'],
                 kf2=kf_indices['backswing'],
                 kf3=kf_indices['impact'],
+                # score_json={
+                #     "evaluation": evaluation_result['evaluation'],
+                #     "stage_scores": evaluation_result['stage_scores'],
+                #     "total_score": total_score
+                # }
+                # ✅ 변경 (details 구조로)
                 score_json={
-                    "evaluation": evaluation_result['evaluation'],
-                    "stage_scores": evaluation_result['stage_scores'],
+                    "details": evaluation_result['details'],
                     "total_score": total_score
                 }
             )
+
             db.add(analysis)
             
             # 11. 최종 POST 상태 업데이트 및 커밋
@@ -153,12 +168,12 @@ class VideoAnalysisService:
             print(f"🎉 모든 분석 공정 완료! 최종 점수: {total_score}")
             print(f"{'='*60}\n")
             
+            # ✅ 변경
             return {
                 "success": True,
                 "post_idx": post_id,
                 "total_score": total_score,
-                "evaluation": evaluation_result['evaluation'],
-                "stage_scores": evaluation_result['stage_scores'],
+                "details": evaluation_result.get('details', {}),
                 "message": "분석이 성공적으로 완료되었습니다."
             }
             
@@ -181,11 +196,15 @@ class VideoAnalysisService:
         
         # 파일명과 타입 매핑
         files_map = [
-            ("1_ready_hybrid.jpg", "KF1", "jpg"),
-            ("3_backswing_hybrid.jpg", "KF2", "jpg"),
-            ("4_impact_hybrid.jpg", "KF3", "jpg"),
-            ("2_rotation_hybrid.mp4", "BACKSWING", "mp4"),
-            ("5_follow_hybrid.mp4", "IMPACT", "mp4")
+            ("1_Ready.jpg", "READY", "jpg"),
+            ("Seq_1_Ready.jpg", "SEQ1_READY", "jpg"),
+            ("Seq_2_Takeaway.jpg", "SEQ2_TAKEAWAY", "jpg"),
+            ("Seq_3_Backswing.jpg", "SEQ3_BACKSWING", "jpg"),
+            ("Seq_4_Downswing_1.jpg", "SEQ4_DOWNSWING1", "jpg"),
+            ("Seq_5_Downswing_2.jpg", "SEQ5_DOWNSWING2", "jpg"),
+            ("Seq_6_Impact.jpg", "SEQ6_IMPACT", "jpg"),
+            ("3_Impact.jpg", "IMPACT", "jpg"),
+            ("4_FollowSwing.mp4", "FOLLOWSWING", "mp4"),
         ]
         
         for filename, file_type, ext in files_map:
