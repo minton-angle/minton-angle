@@ -28,10 +28,12 @@ async function loadAnalysisResult() {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/api/report/upload/result/${postIdx}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const result = await response.json();
+        // fetch 대신 apiCall을 사용. 주소 조립은 apiCall 내부에서 해주므로 endpoint만 적습니다.
+        const result = await apiCall(`/api/report/upload/result/${postIdx}`, {
+            method: 'GET',
+            auth: true // 토큰이 필요한 API라면 true, 아니면 false
+        });
+
         console.log('✅ 서버로부터 받은 전체 데이터:', result);
         
         // 🌟 실시간 모드일 때 탭 처리
