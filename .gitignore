@@ -41,6 +41,9 @@ Anaconda3-*
 # Log files
 *.log
 backend/log.out
+frontend/log_frontend.out
 
 # Other project folders
 docker-minecraft-server/
+.vercel
+.env*.local
