@@ -1,0 +1,382 @@
+html, body {
+    display: flex;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    padding: 1.5dvh 3dvh;
+    background-color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.scroll-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    background-color: #f2f2f281;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    z-index: 11;
+}
+
+.back-btn img { width: 24px; height: auto; }
+
+.header-title {
+    position: absolute;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #025B36;
+}
+
+.grip-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.main-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    color: #025B36;
+    margin-bottom: 5px;
+}
+
+.sub-desc { font-size: 14px; color: #666; }
+
+/* 카메라 영역 */
+.camera-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 5/3;
+    max-width: 400px;
+    margin: 20px 0;
+    border-radius: 25px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    background: #000;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* 촬영 전 안내 박스 */
+.empty-result-guide {
+    width: 100%;
+    height: 20dvh;
+    margin-top: 10px;
+    padding: 5dvh 20px;
+    border: 2px dashed #ccc;
+    border-radius: 20px;
+    background: #fff;
+    text-align: center;
+}
+
+.guide-placeholder p {
+    color: #999;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+
+/* 결과 영역 */
+.result-container {
+    display: none;
+    width: 100%;
+}
+
+.feedback-card {
+    background: #fff;
+    padding: 20px;
+    border-radius: 20px;
+    border: 2px solid #1C593F;
+    margin-bottom: 25px 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.feedback-title { 
+    font-size: 18px; 
+    color: #1C593F; 
+    font-weight: 800; 
+    margin-bottom: 0 !important; 
+}
+
+.feedback-desc { font-size: 15px; color: #444; line-height: 1.4; }
+
+.img-box video { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; 
+}
+
+/* 상단 결과 이미지 박스 */
+.image-box img {
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+}
+
+.img-label { 
+    color: #1C593F; 
+    text-align: center; 
+    font-size: 12px; 
+    font-weight: 700; 
+    margin-bottom: 8px; 
+}
+
+/* 피드백 카드 내부 이미지 스타일 */
+.feedback-video-box {
+    width: 100%;
+    aspect-ratio: 16/9;
+    margin: 0 0 15px 0; /* 위아래 간격 띄우기 */
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    line-height: 0;
+}
+
+/*.feedback-image {
+    background-image: url("../assets/images/expert_smash.png");
+    aspect-ratio: 16/9;
+    background-position: 100%;
+    background-repeat: no-repeat;
+}*/
+
+.result-image-bg {
+    width: 100%;
+    height: 100%;
+    /* 💡 경로를 여기서 수정하세요! */
+    background-image: url("../assets/images/expert_smash.png"); 
+    background-size: cover;    /* 이미지가 영역을 가득 채우도록 */
+    background-position: center; /* 이미지 중앙 정렬 */
+    background-repeat: no-repeat;
+    border-radius: 25px;       /* 부모 곡률과 맞춤 */
+}
+
+/* 로딩 */
+.loading-overlay {
+    display: none;
+    position: absolute;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+
+}
+.spinner {
+    width: 35px; height: 35px;
+    border: 4px solid rgba(255,255,255,0.2);
+    border-top: 4px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* 가이드 라인 */
+.camera-guide {
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    display: flex; justify-content: center; align-items: center;
+    z-index: 2; pointer-events: none;
+}
+.guide-box { width: 70%; height: 70%; border: 1px dashed rgba(255,255,255,0.4); position: relative; }
+.corner { position: absolute; width: 25px; height: 25px; border: 4px solid #1C593F; }
+.top-left { top:-2px; left:-2px; border-right:none; border-bottom:none; }
+.top-right { top:-2px; right:-2px; border-left:none; border-bottom:none; }
+.bottom-left { bottom:-2px; left:-2px; border-right:none; border-top:none; }
+.bottom-right { bottom:-2px; right:-2px; border-left:none; border-top:none; }
+
+.bottom-action { padding: 15px 30px; background: #fff; border-top: 1px solid #eee; }
+.next-btn {
+    width: 100%; background: #1C593F; color: #fff;
+    border: none; padding: 18px; border-radius: 50px;
+    font-weight: 700; font-size: 18px; cursor: pointer;
+}
+
+.upload-placeholder-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.upload-icon-img {
+    width: 50%;
+    height: 100%;
+    background-image: url("../assets/images/album.png");
+    background-size: 20%;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+#previewVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 새로 추가할 세로 배치 비디오 섹션 스타일 */
+.result-video-section {
+    width: 100%;
+    margin-bottom: 20px;
+    padding-top: 2dvh;
+}
+
+.section-label {
+    color: #1C593F;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-align: left;
+    padding-left: 5%;
+}
+
+.large-video-box {
+    width: 100%;
+    margin: 0 auto;
+    aspect-ratio: 16 / 9; /* 영상 비율 (필요에 따라 4/3 이나 5/3으로 수정 가능) */
+    background-color: #000; /* 영상 로딩 전 빈 공간 검은색 */
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.large-video-box video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 화면을 가득 채움. 영상이 잘리는게 싫다면 'contain'으로 변경 */
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+/* 분석 카드 내 버튼 정렬 */
+.video-btn-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 15px;
+}
+
+.view-video-btn {
+    background: #f0f7f4;
+    border: 1.5px solid #1C593F;
+    color: #1C593F;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.view-video-btn:active {
+    background: #1C593F;
+    color: #fff;
+}
+
+/* 팝업(모달) 스타일 */
+.video-modal {
+    display: none; /* 기본 숨김 */
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    position: relative;
+    width: 90%;
+    max-width: 500px;
+}
+
+.close-modal {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    color: white;
+    font-size: 35px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.modal-video-box {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #000;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.modal-video-box video {
+    width: 100%;
+    height: 100%;
+}
+
+/* 공통 라벨 스타일 */
+.video-label {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 10; /* 이미지/영상보다 위에 오도록 */
+    /* 💡 크기 고정의 핵심 속성들 */
+    display: inline-flex;    /* 내부 요소를 플렉스로 정렬해 패딩을 정확히 계산 */
+    align-items: center;     /* 세로 중앙 정렬 */
+    justify-content: center; /* 가로 중앙 정렬 */
+    line-height: 1;          /* 부모로부터 상속된 줄 간격 무시 (높이 차이 해결) */
+    white-space: nowrap;     /* 글자가 절대 줄바꿈 되지 않도록 고정 */
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    box-sizing: border-box;
+}
+
+/* 전문가 라벨: 강조를 위해 브랜드 컬러나 포인트 컬러 사용 */
+.video-label.expert {
+    background: rgba(2, 91, 54, 0.85); /* 진한 녹색 (메인 테마 컬러) */
+}
+
+/* 내 궤적 라벨: 구분을 위해 검은색 배경 사용 */
+.video-label.mine {
+    background: rgba(2, 91, 50, 0.85);
+}
+
+/* 라벨이 잘 보이도록 부모 컨테이너에 relative 설정 확인 */
+.image-box, .feedback-video-box {
+    position: relative;
+}

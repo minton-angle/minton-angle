@@ -106,9 +106,9 @@ body {
     /*margin-left: 6%;*/
     align-items: center;
     justify-content: center;
-    cursor: pointer;
+    cursor: default;
     overflow: hidden;
-    border: 1px solid #bcbcbc;
+    border: 2px solid #bcbcbc;
 }
 
 .upload-placeholder {
@@ -181,31 +181,6 @@ body {
 }
 
 .info-list li span { color: #025B36; font-weight: bold; }
-
-/* 5. 하단 버튼 영역 (기존 유지) */
-/*.bottom-action {
-    flex-shrink: 0;
-    padding: 16px 20px 34px 20px;
-    background-color: #fff;
-    border-top: 1px solid #eee;
-}
-
-.submit-btn {
-    width: 100%;
-    background-color: #025B36;
-    color: #fff;
-    border: none;
-    padding: 18px;
-    border-radius: 50px;
-    font-weight: 700;
-    font-size: 20px;
-    cursor: pointer;
-}
-
-.submit-btn:disabled {
-    background-color: #BDBDBD;
-    cursor: not-allowed;
-}*/
 
 /* 5. 하단 버튼 영역 */
 .bottom-action {
