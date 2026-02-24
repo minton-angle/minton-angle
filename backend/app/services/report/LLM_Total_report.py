@@ -44,13 +44,39 @@ def _safe_str(x: Any) -> str:
 
 
 def _doc_text(d: Dict[str, Any]) -> str:
-    # 검색 성능을 위해 메타+제목+본문을 함께 임베딩
+
     stage = _safe_str(d.get("stage"))
     metric = _safe_str(d.get("metric"))
     band = _safe_str(d.get("score_band"))
     title = _safe_str(d.get("title"))
     content = _safe_str(d.get("content"))
-    return f"[{stage}] [{metric}] [{band}] {title} {content}".strip()
+    summary = _safe_str(d.get("summary"))
+
+    def _join_list(v: Any) -> str:
+        if isinstance(v, list):
+            return " / ".join([_safe_str(x) for x in v if _safe_str(x)])
+        return _safe_str(v)
+
+    cause = _join_list(d.get("cause"))
+    impact = _join_list(d.get("impact"))
+    fix = _join_list(d.get("fix"))
+    checklist = _join_list(d.get("checklist"))
+    drills = _join_list(d.get("drills"))
+
+    # Keep it compact but informative.
+    extra = " ".join(
+        [
+            f"요약:{summary}" if summary else "",
+            f"원인:{cause}" if cause else "",
+            f"영향:{impact}" if impact else "",
+            f"교정:{fix}" if fix else "",
+            f"체크:{checklist}" if checklist else "",
+            f"개선방안:{drills}" if drills else "",
+        ]
+    ).strip()
+
+    base = f"[{stage}] [{metric}] [{band}] {title} {content}".strip()
+    return f"{base} {extra}".strip()
 
 
 def _read_kb(path: str) -> list[Dict[str, Any]]:
@@ -148,12 +174,23 @@ def _get_chroma():
         did = _safe_str(d.get("id") or f"kb_{i}").strip() or f"kb_{i}"
         ids.append(did)
         documents.append(_doc_text(d))
+        def _join_list(v: Any) -> str:
+            if isinstance(v, list):
+                return " / ".join([_safe_str(x) for x in v if _safe_str(x)])
+            return _safe_str(v)
+
         metadatas.append(
             {
                 "stage": _safe_str(d.get("stage")),
                 "metric": _safe_str(d.get("metric")),
                 "score_band": _safe_str(d.get("score_band")),
                 "title": _safe_str(d.get("title")),
+                "summary": _safe_str(d.get("summary")),
+                "cause": _join_list(d.get("cause")),
+                "impact": _join_list(d.get("impact")),
+                "fix": _join_list(d.get("fix")),
+                "checklist": _join_list(d.get("checklist")),
+                "drills": _join_list(d.get("drills")),
                 "tags": _safe_str(d.get("tags")),
             }
         )
@@ -179,9 +216,9 @@ def _score_band_from_mean(x: Any) -> str:
         return "80-90"
     return ">=90"
 
-# 쿼리 빌더: meta.score_stats의 Total과 worst_sub, risk_level을 기반으로 검색 의도에 맞는 텍스트 쿼리를 생성하여 RAG 검색에 사용
+# 쿼리 빌더: meta.score_stats의 sub_stats(세부 점수)와 worst_sub/risk_level을 기반으로 RAG 검색 쿼리 생성
 def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
-    """Build deterministic queries from meta.score_stats (worst_sub + risk_level)."""
+
     score_stats = (meta or {}).get("score_stats", {}) or {}
 
     total_to_stage = {
@@ -191,50 +228,79 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
         "4_Impact_Total": "impact",
     }
 
-    queries: list[Dict[str, Any]] = []
+    # 1) Collect candidate weak sub-metrics across stages
+    candidates: list[Dict[str, Any]] = []
 
     for total_key, stage in total_to_stage.items():
         node = score_stats.get(total_key, {}) or {}
-        cm = node.get("current_mean")
-        worst_sub = node.get("worst_sub")
         direction = _safe_str(node.get("direction") or "flat")
-
         sub_stats = node.get("sub_stats") or {}
+        if not isinstance(sub_stats, dict) or not sub_stats:
+            continue
 
-        # worst_sub 점수 추출
-        worst_sub_score = None
-        if worst_sub and isinstance(sub_stats, dict):
-            sub_node = sub_stats.get(worst_sub)
-            if isinstance(sub_node, dict):
-                try:
-                    worst_sub_score = float(sub_node.get("current_mean"))
-                except Exception:
-                    worst_sub_score = None
-
-        # fallback: worst_sub_score 없으면 total 사용
-        if worst_sub_score is None:
+        for sub_key, sub_node in sub_stats.items():
+            if not isinstance(sub_node, dict):
+                continue
             try:
-                worst_sub_score = float(cm)
+                sub_score = float(sub_node.get("current_mean"))
             except Exception:
-                worst_sub_score = None
-        # total 점수가 아닌 worst_sub_score 기준으로 검색 쿼리 생성
-        if worst_sub_score is not None and worst_sub_score < 90 and worst_sub:
-            band = _score_band_from_mean(worst_sub_score)
+                continue
 
-            metric_only = _safe_str(worst_sub)
+            # Only focus weak sub-metrics
+            if sub_score >= 90:
+                continue
+
+            metric_only = _safe_str(sub_key)
+            # sub_key examples: "Ready.Wrist_Height_Ratio" -> "Wrist_Height_Ratio"
             if "." in metric_only:
                 metric_only = metric_only.split(".")[-1]
 
-            text = f"{stage} metric={metric_only} band={band} direction={direction}"
+            band = _score_band_from_mean(sub_score)
 
-            queries.append({
-                "q": text,
-                "where": {
+            candidates.append(
+                {
                     "stage": stage,
                     "metric": metric_only,
-                    "score_band": band
+                    "score_band": band,
+                    "score": sub_score,
+                    "direction": direction,
+                    "sub_key": _safe_str(sub_key),
                 }
-            })
+            )
+
+    # 정책 변경:
+    # - sub_score < 90 인 모든 세부 항목을 RAG 대상으로 사용
+    # - stage별 개수 제한 제거
+    # - 전체 상위 N개 제한 제거
+
+    queries: list[Dict[str, Any]] = []
+
+    for c in candidates:
+        stage = _safe_str(c.get("stage"))
+        metric = _safe_str(c.get("metric"))
+        band = _safe_str(c.get("score_band"))
+        direction = _safe_str(c.get("direction") or "flat")
+
+        if not stage or not metric or not band:
+            continue
+
+        text = f"{stage} metric={metric} band={band} direction={direction}".strip()
+        queries.append(
+            {
+                "q": text,
+                "where": {"stage": stage, "metric": metric, "score_band": band},
+            }
+        )
+
+    # Debug: 전체 sub<90 항목이 모두 쿼리로 변환되었는지 확인
+    try:
+        logger_llm.info(
+            "RAG all_weak_sub count=%d items=%s",
+            len(candidates),
+            json.dumps(candidates, ensure_ascii=False),
+        )
+    except Exception:
+        pass
 
     # FollowSwing: risk_level improve/risk면 부상 예방 관찰 포인트 문서 우선
     fs = score_stats.get("5_FollowSwing_SuccessRate", {}) or {}
@@ -243,22 +309,9 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
         text = f"followswing injury_prevention risk_level={risk_level}".strip()
         queries.append({"q": text, "where": {"stage": "followswing", "score_band": risk_level}})
 
-    # # Average_Score 트렌드(선택): 요약 문장 톤 다양성용
-    """
-    Average_Score을 주석처리 함으로써:
-    Total < 90 + worst_sub 기반 쿼리
-    FollowSwing risk/improve 기반 쿼리
-    만 생성하고,
-    where={} 전체 검색은 더 이상 실행되지 않음(어떤 쿼리든지 항상 참조하던 "overall trend direction=..." 텍스트 쿼리 제거)
-    """
-    # tr = (meta or {}).get("trend", {}) or {}
-    # ddir = _safe_str(tr.get("direction") or "flat")
-    # text = f"overall trend direction={ddir}".strip()
-    # queries.append({"q": text, "where": {}})
-
     # 중복 제거(텍스트 기준)
     seen = set()
-    out = []
+    out: list[Dict[str, Any]] = []
     for it in queries:
         key = _safe_str(it.get("q"))
         if not key or key in seen:
@@ -276,16 +329,9 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
 
     queries = _build_rag_queries(meta or {})
 
+    # Chroma의 where 필터는 dict 형태로 {field: value} 또는 {"$and": [{field: value}, ...]} 여야 합니다.
     def _normalize_where(where: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Chroma where clause normalizer.
 
-        Chroma expects where to be expressed with exactly one operator at the top-level.
-        This converts simple equality dicts into operator form.
-
-        - {} or invalid -> None
-        - {"k": v} -> {"k": {"$eq": v}}
-        - {"k1": v1, "k2": v2} -> {"$and": [{"k1": {"$eq": v1}}, {"k2": {"$eq": v2}}]}
-        """
         if not isinstance(where, dict) or not where:
             return None
 
@@ -358,14 +404,40 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
             if COACH_RAG_MAX_CHARS > 0 and len(doc) > COACH_RAG_MAX_CHARS:
                 doc = doc[:COACH_RAG_MAX_CHARS].rstrip() + "…"
 
+            # Prefer structured metadata for prompt injection (more "coach-like"),
+            # while keeping the embedded `doc` as a fallback.
+            inj_title = _safe_str(md.get("title"))
+            inj_summary = _safe_str(md.get("summary"))
+            inj_cause = _safe_str(md.get("cause"))
+            inj_impact = _safe_str(md.get("impact"))
+            inj_fix = _safe_str(md.get("fix"))
+            inj_check = _safe_str(md.get("checklist"))
+            inj_drills = _safe_str(md.get("drills"))
+
+            parts = []
+            if inj_summary:
+                parts.append(f"요약: {inj_summary}")
+            if inj_cause:
+                parts.append(f"원인: {inj_cause}")
+            if inj_impact:
+                parts.append(f"영향: {inj_impact}")
+            if inj_fix:
+                parts.append(f"교정: {inj_fix}")
+            if inj_check:
+                parts.append(f"체크: {inj_check}")
+            if inj_drills:
+                parts.append(f"개선방법: {inj_drills}")
+
+            inj_content = "\n".join(parts).strip() or doc
+
             results.append(
                 {
                     "id": sid,
                     "stage": _safe_str(md.get("stage")),
                     "metric": _safe_str(md.get("metric")),
                     "score_band": _safe_str(md.get("score_band")),
-                    "title": _safe_str(md.get("title")),
-                    "content": doc,
+                    "title": inj_title,
+                    "content": inj_content,
                 }
             )
         # 각 쿼리 처리 후 누적 결과 로그(쿼리별)
@@ -381,6 +453,14 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
         len(results),
         [r.get("id") for r in results],
     )
+    try:
+        stage_counts: Dict[str, int] = {}
+        for r in results:
+            st = _safe_str(r.get("stage"))
+            stage_counts[st] = stage_counts.get(st, 0) + 1
+        logger_llm.info("RAG injected stage_counts=%s", json.dumps(stage_counts, ensure_ascii=False))
+    except Exception:
+        pass
 
     return results
 
@@ -394,8 +474,9 @@ def _system_prompt(lang: str) -> str:
 당신은 배드민턴 동작 분석 AI 코치입니다.
 
 [절대 규칙]
-0) `meta.retrieved_coaching`가 제공되면, 각 섹션의 focus_two는 해당 근거를 우선 사용하여 작성하십시오.
-   - retrieved_coaching의 문구를 그대로 길게 복붙하지 말고, 핵심 근거를 요약/재서술하여 자연스럽게 반영하십시오.
+0) `meta.retrieved_coaching`가 제공되면, 각 섹션의 analysis는 retrieved_coaching의 stage/metric과 직접 연결되는
+    구체적인 신체 움직임 설명을 반드시 포함하십시오.
+   - retrieved_coaching의 문구를 그대로 길게 복붙하지 말고, 핵심 근거를 재서술하여 자연스럽게 반영하십시오.
    - retrieved_coaching가 비어있는 경우에만 일반 코칭 지식으로 작성하십시오.
 1) 수치는 반드시 `meta.score_stats`에 있는 값만 사용하십시오.
     - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_SuccessRate, total_score
@@ -431,30 +512,25 @@ def _system_prompt(lang: str) -> str:
    - summary: string
    - growth: { direction: improved|worsened|flat, delta_average_score: number, message: string }
    - sections: {
-       ready: { title, change_one, mini_summary, focus_two },
-       rotation: { title, change_one, mini_summary, focus_two },
-       backswing: { title, change_one, mini_summary, focus_two },
-       impact: { title, change_one, mini_summary, focus_two },
-       followswing: { title, change_one, mini_summary, focus_two }
+       ready: { title, change_one, analysis },
+       rotation: { title, change_one, analysis },
+       backswing: { title, change_one, analysis },
+       impact: { title, change_one, analysis },
+       followswing: { title, change_one, analysis }
      }
    - today_checklist: string[]
 6) change_one에는 아래 3개 값을 반드시 포함하십시오(점수 표기, 소수점 2자리):
    - current_mean, prev_mean, delta
-6-1) 각 섹션에는 mini_summary 필드를 반드시 포함하십시오.
-       - mini_summary는 해당 Stage의 sub_stats를 기반으로 "지난 기간 대비 → 이번 기간"의 세부 흐름을 설명하는 문장입니다.
-       - 반드시 sub_stats 내부 세부 항목명을 2개 이상 직접 언급하십시오. (예: Arm_Angle, Wrist_Height_Ratio 등)
-       - 반드시 delta 값을 기준으로 가장 크게 개선된 항목 1개와, 가장 크게 악화된 항목 1개를 비교 서술하십시오.
-         (악화 항목이 없는 경우에는 개선 항목 2개를 비교 서술하십시오.)
-       - Total 점수의 direction만으로 요약하는 문장은 금지합니다.
-       - worst_sub_current_mean이 90 미만인 경우, 해당 worst_sub를 mini_summary에 반드시 포함하여
-         "전체 점수와 별개로 어떤 세부가 흔들렸는지"를 명확히 드러내십시오.
-       - 단순 점수 나열은 금지하며, 세부 항목 간의 흐름 변화(어떤 항목이 끌어내렸는지 / 어떤 항목이 보완했는지)를 설명해야 합니다.
-7) focus_two는 2개 항목의 배열로 작성하십시오.
-   - 각 항목은 1~2문장으로 구성된 문장형 코치 피드백이어야 합니다.
-   - 단순 체크형 표현("~이 유지되는지") 대신,
-     왜 중요한지 또는 동작에 어떤 영향을 주는지를 포함한 설명형 문장으로 작성하십시오.
-   - 지시형(해라/하세요/줄이세요 등 명령형)은 금지합니다.
-   - 같은 문장 구조나 어미를 반복하지 마십시오.
+6-1) analysis는 해당 Stage의 "기간 비교 기반 분석 리포트"를 작성하는 단일 필드입니다.
+     - 정확히 3문장 구조를 유지하십시오.
+     - 첫 문장: 이전 기간 대비 세부 동작 흐름(최소 2개 세부 항목)을 객관적으로 요약하십시오.
+     - 두 번째 문장: 해당 변화가 경기력 또는 동작 안정성에 어떤 영향을 주는지 설명하십시오.
+     - 세 번째 문장: 개선 또는 유지 관점에서의 제안을 작성하십시오.
+     - 점수/델타/평균 수치 직접 언급 금지(숫자 금지).
+     - 지시형 문장(해라/하세요) 금지, 보고서형 제안 문장으로 작성하십시오.
+     - retrieved_coaching가 있는 경우, 핵심 의미만 요약 반영하십시오. (드릴 세부 묘사 금지)
+     - worst_sub_current_mean이 90 미만인 경우,
+       해당 worst_sub를 1회 이상 언급하여 '세부 보완 필요' 관점으로 포함하십시오.
 8) today_checklist는 정확히 3개 항목의 배열로 작성하십시오.
 9) 각 섹션은 current_mean(점수)에 따라 피드백 목적이 달라야 합니다.
    - current_mean >= 90: "유지/강점 확인" 중심으로 작성합니다.
@@ -462,16 +538,6 @@ def _system_prompt(lang: str) -> str:
      '보강/흔들림 방지' 관점으로 worst_sub를 1회 이상 언급할 수 있습니다.
    - 80 <= current_mean < 90: "안정화/흔들림 방지" 중심으로 작성
    - current_mean < 80: "개선 필요" 중심으로 작성
-10) focus_two의 2개 문장은 current_mean에 따라 다음 성격을 따라야 합니다.
-   - current_mean >= 90:
-     (a) 강점 유지 포인트 1개
-     (b) 실수 방지 체크 포인트 1개
-   - 80 <= current_mean < 90:
-     (a) 안정화 포인트 1개
-     (b) 흔들릴 때 나타나는 징후 1개
-   - current_mean < 80:
-     (a) 주요 개선 포인트 1개
-     (b) 개선이 되면 기대되는 변화 1개
 """.strip()
 
 
@@ -505,11 +571,11 @@ def _user_prompt(
             "message": "string",
         },
         "sections": {
-            "ready": {"title": "준비", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
-            "rotation": {"title": "회전", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
-            "backswing": {"title": "백스윙", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
-            "impact": {"title": "임팩트", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
-            "followswing": {"title": "팔로스윙", "change_one": "string", "mini_summary": "string", "focus_two": "string[]"},
+            "ready": {"title": "준비", "change_one": "string", "analysis": "string"},
+            "rotation": {"title": "회전", "change_one": "string", "analysis": "string"},
+            "backswing": {"title": "백스윙", "change_one": "string", "analysis": "string"},
+            "impact": {"title": "임팩트", "change_one": "string", "analysis": "string"},
+            "followswing": {"title": "팔로스윙", "change_one": "string", "analysis": "string"},
         },
         "today_checklist": "string[]",
     }
@@ -525,10 +591,10 @@ def _user_prompt(
         "작성 규칙:\n"
         "1) ready/rotation/backswing/impact/followswing 분석 내용은 서로 달라야 합니다.\n"
         "2) 각 섹션의 change_one에는 current_mean, prev_mean, delta(모두 점수, 소수점 2자리) 3개를 반드시 포함하세요.\n"
-        "3) focus_two는 2개 항목의 배열이며, 지시형(해라/하세요) 문장 금지.\n"
+        "3) analysis는 analysis는 단일 문자열이며, 관찰 + 영향 + 해결 제안을 자연스럽게 통합하여 작성하세요. 단, 불필요한 반복은 피하십시오.\n"
         "4) today_checklist는 정확히 3개 항목의 배열로 작성하세요.\n"
         "5) 숫자는 meta.score_stats 값만 사용하세요. (세부 항목은 sub_stats를 사용할 수 있습니다)\n"
-        "6) Total이 90 미만인 섹션은 worst_sub(가장 낮은 세부 항목)을 언급하여 관찰 포인트를 구체화하세요.\n\n"
+        "6) Total 점수와 무관하게 worst_sub_current_mean이 90 미만인 섹션은 worst_sub(가장 낮은 세부 항목)을 반드시 1회 이상 언급하여 보강 관점을 포함하세요.\n\n"
         f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
 
@@ -581,10 +647,9 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
     ]:
         node = report_obj["sections"].setdefault(
             key,
-            {"title": title, "change_one": "-", "mini_summary": "-", "focus_two": []},
+            {"title": title, "change_one": "-", "analysis": "-"},
         )
-        node.setdefault("mini_summary", "-")
-        node["focus_two"] = _ensure_list(node.get("focus_two"))
+        node.setdefault("analysis", "-")
 
     # Backward-compat: map score sections -> legacy actions(kf1/kf2/kf3) if actions missing
     if not report_obj.get("actions"):
@@ -592,17 +657,17 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
             "kf1": {
                 "title": "백스윙 동작",
                 "problem_one": report_obj["sections"]["backswing"].get("change_one", "-"),
-                "fix_two": report_obj["sections"]["backswing"].get("focus_two", []),
+                "fix_two": [],
             },
             "kf2": {
                 "title": "임팩트 동작",
                 "problem_one": report_obj["sections"]["impact"].get("change_one", "-"),
-                "fix_two": report_obj["sections"]["impact"].get("focus_two", []),
+                "fix_two": [],
             },
             "kf3": {
                 "title": "팔로스루 동작",
                 "problem_one": report_obj["sections"]["followswing"].get("change_one", "-"),
-                "fix_two": report_obj["sections"]["followswing"].get("focus_two", []),
+                "fix_two": [],
             },
         }
 
