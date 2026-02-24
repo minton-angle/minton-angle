@@ -129,7 +129,8 @@ async function apiCall(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
     
     const defaultHeaders = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': '69420'
     };
     
     const headers = {
@@ -149,6 +150,7 @@ async function apiCall(endpoint, options = {}) {
     
     const response = await fetch(url, { ...options, headers });
     
+    // ngrok 경고 페이지(HTML)가 오면 response.json()이 실패해서 Unexpected token < 에러 발생
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.detail || `HTTP ${response.status}`);
