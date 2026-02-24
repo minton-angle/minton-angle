@@ -120,10 +120,12 @@ function initCalendar() {
 // ========================================
 async function loadMonthlyData(year, month) {
     try {
-        console.log(`🔄 월별 데이터 로드 시작: ${year}-${month}`);
-        
-        const response = await apiCall(
-            `/api/calendar/monthly-summary?year=${year}&month=${month}`
+            // 월 형식을 반드시 2자리(02)로 맞춰줍니다.
+            const formattedMonth = String(month).padStart(2, '0');
+            console.log(`🔄 월별 데이터 로드 시작: ${year}-${formattedMonth}`);
+            
+            const response = await apiCall(
+                `/api/calendar/monthly-summary?year=${year}&month=${formattedMonth}`
         );
         
         if (response.success) {
@@ -131,7 +133,7 @@ async function loadMonthlyData(year, month) {
             console.log('✅ 월별 데이터 로드 완료:', monthlyData);
             
             // 캘린더 리렌더링
-            calendar.refetchEvents();
+            calendar.render();
             
             // 모든 날짜 셀 다시 렌더링
             const allDayCells = document.querySelectorAll('.fc-daygrid-day');
