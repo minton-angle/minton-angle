@@ -1,0 +1,289 @@
+body {
+    font-family: 'Pretendard', sans-serif;
+    align-items: center;
+    flex-direction: column;
+}
+
+.mobile-container {
+    width: 100%;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    align-items: center;
+    max-width: 600px;
+}
+
+.scroll-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 헤더 스타일 */
+.header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3dvh 3dvh;
+    min-height: 25px;
+    background-color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #fff;
+}
+
+.back-btn {
+    position: absolute;
+    left: 25px;
+    width: 24px;
+    height: 24px;
+    /*margin-left: 20px;*/
+    color:#000;
+    align-items: center;
+
+    background-image: url('../assets/images/arrow_back.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+.header-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    text-align: center;
+}
+
+.divider {
+    border: 0;
+    border-top: 2px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.signup-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 폼 스타일 */
+.field-group {
+    width: 85%;
+    margin-bottom: 2.2dvh;
+}
+
+.field-group label {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 2dvh;
+    font-weight: 600;
+    padding-left: 15px;
+}
+
+input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 2.5dvh;
+    border: 0.5px solid #000;
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+    background-color: white;
+}
+
+input::placeholder {
+    font-size: 3dvw !important;
+    font-weight: 400;
+    color: #aaa !important;
+}
+
+.row-group {
+    width: 85%;
+    display: flex;
+    justify-content: space-between;
+    gap: 1dvw;
+    /*margin-bottom: 2dvh;*/
+    margin: 0 auto;
+}
+
+.field-group.half {
+    width: 48%;
+    margin-bottom: 2dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+.field-group.half label {
+    padding-left: 15px;
+    text-align: left;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* 성별 버튼 */
+/* 성별 토글 컨테이너 (바깥 긴 타원) */
+.gender-toggle-container {
+    position: relative;
+    width: 100%;
+    max-width: 320px; /* 60% 버튼들이 겹치기에 적당한 너비 */
+    height: 55px;
+    background-color: #f0f0f0;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    margin: 0 auto;
+    overflow: hidden; /* 삐져나가는 부분 컷 */
+}
+.gender-btn {
+    /* 기존 속성 초기화 */
+    flex: none !important; 
+    max-width: none !important;
+    
+    position: absolute; /* 겹치기 위해 필수 */
+    width: 50%;         
+    height: calc(100% - 10px); /* 위아래 여백 5px씩 제외 */
+    top: 5px;
+    border: none;
+    background: transparent; /* 초기엔 배경 투명 */
+    color: #000;            /* 초기엔 글자 검정 */
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 20px;    /* 알약 모양 */
+    transition: all 0.3s ease;
+    z-index: 1;             /* 기본 깊이 */
+    
+    /* 텍스트 중앙 정렬 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 왼쪽 버튼 위치 */
+.gender-btn.female {
+    left: 5px;
+}
+
+/* 오른쪽 버튼 위치 */
+.gender-btn.male {
+    right: 5px;
+}
+
+/* [클릭 시 활성화 상태] */
+.gender-btn.active {
+    background-color: #3E6D4F; /* 초록색 배경 */
+    color: #fff;              /* 흰색 글씨 */
+    z-index: 10;               /* 클릭한 버튼이 위로 올라옴 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); /* 살짝 튀어나와 보이게 */
+}
+
+/* 손 버튼 */
+/* 손 토글 컨테이너 (바깥 긴 타원) */
+.hand-toggle-container {
+    position: relative;
+    width: 100%;
+    max-width: 320px; /* 60% 버튼들이 겹치기에 적당한 너비 */
+    height: 55px;
+    background-color: #f0f0f0;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    margin: 0 auto;
+    overflow: hidden; /* 삐져나가는 부분 컷 */
+}
+
+.hand-btn {
+    /* 기존 속성 초기화 */
+    flex: none !important; 
+    max-width: none !important;
+    
+    position: absolute; /* 겹치기 위해 필수 */
+    width: 50%;         /* 요구하신 60% 너비 */
+    height: calc(100% - 10px); /* 위아래 여백 5px씩 제외 */
+    top: 5px;
+    border: none;
+    background: transparent; /* 초기엔 배경 투명 */
+    color: #000;            /* 초기엔 글자 검정 */
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 20px;    /* 알약 모양 */
+    transition: all 0.3s ease;
+    z-index: 1;             /* 기본 깊이 */
+    
+    /* 텍스트 중앙 정렬 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 왼쪽 버튼 위치 */
+.hand-btn.left {
+    left: 5px;
+}
+
+/* 오른쪽 버튼 위치 */
+.hand-btn.right {
+    right: 5px;
+}
+
+/* [클릭 시 활성화 상태] */
+.hand-btn.active {
+    background-color: #28805c;; /* 초록색 배경 */
+    color: #fff;              /* 흰색 글씨 */
+    z-index: 10;               /* 클릭한 버튼이 위로 올라옴 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); /* 살짝 튀어나와 보이게 */
+}
+
+/* 아이디 입력창 내 중복확인 버튼 */
+.input-with-btn {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-self: center;
+}
+
+.input-with-btn input {
+    padding-right: 95px;
+}
+
+.check-btn {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #F5B342;
+    color: white;
+    border: none;
+    padding: 10px 3dvw;
+    border-radius: 20px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* 하단 회원가입 제출 버튼 */
+.submit-btn {
+    width: 85%;
+    padding: 20px;
+    background-color: #28805c;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 1dvh;
+}

@@ -220,7 +220,9 @@
 
 
 
-// 테스트
+// ========================================
+// 전역 변수
+// ========================================
 const videoElement = document.getElementById('input_video');
 const canvasElement = document.getElementById('output_canvas');
 const canvasCtx = canvasElement.getContext('2d');
@@ -228,16 +230,17 @@ const countdownEl = document.getElementById('countdown-number');
 const feedbackEl = document.getElementById('feedback-text');
 const progressBar = document.getElementById('analysis-progress');
 
-// 🆕 localStorage에서 복원
-let currentSwing = parseInt(localStorage.getItem('currentSwing') || '1');
-let swingResults = JSON.parse(localStorage.getItem('swingResults') || '{}');
+// ⭐ common.js 함수 사용!
+let currentSwing = getData('currentSwing', 1);
+let swingResults = getData('swingResults', {});
 let isRunning = false;
 let capturedFrames = [];
 let isCapturing = false;
-const API_BASE_URL = 'http://localhost:8000';
-const USER_ID = 'user_001';
+let currentPoseLandmarks = null;
 
+// ========================================
 // 1. TTS(음성 출력) 함수
+// ========================================
 function speak(text) {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'ko-KR';
@@ -245,16 +248,18 @@ function speak(text) {
     window.speechSynthesis.speak(utterance);
 }
 
-// 2. MediaPipe Pose
+// ========================================
+// 2. MediaPipe Pose 설정
+// ========================================
 const pose = new Pose({
     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
 });
 
 pose.setOptions({ 
-    modelComplexity: 1, 
+    modelComplexity: 2,
     smoothLandmarks: true, 
-    minDetectionConfidence: 0.5, 
-    minTrackingConfidence: 0.5 
+    minDetectionConfidence: 0.3,
+    minTrackingConfidence: 0.3
 });
 
 pose.onResults((results) => {
@@ -263,14 +268,21 @@ pose.onResults((results) => {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    
     if (results.poseLandmarks) {
+        currentPoseLandmarks = results.poseLandmarks;
         drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
         drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', lineWidth: 2, radius: 4});
+    } else {
+        currentPoseLandmarks = null;
     }
+    
     canvasCtx.restore();
 });
 
+// ========================================
 // 3. 카메라 설정
+// ========================================
 const camera = new Camera(videoElement, {
     onFrame: async () => { await pose.send({image: videoElement}); },
     width: 1280, 
@@ -278,15 +290,16 @@ const camera = new Camera(videoElement, {
 });
 camera.start();
 
+// ========================================
+// 4. 페이지 로드 시 초기화
+// ========================================
 window.addEventListener('DOMContentLoaded', () => {
     console.log(`📂 저장된 스윙 결과: ${Object.keys(swingResults).length}개`);
     
-    // 🆕 Progress bar 복원
     const completedSwings = currentSwing - 1;
     progressBar.style.width = `${(completedSwings / 3) * 100}%`;
     console.log(`📊 Progress: ${completedSwings}/3 완료`);
     
-    // 이전에 분석한 결과들 UI에 표시
     Object.keys(swingResults).forEach(swingNum => {
         const result = swingResults[swingNum];
         console.log(`✅ 스윙 ${swingNum}회 결과 복원:`, result);
@@ -294,7 +307,9 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 🆕 4. 자동 시작 (현재 스윙 회차 표시)
+// ========================================
+// 5. 자동 시작
+// ========================================
 setTimeout(() => {
     if (!isRunning) {
         isRunning = true;
@@ -307,22 +322,23 @@ setTimeout(() => {
     }
 }, 2000);
 
-// 5. 스윙 분석 루틴
+// ========================================
+// 6. 스윙 분석 루틴
+// ========================================
 async function runSwingRoutine() {
     if (currentSwing > 3) {
-        // localStorage 초기화
-        const postId = localStorage.getItem('post_id');  // ⭐ post_id 백업
+        // ⭐ common.js 함수 사용!
+        const postId = getData('post_id');
         
-        localStorage.removeItem('currentSwing');
-        localStorage.removeItem('swingResults');
-        console.log('🧹 localStorage 초기화 완료');
+        removeData('currentSwing');
+        removeData('swingResults');
+        console.log('🧹 Storage 초기화 완료');
         
         const finalMsg = "모든 분석이 완료되었습니다. 결과 리포트로 이동합니다.";
         feedbackEl.innerText = finalMsg;
         speak(finalMsg);
         
         setTimeout(() => {
-            // ⭐ URL 파라미터로 전달
             window.location.href = `06-reportLoading.html?post_id=${postId}&type=realtime`;
         }, 2500);
         return;
@@ -353,7 +369,7 @@ async function runSwingRoutine() {
         if (isCapturing) {
             captureFrame();
         }
-    }, 100);  // 10fps
+    }, 100);
     
     await new Promise(r => setTimeout(r, 5000));
     
@@ -373,9 +389,9 @@ async function runSwingRoutine() {
         const analysisResult = await sendFramesToBackend(currentSwing, capturedFrames);
         console.log('✅ 분석 결과 수신:', analysisResult);
         
-        // 🆕 결과 저장
+        // ⭐ common.js 함수 사용!
         swingResults[currentSwing] = analysisResult;
-        localStorage.setItem('swingResults', JSON.stringify(swingResults));
+        saveData('swingResults', swingResults);
         console.log(`💾 스윙 ${currentSwing}회 결과 저장 완료`);
         
         updateUIWithResult(currentSwing, analysisResult);
@@ -387,88 +403,107 @@ async function runSwingRoutine() {
     } finally {
         console.log(`📝 스윙 ${currentSwing} → ${currentSwing + 1}`);
         currentSwing++;
-        localStorage.setItem('currentSwing', currentSwing);
+        // ⭐ common.js 함수 사용!
+        saveData('currentSwing', currentSwing);
         await new Promise(r => setTimeout(r, 3500));
         runSwingRoutine();
     }
 }
 
-// 프레임 캡처
+// ========================================
+// 7. 프레임 캡처
+// ========================================
 function captureFrame() {
+    if (!currentPoseLandmarks) {
+        console.warn('⚠️ pose_landmarks 없음, 프레임 건너뜀');
+        return;
+    }
+    
+    const selectedIndices = [
+        0, 11, 12, 13, 14, 15, 16, 17, 18, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    ];
+    
+    const keypointNames = [
+        'nose',
+        'left_shoulder', 'right_shoulder',
+        'left_elbow', 'right_elbow',
+        'left_wrist', 'right_wrist',
+        'left_pinky', 'right_pinky',
+        'left_hip', 'right_hip',
+        'left_knee', 'right_knee',
+        'left_ankle', 'right_ankle',
+        'left_heel', 'right_heel',
+        'left_foot_index', 'right_foot_index'
+    ];
+    
+    const keypoints = {};
+    
+    selectedIndices.forEach((idx, i) => {
+        const landmark = currentPoseLandmarks[idx];
+        const name = keypointNames[i];
+        
+        keypoints[`${name}_x`] = landmark.x;
+        keypoints[`${name}_y`] = landmark.y;
+        keypoints[`${name}_z`] = landmark.z;
+    });
+    
     const frameData = canvasElement.toDataURL('image/jpeg', 0.8);
+    
     capturedFrames.push({
         frame_id: capturedFrames.length,
-        image: frameData
+        image: frameData,
+        keypoints: keypoints
     });
+    
+    console.log(`✅ 프레임 ${capturedFrames.length} 캡처 완료`);
 }
 
-// 백엔드로 전송
+// ========================================
+// 8. 백엔드로 전송
+// ========================================
 async function sendFramesToBackend(swingNum, frames) {
-    console.log(`현재 ${swingNum}회차 진행중`);
-    console.log(`📡 API 호출: ${API_BASE_URL}/api/realtime/analyze-swing`);
-    console.log(`📊 데이터: swing_num=${swingNum}, frames=${frames.length}개`);
-    
-    // ⭐ keypoints 추출 (임시 더미 데이터)
-    const keypoints = frames.map(() => {
-        // 33개 랜드마크 x 4개 값 (x, y, z, visibility)
-        return Array(33).fill(null).map(() => [
-            Math.random(),  // x
-            Math.random(),  // y
-            Math.random(),  // z
-            Math.random()   // visibility
-        ]).flat();  // [x,y,z,v, x,y,z,v, ...] 형태로
-    });
-    
-    const response = await fetch(`${API_BASE_URL}/api/realtime/analyze-swing`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            user_id: USER_ID,
-            swing_num: swingNum,
-            post_id: swingNum > 1 ? localStorage.getItem('post_id') : null,  // ⭐ 추가!
-            keypoints: keypoints,  // ⭐ 추가!
-            frames: frames.map(f => f.image)  // ⭐ image만 추출
-        })
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ 서버 응답:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    
-    // ⭐ 1회차면 post_id 저장
-    if (swingNum === 1) {
-        const postId = result.post_id || result.post_idx;
+    try {
+        console.log(`📤 API 호출: swing_num=${swingNum}, frames=${frames.length}개`);
         
-        console.log('🎯 추출한 postId:', postId);
-        console.log('🎯 추출한 postId 타입:', typeof postId);
+        const keypoints = frames.map(f => f.keypoints);
+        console.log(`🔑 Keypoints: ${keypoints.length}개`);
         
-        if (postId) {
-            localStorage.setItem('post_id', postId);
-            console.log(`✅✅✅ localStorage 저장 성공: ${postId}`);
-            
-            // 저장 확인
-            const saved = localStorage.getItem('post_id');
-            console.log(`🔍 저장 확인: ${saved}`);
-            
-            if (saved !== postId) {
-                console.error('❌❌❌ 저장 실패! 저장값 불일치!');
+        const response = await apiCall('/api/realtime/analyze-swing', {
+            method: 'POST',
+            body: JSON.stringify({
+                user_id: 'user_001',
+                swing_num: swingNum,
+                post_id: swingNum > 1 ? getData('post_id') : null,
+                keypoints: keypoints,
+                frames: frames.map(f => f.image)
+            })
+        });
+        
+        console.log('✅ API 응답:', response);
+        
+        // ⭐ 1회차에서 post_id 저장
+        if (swingNum === 1) {
+            const postId = response.post_id || response.post_idx;
+            if (postId) {
+                saveData('post_id', postId);
+                console.log(`💾 post_id 저장: ${postId}`);
+            } else {
+                console.error('❌ 응답에 post_id 없음!', response);
             }
-        } else {
-            console.error('❌❌❌ postId가 undefined/null!');
-            console.error('📦 전체 응답:', JSON.stringify(result, null, 2));
         }
+        
+        // ⭐ 응답 반환!
+        return response;
+        
+    } catch (error) {
+        console.error('❌ API 호출 실패:', error);
+        throw error;
     }
-    
-    return result;
 }
 
-// UI 업데이트
+// ========================================
+// 9. UI 업데이트
+// ========================================
 function updateUIWithResult(swingNum, result) {
     const row = document.getElementById(`row-${swingNum}`);
     
@@ -481,7 +516,7 @@ function updateUIWithResult(swingNum, result) {
         el.classList.remove('active', 'bad', 'normal', 'good')
     );
     
-    const avgScore = result.overall_average;
+    const avgScore = result.overall_average || result.total_score || 0;
     let status = 'bad';
     
     if (avgScore >= 80) {
@@ -494,11 +529,11 @@ function updateUIWithResult(swingNum, result) {
     
     if (target) {
         target.classList.add('active', status);
-    } else {
-        console.warn(`⚠️ res-${swingNum}-${status} 요소를 찾을 수 없습니다.`);
     }
     
-    const feedback = result.feedback || "분석 완료";
+    const feedback = result.quick_feedback || result.feedback || "분석 완료";
     feedbackEl.innerText = `스윙 ${swingNum}회: ${feedback} (${avgScore.toFixed(1)}점)`;
     speak(feedback);
 }
+
+console.log('📄 05-swingAnalyze.js 로드 완료');

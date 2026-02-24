@@ -3,13 +3,36 @@
    스윙 분석 리포트 상세 페이지
    ============================================ */
 
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.mobile-container {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+}
+
+.scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
+}
+
 .header {
     display: flex;
     align-items: center;
-    padding: 16px 20px;
+    padding: 1.5dvh 3dvh;
     background-color: #fff;
     position: sticky;
-    top: 24px;
+    top: 0;
     z-index: 10;
 }
 .back-btn {
@@ -39,12 +62,12 @@
 .report-card.overall-card {
     background: #fff;
     border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 20px;
+    padding: 2dvh;
+    margin: 2dvh;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 
-.card-header { margin-bottom: 20px; }
+.card-header { margin-bottom: 1dvh; }
 .card-subtitle { font-size: 13px; color: #666; font-weight: 500; }
 .card-subtitle .highlight { color: #025B36; font-weight: 700; }
 
@@ -63,14 +86,15 @@
 
 /* 동적 원형 차트 */
 .chart-container { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
-.score-svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+.score-svg { transform: rotate(-90deg); width: 100%; height: 100%; transform-origin: center; }
 .score-svg circle { fill: none; stroke-width: 10; stroke-linecap: round; }
 .score-svg circle.bg { stroke: #F0F0F0; }
 .score-svg circle.meter {
     stroke: #03A65A;
-    stroke-dasharray: 283;
-    stroke-dashoffset: 283;
-    transition: stroke-dashoffset 1.5s ease-out;
+    stroke-dasharray: 0 283;
+    /*stroke-dashoffset: 283;*/
+    stroke-linecap: round;
+    transition: stroke-dasharray 1.5s ease-out;
 }
 .score-text {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -129,6 +153,8 @@
     background: #fff;
     border-radius: 20px;
     padding: 20px;
+    margin-left: 18.64px;
+    margin-right: 18.64px;
     margin-bottom: 20px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
@@ -243,7 +269,8 @@
 
 /* 임팩트 순간 비교 */
 .impact-comparison {
-    margin-bottom: 16px;
+    margin: 16px;
+    
 }
 
 .sub-title {
@@ -254,7 +281,7 @@
 }
 
 .comparison-container.small .media-box {
-    aspect-ratio: 4/3;
+    aspect-ratio: 3/4;
 }
 
 /* 구간 팁 */
@@ -333,7 +360,7 @@
 .metric-range {
     display: flex;
     justify-content: space-between;
-    margin-top: 6px;
+    margin-top: 8px;
     font-size: 10px;
     color: #999;
 }
@@ -439,3 +466,269 @@
     color: #D32F2F;
 }
 
+/* 하단 안내 문구 박스 스타일 */
+.bottom-notice-box {
+    margin: 10px 20px 20px; /* 위 10px, 좌우 20px, 아래 40px 여백 */
+    padding: 20px;
+    border-radius: 15px;
+    text-align: center;
+    border: 1px dashed #d1d1d1; /* 점선 테두리로 부드러운 느낌 */
+}
+
+.notice-text {
+    font-size: 14px;
+    color: #777;
+    line-height: 1.5;
+    word-break: keep-all;
+}
+
+.notice-text .highlight {
+    color: #025B36; /* 앱 메인 컬러인 초록색 */
+    font-weight: 700;
+    text-decoration: underline; /* 강조를 위해 밑줄 추가 */
+}
+
+/* ============================================
+   평가 결과 컨테이너
+   ============================================ */
+.eval-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.eval-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #F8F9FA;
+    border-radius: 10px;
+    border-left: 4px solid #E0E0E0;
+}
+
+.eval-item.pass {
+    border-left-color: #4CAF50;
+    background: #F1F8E9;
+}
+
+.eval-item.fail {
+    border-left-color: #FF5722;
+    background: #FFF3E0;
+}
+
+.eval-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.eval-status {
+    font-size: 14px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: #E0E0E0;
+    color: #666;
+}
+
+.eval-status.pass {
+    background: #4CAF50;
+    color: #fff;
+}
+
+.eval-status.fail {
+    background: #FF5722;
+    color: #fff;
+}
+
+.eval-detail {
+    font-size: 11px;
+    color: #888;
+    margin-left: 8px;
+}
+
+/* 서브 섹션 */
+.sub-section {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px dashed #E0E0E0;
+}
+
+.sub-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 12px;
+}
+
+/* 키프레임 비교 */
+.keyframe-comparison {
+    display: flex;
+    gap: 12px;
+}
+
+.keyframe-item {
+    flex: 1;
+    text-align: center;
+}
+
+.keyframe-label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.media-box.small {
+    aspect-ratio: 3/4;
+    max-height: 200px;
+}
+
+/* 단일 영상 (3단계) */
+.comparison-container.single {
+    justify-content: center;
+}
+
+.comparison-item.full {
+    flex: none;
+    width: 70%;
+}
+
+/* 단계 점수 뱃지 */
+.phase-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.phase-badge.low {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.phase-badge.mid {
+    background: #FFF8E1;
+    color: #F57F17;
+}
+
+.phase-badge.high {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+/* 키프레임 제목 스타일 추가 */
+.keyframe-label-main {
+    font-size: 18px;
+    font-weight: 800;
+    color: #025B36; /* 앱 메인 초록색 */
+    margin-left: 10px;
+    padding: 8px 0;
+    display: block;
+    width: 100%;
+    letter-spacing: -0.5px;
+}
+
+/* 키프레임 그룹 간격 조정 */
+.keyframe-group {
+    margin-bottom: 30px;
+}
+
+/* 이미지 아래 지표 리스트 간격 미세 조정 */
+.eval-container.mini {
+    margin-top: 15px;
+}
+
+/* 프레임 컨트롤러 스타일 */
+.frame-control-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #eee;
+}
+
+.frame-btn {
+    width: 45px;
+    height: 45px;
+    background: #025B36;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.frame-btn:active {
+    transform: scale(0.9);
+}
+
+.frame-info-display {
+    text-align: center;
+}
+
+#current-step-label {
+    display: block;
+    font-weight: 800;
+    color: #333;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.frame-sub-text {
+    font-size: 11px;
+    color: #888;
+    margin: 0;
+}
+
+/* 실시간 탭 컨테이너 */
+.swing-tabs-container {
+    padding: 15px 20px;
+    background: #f8fcf9;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border-bottom: 1px solid #E0EDE7;
+}
+
+.tabs-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #025B36;
+    white-space: nowrap;
+}
+
+.tabs-group {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px 0;
+    border-radius: 15px;
+    border: 1px solid #E0EDE7;
+    background: #fff;
+    color: #888;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: #025B36;
+    color: #fff;
+    border-color: #025B36;
+    box-shadow: 0 4px 10px rgba(2, 91, 54, 0.2);
+}

@@ -1,0 +1,20 @@
+# 가상환경 (용량 제일 많이 차지함)
+venv/
+.venv/
+env/
+
+# 파이썬 캐시 파일
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 로그 및 데이터베이스 파일 (배포 시 포함되면 안 됨)
+*.log
+*.sqlite3
+
+# 기타 설정 및 로컬 파일
+.git/
+.gitignore
+.dockerignore
+.vscode/
+.env

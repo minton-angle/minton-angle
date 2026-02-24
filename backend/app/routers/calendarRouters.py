@@ -9,12 +9,15 @@ from app.db.session import get_db
 from app.models.postModels import Post
 from app.models.fileModels import File
 
+from app.core.security import get_current_user
+from app.models.userModels import User
+
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
 
 @router.get("/reports")
 async def get_calendar_reports(
-    user_id: str = Query(..., description="사용자 ID"),
+    current_user = Depends(get_current_user),
     date: str = Query(..., description="날짜 (YYYY-MM-DD)"),
     db: Session = Depends(get_db)
 ):
@@ -28,6 +31,7 @@ async def get_calendar_reports(
         query_date = datetime.strptime(date, "%Y-%m-%d").date()
         start_datetime = datetime.combine(query_date, datetime.min.time())
         end_datetime = datetime.combine(query_date, datetime.max.time())
+        user_id = current_user.id
         
         print(f"\n{'='*50}")
         print(f"📅 캘린더 조회: {user_id} / {date}")
@@ -93,6 +97,67 @@ async def get_calendar_reports(
     
     except ValueError:
         raise HTTPException(status_code=400, detail="날짜 형식이 잘못되었습니다. (YYYY-MM-DD)")
+    except Exception as e:
+        print(f"❌ 에러: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/monthly-summary")
+async def get_monthly_summary(
+    current_user = Depends(get_current_user),
+    year: int = Query(..., description="연도"),
+    month: int = Query(..., description="월 (1-12)"),
+    db: Session = Depends(get_db)
+):
+    """
+    월별 리포트 존재 여부 조회 (점 표시용)
+    """
+    try:
+        from calendar import monthrange
+        
+        user_id = current_user.id
+        
+        # 해당 월의 첫날과 마지막날
+        first_day = datetime(year, month, 1)
+        last_day_num = monthrange(year, month)[1]
+        last_day = datetime(year, month, last_day_num, 23, 59, 59)
+        
+        print(f"\n{'='*50}")
+        print(f"📊 월별 요약: {user_id} / {year}-{month:02d}")
+        
+        # 해당 월의 모든 POST 조회
+        posts = db.query(Post).filter(
+            Post.user_id == user_id,
+            Post.create_date >= first_day,
+            Post.create_date <= last_day,
+            Post.status == "DONE"
+        ).all()
+        
+        # 날짜별로 그룹핑
+        summary = {}
+        for post in posts:
+            date_str = post.create_date.strftime("%Y-%m-%d")
+            
+            if date_str not in summary:
+                summary[date_str] = {"realtime": False, "video": False}
+            
+            if post.type == "REALTIME":
+                summary[date_str]["realtime"] = True
+            elif post.type == "VIDEO":
+                summary[date_str]["video"] = True
+        
+        print(f"총 {len(summary)}일 리포트 있음")
+        print(f"{'='*50}\n")
+        
+        return {
+            "success": True,
+            "year": year,
+            "month": month,
+            "summary": summary
+        }
+    
     except Exception as e:
         print(f"❌ 에러: {str(e)}")
         import traceback

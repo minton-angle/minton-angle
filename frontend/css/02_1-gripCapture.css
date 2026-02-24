@@ -1,0 +1,259 @@
+html, body {
+    display: flex;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    padding: 1.5dvh 3dvh;
+    background-color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.scroll-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    background-color: #f2f2f281;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    z-index: 11;
+}
+
+.back-btn img { width: 24px; height: auto; }
+
+.header-title {
+    position: absolute;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #025B36;
+}
+
+.grip-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.main-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    color: #025B36;
+    margin-bottom: 5px;
+}
+
+.sub-desc { font-size: 14px; color: #666; }
+
+/* 카메라 영역 */
+.camera-wrapper {
+    position: relative;
+    width: 80%;
+    aspect-ratio: 1/1;
+    max-width: 400px;
+    margin: 20px 0;
+    border-radius: 25px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    background: #000;
+}
+
+.webcam-box { width: 100%; height: 100%; }
+
+/* 웹캠 위 다시 촬영 버튼 */
+.re-capture-overlay-btn {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.199);
+    color: #fff;
+    border: 1px solid #fff;
+    padding: 8px 15px;
+    border-radius: 30px;
+    font-size: 12px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+}
+
+/* 촬영 전 안내 박스 */
+.empty-result-guide {
+    width: 100%;
+    margin-top: 10px;
+    padding: 30px 20px;
+    border: 2px dashed #ccc;
+    border-radius: 20px;
+    background: #fff;
+    text-align: center;
+}
+
+.guide-placeholder p {
+    color: #999;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* 셔터 버튼 */
+.shutter-button {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 65px;
+    height: 65px;
+    background: #fff;
+    border-radius: 50%;
+    border: 4px solid #1C593F;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
+}
+
+.shutter-button img { width: 30px; height: 30px; }
+
+/* 결과 영역 */
+.result-container {
+    display: none;
+    width: 100%;
+}
+
+.feedback-card {
+    background: #fff;
+    padding: 20px;
+    border-radius: 20px;
+    border-left: 6px solid #1C593F;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.feedback-title { font-size: 18px; color: #1C593F; font-weight: 800; margin-bottom: 10px; }
+.feedback-desc { font-size: 15px; color: #444; line-height: 1.4; }
+
+.image-comparison { display: flex; gap: 10px; justify-content: center; }
+.compare-item { flex: 1; }
+.img-box {
+    width: 100%;
+    aspect-ratio: 1/1;
+    border-radius: 15px;
+    overflow: hidden;
+    border: 1px solid #ffffff;
+    background: #eee;
+}
+.img-box img { width: 100%; height: 100%; object-fit: cover; }
+.img-label { color: #1C593F; text-align: center; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+
+/* 로딩 */
+.loading-overlay {
+    display: none;
+    position: absolute;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+}
+.spinner {
+    width: 35px; height: 35px;
+    border: 4px solid rgba(255,255,255,0.2);
+    border-top: 4px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* 가이드 라인 */
+.camera-guide {
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    display: flex; justify-content: center; align-items: center;
+    z-index: 2; pointer-events: none;
+}
+.guide-box { width: 70%; height: 70%; border: 1px dashed rgba(255,255,255,0.4); position: relative; }
+.corner { position: absolute; width: 25px; height: 25px; border: 4px solid #1C593F; }
+.top-left { top:-2px; left:-2px; border-right:none; border-bottom:none; }
+.top-right { top:-2px; right:-2px; border-left:none; border-bottom:none; }
+.bottom-left { bottom:-2px; left:-2px; border-right:none; border-top:none; }
+.bottom-right { bottom:-2px; right:-2px; border-left:none; border-top:none; }
+
+.bottom-action { padding: 15px 30px; background: #fff; border-top: 1px solid #eee; }
+.next-btn {
+    width: 100%; background: #1C593F; color: #fff;
+    border: none; padding: 18px; border-radius: 50px;
+    font-weight: 700; font-size: 18px; cursor: pointer;
+}
+
+/* 모달 전체 배경 */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 2000;
+}
+
+/* 모달 박스 */
+.modal-content {
+    position: relative;
+    width: 90%;
+    max-width: 500px;
+    background: #fff;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+/* 닫기 버튼 */
+.close-modal-btn {
+    position: absolute;
+    top: -40px; right: 0;
+    background: none; border: none;
+    color: white; font-size: 35px; cursor: pointer;
+}
+
+/* 유튜브 비율 유지 컨테이너 (16:9) */
+.video-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 177.77%; /* 쇼츠(9:16) 비율일 경우 177% / 일반 영상은 56.25% */
+    height: 0;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.video-container iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+}
+
+.modal-caption {
+    text-align: center;
+    margin-top: 15px;
+    font-weight: 700;
+    color: #1C593F;
+}

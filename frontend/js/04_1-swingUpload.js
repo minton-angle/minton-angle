@@ -1,6 +1,3 @@
-const API_BASE_URL = 'http://localhost:8000';
-const USER_ID = 'user_001'; // 임시 사용자 ID
-
 let selectedFile = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -8,10 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     videoInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
-            // 파일 저장
             selectedFile = file;
-            
-            // 미리보기 표시
+        
             const videoURL = URL.createObjectURL(file);
             const previewVideo = document.getElementById('preview-video');
             const placeholder = document.getElementById('upload-placeholder');
@@ -19,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const submitBtn = document.getElementById('submit-btn');
 
             previewVideo.src = videoURL;
-            previewVideo.play(); // 자동 재생
+            previewVideo.play();
             
             placeholder.style.display = 'none';
             previewContainer.style.display = 'block';
@@ -35,7 +30,15 @@ async function startAnalysis() {
         alert('영상을 먼저 선택해주세요.');
         return;
     }
-    
+
+    const userId = localStorage.getItem('user_id');
+        console.log('현재 로그인된 ID:', userId); 
+
+        if (!userId) {
+            alert('로그인 정보가 없습니다. 다시 로그인해주세요.');
+            location.href = '12-login.html';
+            return;
+        }
     const submitBtn = document.getElementById('submit-btn');
     
     // 로딩 상태 시작
@@ -46,25 +49,43 @@ async function startAnalysis() {
     try {
         console.log('🚀 분석 시작...');
         
-        // FormData 생성
         const formData = new FormData();
+
+        formData.append('user_id', userId);
         formData.append('video', selectedFile);
+
         
-        // API 호출
-        const response = await fetch(`${API_BASE_URL}/api/upload/video?user_id=${USER_ID}`, {
+
+        // 타임아웃 2분
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
+        
+        // ⭐ authFetch 대신 fetch 직접 사용!
+        const response = await fetch(`${API_BASE_URL}/api/upload/video`, {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: controller.signal
+            // ⭐ headers 추가 안 함! (multipart는 브라우저가 자동 설정)
         });
+
+        clearTimeout(timeoutId);
+        
+        console.log('📥 응답 수신:', response.status, response.ok);
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || '분석 실패');
+            let errorMessage = '분석 실패';
+            try {
+                const error = await response.json();
+                errorMessage = error.detail || errorMessage;
+            } catch {
+                errorMessage = `HTTP ${response.status}`;
+            }
+            throw new Error(errorMessage);
         }
         
         const result = await response.json();
         console.log('✅ 분석 완료:', result);
         
-        // ⭐ URL 파라미터로 전달 (localStorage 사용 안 함!)
         const postId = result.post_idx;
         
         // 결과 페이지로 이동
@@ -74,7 +95,12 @@ async function startAnalysis() {
         
     } catch (error) {
         console.error('❌ 에러 발생:', error);
-        alert(`분석 실패: ${error.message}`);
+        
+        if (error.name === 'AbortError') {
+            alert('분석 시간이 너무 오래 걸립니다. 다시 시도해주세요.');
+        } else {
+            alert(`분석 실패: ${error.message}`);
+        }
         
         // 버튼 복구
         submitBtn.classList.remove('loading');

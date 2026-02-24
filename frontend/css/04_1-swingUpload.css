@@ -4,34 +4,54 @@
    ============================================ */
 
 /* 0. 폰트 적용 (Pretendard) */
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+/*@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');*/
 
-* {
+
+/** {
     font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
     letter-spacing: -0.01em;
     box-sizing: border-box;
-}
+}*/
 
 html, body {
+    display: flex;
     height: 100%;
     margin: 0;
+    padding: 0;
     overflow: hidden;
+}
+
+.mobile-container {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+}
+
+.scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+body {
+    font-family: 'Pretendard', sans-serif;
 }
 
 .app-wrapper {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    width: 600px;
 }
 
 /* 1. 헤더 영역 (기존 유지) */
 .header {
     display: flex;
     align-items: center;
-    padding: 16px 20px;
+    padding: 1.5dvh 3dvh;
     background-color: #fff;
     position: sticky;
-    top: 24px;
+    top: 0;
     z-index: 10;
 }
 
@@ -66,25 +86,40 @@ html, body {
     flex: 1;
     overflow-y: auto;
     background-color: #e5e5e551; /* 기존 피그마 배경색 유지 */
+    /*padding: 1dvh 0;*/
+    display: flex;
+    flex-direction: column;
 }
 
 .upload-content {
-    padding: 5px 10px; /* 가로폭을 더 넓게 쓰기 위해 좌우 패딩 축소 */
+    flex: 1;
+    padding: 0 20dvh; /* 가로폭을 더 넓게 쓰기 위해 좌우 패딩 축소 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 20px;
+    box-sizing: border-box;
 }
 
 /* 3. [중요 수정] 업로드 섹션 - 가로 극대화 및 모서리 각 조정 */
 .upload-section {
-    width: 96%; /* 기존 80%에서 96%로 대폭 확대 */
-    margin: 15px auto 25px auto;
+    width: 100%; /* 기존 80%에서 96%로 대폭 확대 */
+    /*margin: 15px auto 25px auto;*/
+    margin: 0 0 2dvh 0;
+    max-width: 400px;
+    display: flex;
+    justify-content: center;
+    margin: 2dvh 0 1.5dvh 0;
 }
 
 .upload-box {
-    width: 85%;
-    aspect-ratio: 3.5/4.3; /* 세로로 더 길게 확보하여 시원한 느낌 */
+    width: 60%;
+    max-width: 320px;
+    aspect-ratio: 3/4; /* 세로로 더 길게 확보하여 시원한 느낌 */
     background-color: #fff;
     border-radius: 20px; /* 모서리 둥글기를 20px에서 12px로 낮춰 날렵하게 수정 */
     display: flex;
-    margin-left: 6%;
+    /*margin-left: 6%;*/
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -119,14 +154,32 @@ html, body {
 }
 
 /* 4. 주의사항 텍스트 */
+.info-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.info-card {
+    width: 100%;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 1dvh 1dvh;
+    box-sizing: border-box;
+    margin-bottom: 1dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .info-highlight {
     margin-left: 5px;
-    font-size: 17px;
+    font-size: 16px;
     color: #333;
     text-align: center;
     font-weight: bold;
-    margin-bottom: 15px;
-    line-height: 1.8;
+    margin-bottom: 10px;
+    line-height: 1.5;
 }
 
 .info-highlight strong { color: #025B36; }
@@ -145,7 +198,7 @@ html, body {
 .info-list li span { color: #025B36; font-weight: bold; }
 
 /* 5. 하단 버튼 영역 (기존 유지) */
-.bottom-action {
+/*.bottom-action {
     flex-shrink: 0;
     padding: 16px 20px 34px 20px;
     background-color: #fff;
@@ -167,7 +220,36 @@ html, body {
 .submit-btn:disabled {
     background-color: #BDBDBD;
     cursor: not-allowed;
+}*/
+
+/* 5. 하단 버튼 영역 */
+.bottom-action {
+    padding: 1.5dvh 5dvh;
+    background-color: #fff;
 }
+
+.submit-btn {
+    width: 100%;
+    background-color: #025B36;
+    color: #fff;
+    border: none;
+    padding: 2.5dvh;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 22px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.submit-btn:disabled {
+    background-color: #BDBDBD;
+    cursor: not-allowed;
+}
+
+/*.submit-btn:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+}*/
 
 /* 로딩 애니메이션 (기존 유지) */
 .submit-btn.loading { color: transparent; position: relative; }
