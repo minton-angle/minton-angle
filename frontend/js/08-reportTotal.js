@@ -318,16 +318,30 @@ function renderActionSimple(n, key) {
 // ====== 동작 카드 가로 캐러셀(스냅) 보조 ======
 function wireActionCarousel(){
   const carousel = document.querySelector(".actionCards");
-  if (!carousel) return;
+  const dotsWrap = document.getElementById("actionCarouselDots");
+  if (!carousel || !dotsWrap) return;
 
-  // 카드 폭(스크롤 스냅 기준) 추정: 첫 카드의 bounding box 사용
+  // Prevent double-wiring
+  if (carousel.dataset.wired === "1") {
+    // Still ensure dots exist after re-render
+    buildDots();
+    syncActive();
+    return;
+  }
+  carousel.dataset.wired = "1";
+
+  function cards(){
+    return Array.from(carousel.querySelectorAll(".actionCard"));
+  }
+
   function panelWidth(){
-    const first = carousel.querySelector(".actionCard");
-    if (!first) return 0;
+    const cs = cards();
+    if (!cs.length) return 0;
+    const first = cs[0];
     const rect = first.getBoundingClientRect();
-    // gap 포함을 위해 다음 카드의 left 차이를 우선 사용
-    const second = first.nextElementSibling;
-    if (second && second.classList.contains("actionCard")){
+
+    const second = cs[1];
+    if (second){
       const r2 = second.getBoundingClientRect();
       const w = Math.abs(r2.left - rect.left);
       if (Number.isFinite(w) && w > 0) return w;
@@ -335,30 +349,75 @@ function wireActionCarousel(){
     return rect.width;
   }
 
-  function getCurrentAction(){
+  function getCurrentIndex(){
     const w = panelWidth();
-    if (!w) return 1;
+    if (!w) return 0;
     const idx = Math.round(carousel.scrollLeft / w);
-    return idx + 1;
+    return clamp(idx, 0, Math.max(0, cards().length - 1));
   }
 
-  // (선택) 현재 카드 인덱스를 body에 data로만 남겨둠 — UI 토글 로직이 따로 없어도 에러 없이 동작
-  function setActive(n){
-    carousel.dataset.active = String(n);
+  function scrollToIndex(idx){
+    const w = panelWidth();
+    if (!w) return;
+    const x = w * idx;
+    carousel.scrollTo({ left: x, behavior: "smooth" });
   }
+
+  function buildDots(){
+    const count = cards().length;
+    // rebuild only if count differs
+    const existing = dotsWrap.querySelectorAll(".dot").length;
+    if (existing === count && count > 0) return;
+
+    dotsWrap.innerHTML = "";
+    for (let i = 0; i < count; i++){
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "dot";
+      b.setAttribute("aria-label", `카드 ${i+1}`);
+      b.setAttribute("aria-selected", "false");
+      b.addEventListener("click", ()=> scrollToIndex(i));
+      dotsWrap.appendChild(b);
+    }
+  }
+
+  function syncActive(){
+    const idx = getCurrentIndex();
+    const ds = Array.from(dotsWrap.querySelectorAll(".dot"));
+    ds.forEach((d, i)=>{
+      const active = i === idx;
+      d.classList.toggle("is-active", active);
+      d.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    carousel.dataset.active = String(idx + 1);
+  }
+
+  // expose a tiny hook so refreshByRange can re-sync after DOM changes
+  carousel.__syncDots = () => {
+    buildDots();
+    syncActive();
+  };
+
+  // initial
+  buildDots();
+  syncActive();
 
   // update active on swipe/scroll end
   let t = null;
   carousel.addEventListener("scroll", ()=>{
     if (t) clearTimeout(t);
-    t = setTimeout(()=>{
-      const n = getCurrentAction();
-      setActive(n);
-    }, 120);
+    t = setTimeout(syncActive, 120);
   }, { passive: true });
 
-  // 초기 active 설정
-  setActive(1);
+  // also update on resize (width changes)
+  window.addEventListener("resize", ()=>{
+    // keep current index after resize
+    const idx = getCurrentIndex();
+    buildDots();
+    syncActive();
+    // re-snap to the same card
+    scrollToIndex(idx);
+  });
 }
 
 
@@ -1436,6 +1495,11 @@ async function refreshByRange(range){
   // KF별 분석 차트
   renderActionCards(current, prev);
 
+  // 캐러셀 dots 동기화 (range 변경으로 카드가 다시 그려진 뒤)
+  wireActionCarousel();
+  const carousel = document.querySelector(".actionCards");
+  if (carousel && typeof carousel.__syncDots === "function") carousel.__syncDots();
+
   // 스냅샷(기간 내 마지막)
   window.__CURRENT_FRAME__ = last?.frame ?? "ALL";
   const meta = last?.meta || {};
@@ -1670,6 +1734,8 @@ async function loadFromDB(range = "7d") {
   renderActionCards(current, prev);
   // 동작 카드 캐러셀 스크롤 감지(에러 방지)
   wireActionCarousel();
+  const carousel = document.querySelector(".actionCards");
+  if (carousel && typeof carousel.__syncDots === "function") carousel.__syncDots();
 
   // 현재 세션(가장 최근) 스냅샷
   window.__CURRENT_FRAME__ = last?.frame ?? "ALL";

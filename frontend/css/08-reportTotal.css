@@ -147,57 +147,117 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
   letter-spacing: .4px;
 }
 
+/* 기간 필터용 세그먼티드 컨트롤 스타일 (rangeTabs) - 탭 너비 줄이고 글씨 크기 조정, Sticky 바에서 배경과 라인 제거 */
 .rangeTabs {
+  /* Segmented control container */
   display: flex;
-  gap: 8px;
+  gap: 0;
   justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+
+  /* ✅ 전체 너비 줄이기 */
+  width: auto;
+  max-width: 250px;   /* 기존 420px → 320px로 축소 */
+  margin: 5px auto 0;
+
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(243,244,246,.95);
+  border: 1px solid rgba(17,24,39,.10);
+
+  box-shadow:
+    inset 0 2px 6px rgba(17,24,39,.12),
+    inset 0 -2px 6px rgba(255,255,255,.8);
+}
+
+/* ===== 기간 필터 Sticky 상단 고정 ===== */
+.periodStickyBar {
+  position: sticky;
+  top: 56px; /* topbar 높이 */
+  z-index: 9;
+  background: transparent; /* ✅ 흰색 스트립 제거 */
+  padding: 6px 0 6px;
+  margin: -6px 0 -1px;
+  border-bottom: 0; /* ✅ 하단 라인 제거 */
+  backdrop-filter: none; /* ✅ 블러 제거 */
+}
+
+/* 동작별 분석 카드 섹션을 기간 탭과 더 가깝게 */
+.card--actionSection {
+  margin-top: 0px;
+}
+
+.actionSection__title {
+  margin-top: 0px;
 }
 
 .rangeTab {
-  height: 30px;
-  padding: 0 14px;
+  flex: 1 1 0;
+  height: 34px;
+  padding: 0 12px;
   border-radius: 999px;
-  border: 1px solid rgba(17,24,39,.12);
-  background: rgba(243,244,246,.75);
-  color: rgba(17,24,39,.72);
-  font-size: 12px;
-  font-weight: 800;
+
+  border: 0;
+  background: transparent;
+  color: rgba(17,24,39,.62);
+
+  font-size: 15px; /* ✅ 글씨 조금 키움 */
+  font-weight: 900;
   cursor: pointer;
-  transition: all 0.2s ease;
+
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease, transform .06s ease;
 }
+
+/* 	화면이 조금 넓을 때(>= 420px): 20px로 자동 증가 -> 없애도 될듯? */ 
+@media (min-width: 420px) {
+  .rangeTab { font-size: 20px; }
+}
+
+.rangeTab:active { transform: scale(0.98); }
 
 .rangeTab.is-active {
-  background: rgba(32,201,151,.14);
-  border-color: rgba(32,201,151,.35);
-  color: rgba(17,24,39,.9);
-}
+  background: var(--accent); /* ✅ 활성 탭 초록 */
+  color: #ffffff;
 
-/* ===== 동작별 분석 카드(가로 스크롤) ===== */
-.actionCards {
-  display: flex;
-  flex-direction: row;
-  gap: 16px;
-  overflow-x: auto;
-  padding: 4px 4px 16px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  margin: 0 -8px; 
+  /* 선택된 탭이 떠 보이도록 */
+  box-shadow:
+    0 6px 14px rgba(17,24,39,.10),
+    0 2px 6px rgba(17,24,39,.08);
 }
-
-.actionCards::-webkit-scrollbar { display: none; } /* 공통에 맞춰 개별 스크롤바도 숨김 처리 */
 
 .actionCard {
   background: var(--card);
   border-radius: 18px;
   border: 1px solid rgba(17,24,39,.08);
   box-shadow: 0 10px 25px rgba(0,0,0,.06);
-  padding: 16px;
-  flex: 0 0 auto;
-  width: 85vw; 
-  max-width: 320px; 
+  padding: 18px;
+  /* ✅ 핵심: 한 장이 화면을 꽉 차게 */
+  flex: 0 0 100%;
+  width: 100%;
+  max-width: none;
+  
   scroll-snap-align: center;
+}
+
+.actionCards::-webkit-scrollbar { display: none; } /* 공통에 맞춰 개별 스크롤바도 숨김 처리 */
+
+/* ===== Action Cards: full-width carousel ===== */
+.actionCards {
+  display: flex;
+  gap: 14px;
+
+  overflow-x: auto;
+  overflow-y: visible;
+
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+
+  padding: 6px 2px 10px;
+}
+
+.actionCards::-webkit-scrollbar { 
+  display: none; 
 }
 
 .actionCard__top {
@@ -214,6 +274,30 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
   align-items: center;
   gap: 10px;
   margin-left: auto;
+}
+
+/* ===== 캐러셀 페이지 점(인디케이터) ===== */
+.actionCarouselDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 6px 0 2px;
+}
+
+.actionCarouselDots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(107,114,128,.35);
+  border: 1px solid rgba(17,24,39,.10);
+}
+
+.actionCarouselDots .dot.is-active {
+  width: 18px;
+  background: var(--accent);
+  border-color: rgba(32,201,151,.35);
 }
 
 /* ===== Half score gauge ===== */
@@ -281,6 +365,21 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
   border: 1px solid rgba(17,24,39,.10);
   background: rgba(243,244,246,.75);
   color: rgba(17,24,39,.75);
+  white-space: nowrap;
+}
+
+/* ===== LLM applied badge (SCORE 비교) ===== */
+.llmAppliedBadge{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  background: rgba(32,201,151,.14);
+  border: 1px solid rgba(32,201,151,.28);
+  color: rgba(17,24,39,.86);
   white-space: nowrap;
 }
 

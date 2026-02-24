@@ -43,41 +43,28 @@
           </div>
         </section>
 
-        <section class="card card--charts">
-          <div class="miniGrid">
-            <div class="miniCard miniCard--wide">
-              <div class="miniCard__head">
-                <div class="miniCard__label">SCORE 변화 추이</div>
-              </div>
-              <div class="chartWrap" style="position: relative; width: 100%; height: 100%; flex-grow: 1;">
-                <canvas id="scoreKfHistoryChart"></canvas>
-              </div>
-              <div class="kfTabsWrap">
-                <div class="rangeTabs" role="tablist" aria-label="기간 필터">
-                  <button type="button" class="rangeTab is-active" data-range="7d" aria-selected="true">1주일</button>
-                  <button type="button" class="rangeTab" data-range="1m" aria-selected="false">1개월</button>
-                  <button type="button" class="rangeTab" data-range="3m" aria-selected="false">3개월</button>
-                  <button type="button" class="rangeTab" data-range="all" aria-selected="false">전체</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <section class="card card--llmGen">
           <h2>LLM 리포트 생성</h2>
           <button type="button" id="btnGenerateLLM" class="btnLLM btnLLM--big" aria-label="LLM 리포트 생성/갱신">LLM 리포트 업데이트</button>
         </section>
 
-        <section class="card">
-          <h2>동작별 분석</h2>
+        <div class="periodStickyBar">
+          <div class="rangeTabs" role="tablist" aria-label="기간 필터">
+            <button type="button" class="rangeTab is-active" data-range="7d" aria-selected="true">1주일</button>
+            <button type="button" class="rangeTab" data-range="1m" aria-selected="false">1개월</button>
+            <button type="button" class="rangeTab" data-range="3m" aria-selected="false">3개월</button>
+          </div>
+        </div>
+
+        <section class="card card--actionSection">
+          <h2 class="actionSection__title">동작별 분석</h2>
         
           <div class="actionCards" aria-label="동작별 분석 카드">
             <article class="actionCard" id="actionCard1">
               <div class="actionCard__top">
                 <div class="actionCard__title">준비 자세</div>
                 <div class="actionCard__right">
-                  <div class="actionCard__pill" id="a1TrendPill">-</div>
                   <div class="halfGauge" aria-label="백스윙 점수">
                     <svg class="halfGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
                       <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
@@ -87,7 +74,10 @@
                   </div>
                 </div>
               </div>
-              <div class="actionCard__meta" id="a1Meta"></div>
+              <div class="actionCard__meta" id="a1Meta">
+                <span class="llmAppliedBadge">SCORE 비교</span>
+                <span class="actionCard__pill" id="a1TrendPill">-</span>
+              </div>
               <div class="actionMiniChartWrap" aria-label="동작 점수 변화 추이">
                 <canvas id="a1StageChart" class="actionMiniChart"></canvas>
               </div>
@@ -98,7 +88,6 @@
               <div class="actionCard__top">
                 <div class="actionCard__title">회전</div>
                 <div class="actionCard__right">
-                  <div class="actionCard__pill" id="a2TrendPill">-</div>
                   <div class="halfGauge" aria-label="임팩트 점수">
                     <svg class="halfGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
                       <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
@@ -108,7 +97,10 @@
                   </div>
                 </div>
               </div>
-              <div class="actionCard__meta" id="a2Meta"></div>
+              <div class="actionCard__meta" id="a2Meta">
+                <span class="llmAppliedBadge">SCORE 비교</span>
+                <span class="actionCard__pill" id="a2TrendPill">-</span>
+              </div>
               <div class="actionMiniChartWrap" aria-label="동작 점수 변화 추이">
                 <canvas id="a2StageChart" class="actionMiniChart"></canvas>
               </div>
@@ -119,7 +111,6 @@
               <div class="actionCard__top">
                 <div class="actionCard__title">백스윙</div>
                 <div class="actionCard__right">
-                  <div class="actionCard__pill" id="a3TrendPill">-</div>
                   <div class="halfGauge" aria-label="팔로스루 점수">
                     <svg class="halfGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
                       <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
@@ -129,7 +120,10 @@
                   </div>
                 </div>
               </div>
-              <div class="actionCard__meta" id="a3Meta"></div>
+              <div class="actionCard__meta" id="a3Meta">
+                <span class="llmAppliedBadge">SCORE 비교</span>
+                <span class="actionCard__pill" id="a3TrendPill">-</span>
+              </div>
               <div class="actionMiniChartWrap" aria-label="동작 점수 변화 추이">
                 <canvas id="a3StageChart" class="actionMiniChart"></canvas>
               </div>
@@ -140,7 +134,6 @@
               <div class="actionCard__top">
                 <div class="actionCard__title">임팩트</div>
                 <div class="actionCard__right">
-                  <div class="actionCard__pill" id="a4TrendPill">-</div>
                   <div class="halfGauge" aria-label="임팩트 점수">
                     <svg class="halfGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
                       <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
@@ -150,7 +143,10 @@
                   </div>
                 </div>
               </div>
-              <div class="actionCard__meta" id="a4Meta"></div>
+              <div class="actionCard__meta" id="a4Meta">
+                <span class="llmAppliedBadge">SCORE 비교</span>
+                <span class="actionCard__pill" id="a4TrendPill">-</span>
+              </div>
               <div class="actionMiniChartWrap" aria-label="동작 점수 변화 추이">
                 <canvas id="a4StageChart" class="actionMiniChart"></canvas>
               </div>
@@ -161,7 +157,6 @@
               <div class="actionCard__top">
                 <div class="actionCard__title">팔로스윙</div>
                 <div class="actionCard__right">
-                  <div class="actionCard__pill" id="a5TrendPill">-</div>
                   <div class="halfGauge" aria-label="팔로스윙 점수">
                     <svg class="halfGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
                       <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
@@ -171,13 +166,18 @@
                   </div>
                 </div>
               </div>
-              <div class="actionCard__meta" id="a5Meta"></div>
+              <div class="actionCard__meta" id="a5Meta">
+                <span class="llmAppliedBadge">SCORE 비교</span>
+                <span class="actionCard__pill" id="a5TrendPill">-</span>
+              </div>
               <div class="actionMiniChartWrap" aria-label="팔로스윙 성공/실패 비율">
                 <canvas id="followSwingDonutChart" class="actionMiniChart"></canvas>
               </div>
               <div class="actionCard__body" id="a5Body"></div>
             </article>
           </div>
+
+          <div id="actionCarouselDots" class="actionCarouselDots" aria-label="동작 카드 페이지" role="tablist"></div>
         </section>
 
         <section class="card">
