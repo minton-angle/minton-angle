@@ -1,4 +1,20 @@
-/* 1. 배경 및 레이아웃 설정 */
+/* ========================================
+   0. 전체 폰트 및 공통 설정
+   ======================================== */
+* {
+    font-family: 'Pretendard', sans-serif !important;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* 캘린더 내부 텍스트 강제 적용 */
+.fc, .fc-toolbar-title, .fc-col-header-cell-cushion, .fc-daygrid-day-number {
+    font-family: 'Pretendard', sans-serif !important;
+}
+
+/* ========================================
+   1. 배경 및 레이아웃 (뿌연 현상 제거)
+   ======================================== */
 .history-bg {
     background-image: url('../assets/images/background2.png');
     background-size: cover;
@@ -8,9 +24,27 @@
     height: 100%;
 }
 
+/* common.css의 회색 틴트 제거 */
+.history-bg .scroll-container {
+    background-color: transparent !important;
+    overflow: hidden !important; /* 전체 페이지 스크롤 방지 */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.bottom-content-area {
+    flex: 1; /* 캘린더가 쓰고 남은 모든 공간을 얘가 다 가져갑니다 */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* 세로 중앙 정렬 */
+    align-items: center;
+    width: 100%;
+}
+
 .header {
     width: 100%;
-    padding: 2dvh 20px;
+    padding: 2dvh 20px 0;
     background-color: transparent !important;
     display: flex;
     justify-content: flex-start;
@@ -18,482 +52,295 @@
 
 .logo-box-left {
     background-image: url('../assets/images/logo2.png');
-    width: 30%;
-    max-width: 180px;
-    height: 6dvh;
+    width: 20dvw;
+    height: 8dvh;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: left center;
-    margin-top: 10px;
 }
 
-/* 제목 섹션 */
+/* ========================================
+   2. 제목 섹션
+   ======================================== */
 .glass-title-unit {
-    background: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.5); /* 투명도 조정으로 배경 선명하게 */
+    backdrop-filter: blur(3px); /* 블러 수치 낮춤 */
+    -webkit-backdrop-filter: blur(3px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 50px;
-    padding: 10px 30px;
-    margin: 10px auto 12px auto;
-    display: block;
+    padding: 10px 0;
+    margin: 1dvh auto 2dvh auto;
     width: calc(100% - 40px);
-    margin-bottom: 20px;
+    text-align: center;
 }
 
 .section-title {
-    text-align: center;
     color: #014E0B;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
-    margin: 0;
 }
 
-/* 2. 글래스모피즘 캘린더 */
+/* ========================================
+   3. ⭐ 핵심: 고정형 캘린더 카드 (스크롤 NO)
+   ======================================== */
 .calendar-card {
-    background: rgba(255, 255, 255, 0.7) !important;
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    background: rgba(255, 255, 255, 0.6) !important;
+    backdrop-filter: blur(12px);
     border-radius: 25px;
-    padding: 15px 15px;  /* ⭐ 좌우도 15px로 통일 */
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    width: calc(100% - 60px);  /* ⭐ 40px → 60px (더 좁게) */
-    margin: 0 auto 12px auto;
-    height: 48dvh;  /* ⭐ 50dvh → 48dvh (정사각형에 가깝게) */
-    max-height: 440px;  /* ⭐ 450px → 440px */
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 12px;
+    /*box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);*/
+    width: calc(100% - 40px); /* 너비 일정하게 유지 */
+    margin: 0 auto;
+    
+    /* 민지님이 요청하신 dvh 고정 높이 */
+    height: 48dvh !important; 
+    max-height: 450px;
+    
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-}
-
-.fc {
-    font-family: inherit !important;
+    overflow: hidden !important; /* 스크롤 절대 방지 */
     border: none !important;
-    font-size: 15px !important;
-    flex: 1;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-}
 
-.fc-view-harness {
-    flex: 1 !important;
     overflow: hidden !important;
-    max-height: 100% !important;
 }
 
 .fc-scroller {
     overflow: hidden !important;
 }
 
-.fc-daygrid-body {
-    padding: 4px 4px !important;  /* ⭐ 8px → 4px (위아래 줄임) */
-    overflow: hidden !important;
+/* ========================================
+   4. ⭐ 그리드리스(경계선 제거) 및 압축 설정
+   ======================================== */
+.fc {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
-.fc-scrollgrid {
+/* 모든 경계선 제거 */
+.fc-theme-standard td, 
+.fc-theme-standard th, 
+.fc-scrollgrid, 
+.fc-scrollgrid-sync-table,
+.fc-day-other,
+.fc-day-disabled {
     border: none !important;
-    overflow: hidden !important;
+    background-color: transparent;
 }
 
-.fc-scrollgrid-sync-table {
+.fc-scrollgrid,
+.fc-scrollgrid-section-body table,
+.fc-scrollgrid-section-body > td {
+    height: 100% !important;
+}
+
+/* 날짜 칸 높이가 주 수에 따라 유연하게 변하도록 설정 */
+.fc-daygrid-day-frame {
+    height: 10px !important;
+    min-height: 0 !important; /* 압축 제한 해제 */
+}
+
+.fc-daygrid-body, .fc-scrollgrid-sync-table {
+    height: 100% !important; /* 상자 높이를 100% 채움 */
     width: 100% !important;
 }
 
-/* ⭐ 날짜 간격 축소 */
-.fc-daygrid-day-frame {
-    min-height: 30px !important;  /* ⭐ 35px → 30px (줄임) */
-}
-
-.fc-day-today {
+.fc-day-other, .fc-day-disabled {
     background-color: transparent !important;
-}
-
-.fc-theme-standard td,
-.fc-theme-standard th {
-    border: none !important;
-    padding: 2px 2px !important;  /* ⭐ 4px → 2px (위아래 줄임) */
 }
 
 /* 요일 헤더 */
-.fc-col-header-cell {
-    padding: 6px 0 !important;  /* ⭐ 8px → 6px (줄임) */
-}
-
+.fc-col-header-cell { padding: 0 }
 .fc-col-header-cell-cushion {
-    font-size: 13px !important;
+    font-size: 11px !important;
     color: #888 !important;
-    font-weight: 600 !important;
+    padding: 2px 0;
 }
 
-/* 화살표 버튼 */
-.fc .fc-button-primary {
-    background-color: transparent !important;
-    border: none !important;
-    color: #014E0B !important;
-    box-shadow: none !important;
-    font-size: 1.4rem !important;
-    padding: 0 8px !important;
+.fc-view-harness,
+.fc-view-harness > div {
+    height: 100% !important;
+    flex-grow: 1 !important;
+}
+
+/* 상단 툴바 (제목, 화살표) */
+.fc-toolbar {
+    margin-bottom: 4px !important;
+    padding: 0 5px !important;
 }
 
 .fc-toolbar-title {
-    font-size: 1.2rem !important;
+    font-size: 1.1rem !important;
     font-weight: 800 !important;
+    color: #333;
 }
 
-.fc-toolbar {
-    margin-bottom: 8px !important;  /* ⭐ 12px → 8px (줄임) */
-    flex-shrink: 0;
+.fc .fc-button-primary {
+    background-color: transparent !important;
+    border: none;
+    color: #333;
+    box-shadow: none;
+    padding: 0 2px;
 }
 
 /* 날짜 숫자 */
 .fc-daygrid-day-number {
     color: #333 !important;
-    width: 30px !important;  /* ⭐ 38px → 35px (살짝 줄임) */
-    height: 35px !important;  /* ⭐ 38px → 35px */
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 13px !important;
     display: flex !important;
     align-items: center;
     justify-content: center;
-    margin: 0 auto !important;
-    font-size: 15px !important;
+    margin: 2px auto 0 !important;
     text-decoration: none !important;
-    position: relative;
-    z-index: 1;
 }
 
-.active-dot {
-    background-color: rgba(33, 150, 243, 0.15) !important;
-    color: #2196F3 !important;
-    border-radius: 50% !important;
-    font-weight: 700;
+.fc-daygrid-day {
+    height: 1px;
 }
 
-.fc-day-disabled,
-.fc-day-other {
-    background-color: transparent !important;
+/* 리포트 점(dots) 위치 최적화 */
+.report-dots {
+    display: flex;
+    gap: 1px;
+    justify-content: center;
+    margin-top: -3px;
+    height: 8px;
 }
 
-/* Footer */
+/* 캘린더 하단 시간 표시 */
 .calendar-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 10px;  /* ⭐ 18px → 14px (줄임) */
-    padding-top: 12px;  /* ⭐ 14px → 12px */
-    border-top: 1px solid rgba(255, 255, 255, 0.3);
-    flex-shrink: 0;
-}
-
-.calendar-footer-label {
-    font-size: 13px;
-    color: #666;
-    font-weight: 600;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .time-value {
-    background: rgba(255, 255, 255, 0.5);
-    padding: 5px 14px;
+    background: rgba(255, 255, 255, 0.3);
+    padding: 4px 12px;
     border-radius: 15px;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 12px;
 }
 
-/* 3. 가이드 텍스트 */
-.guide-text {
-    text-align: center;
-    color: #ffffff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-    font-size: 13px;
-    font-weight: 600;
-    margin: 7px 0;
-    line-height: 1.4;
+/* 오늘 날짜 칸 전체 배경 강조 */
+.fc-day-today {
+    background-color: rgba(107, 203, 119, 0.5) !important;
 }
 
-/* 토글 버튼 - ⭐ 키우기 */
+/* ========================================
+   5. 토글 및 네비게이션
+   ======================================== */
 .toggle-wrapper {
-    margin-top: 20px;
-    margin-bottom: 20px;
-    position: relative;
-    display: flex;
     background: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 40px;  /* ⭐ 35px → 40px (둥글게) */
+    backdrop-filter: blur(3px);
+    border-radius: 40px;
+    width: 65%;
+    height: 55px;
+    margin: 2dvh auto 0;
+    display: flex;
+    flex: 0 0 auto;
     padding: 4px;
-    height: 10dvh;  /* ⭐ 6dvh → 7dvh (높이 증가) */
-    max-height: 60px;  /* ⭐ 55px → 60px */
-    width: 80%;
-    max-width: 340px;
-    margin-left: auto;
-    margin-right: auto;
+    position: relative;
 }
 
 .toggle-slider {
     position: absolute;
-    top: 4px;
-    left: 4px;
     width: calc(50% - 4px);
     height: calc(100% - 8px);
-    background-color: #6BCB77;
-    border-radius: 35px;  /* ⭐ 30px → 35px */
-    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-    z-index: 1;
+    background: #6BCB77;
+    border-radius: 35px;
+    transition: transform 0.3s ease;
 }
 
 .toggle-btn {
     flex: 1;
-    position: relative;
-    z-index: 2;
-    border: none;
     background: transparent;
+    border: none;
     font-weight: 700;
-    font-size: 14px;  /* ⭐ 13px → 14px (글씨 크게) */
+    font-size: 13px;
+    z-index: 2;
     color: #444;
-    cursor: pointer;
-}
-
-.toggle-btn.active {
-    color: #014E0B;
+    padding-top: 3px;
 }
 
 .sub-txt {
-    font-size: 10px;  /* ⭐ 9px → 10px (글씨 크게) */
-    display: block;
-    margin-top: 2px;
+    font-size: 10px;
+    line-height: 1.3;
+    color: #636363; 
+    display: block; /* 상단 메인 텍스트와 분리 */
+    margin-bottom: 1px;
+    font-weight: 400; /* 너무 두껍지 않게 */
 }
 
-/* 4. 하단바 */
+/* ⭐ 만약 반응형(화면 비율)에 맞추고 싶다면 dvw 단위를 써보세요 */
+/* font-size: 2.8dvw; */
+
+.guide-text {
+    text-align: center;
+    color: white;
+    font-size: 12px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    line-height: 1.4;
+    font-weight: 500;
+    margin: 10px 0;
+    flex: 0 0 auto;
+}
+
 .navbar-section {
     position: absolute;
-    bottom: 22px;
-    left: 15px;
-    right: 15px;
-    height: 7dvh;
-    max-height: 70px;
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(15px);
-    border-radius: 35px;
+    bottom: 24px;
+    left: 10dvw;
+    right: 10dvw;
+    height: 55px;
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 40px;
     display: flex;
+    padding: 0 10px;
+    z-index: 1000;
     justify-content: space-around;
     align-items: center;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
 }
 
 .nav-btn {
-    width: 28px;
-    height: 28px;
-    background: transparent;
+    width: 25px;
+    height: 25px;
     background-size: contain;
     background-repeat: no-repeat;
     border: none;
-    cursor: pointer;
-}
-
-.nav-text {
-    font-size: 10px;
-    color: #4D876E;
-    margin-top: 4px;
-    font-weight: 600;
+    background-color: transparent;
 }
 
 .nav-home { background-image: url('../assets/images/home.png'); }
 .nav-play { background-image: url('../assets/images/play.png'); }
-.nav-history { background-image: url('../assets/images/history.png'); }
+.nav-history { background-image: url('../assets/images/calendar.png'); }
 .nav-myPage { background-image: url('../assets/images/myPage.png'); }
 
-/* ========================================
-   5. 모달 팝업
-   ======================================== */
-
-/* 모달 오버레이 */
-.report-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 9999;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-
-.report-modal.show {
-    opacity: 1;
-    visibility: visible;
-}
-
-.modal-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(5px);
-}
-
-/* 모달 컨텐츠 */
-.modal-content {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: 20px;
-    padding: 25px;
-    width: 90%;
-    max-width: 400px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-}
-
-/* 모달 헤더 */
-.modal-header {
+.calendar-footer {
+    flex-shrink: 0 !important;  /* ⭐ 중요: 캘린더에 밀려나지 않고 자리를 지킴 */
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.modal-header h3 {
-    font-size: 18px;
-    font-weight: 700;
-    color: #014E0B;
-    margin: 0;
-}
-
-.modal-close {
-    background: transparent;
-    border: none;
-    font-size: 24px;
+.calendar-footer-label {
+    font-size: 12px;
     color: #666;
-    cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: background 0.2s;
-}
-
-.modal-close:hover {
-    background: rgba(0, 0, 0, 0.1);
-}
-
-/* 모달 바디 */
-.modal-body {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-/* 리포트 카드 */
-.report-card {
-    background: rgba(255, 255, 255, 0.8);
-    border-radius: 15px;
-    padding: 15px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.report-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.card-icon {
-    font-size: 32px;
-    flex-shrink: 0;
-}
-
-.card-content {
-    flex: 1;
-}
-
-.card-content h4 {
-    font-size: 16px;
-    font-weight: 700;
-    color: #014E0B;
-    margin: 0 0 8px 0;
-}
-
-.card-time {
-    font-size: 13px;
-    color: #666;
-    margin: 4px 0;
-}
-
-.card-score {
-    font-size: 14px;
-    color: #333;
-    margin: 4px 0;
-}
-
-.card-score strong {
-    color: #6BCB77;
-    font-size: 16px;
-}
-
-.card-button {
-    background: #6BCB77;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    padding: 8px 16px;
-    font-size: 13px;
     font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.2s;
-}
-
-.card-button:hover {
-    background: #5AB968;
-}
-
-/* 리포트 없을 때 */
-.no-report {
-    text-align: center;
-    color: #666;
-    font-size: 14px;
-    padding: 30px 20px;
-}
-
-/* 점 표시 */
-.report-dots {
-    display: flex;
-    gap: 2px;
-    justify-content: center;
-    margin-top: 2px;
-}
-
-.dot {
-    font-size: 8px;
-    line-height: 1;
-}
-
-.has-report {
-    cursor: pointer;
-}
-
-.has-report:hover {
-    background: rgba(107, 203, 119, 0.1) !important;
-    border-radius: 50%;
 }

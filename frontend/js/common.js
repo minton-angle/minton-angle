@@ -11,19 +11,6 @@ const DEV_MODE = false;
 // ========================================
 // 개발 모드 초기화
 // ========================================
-if (DEV_MODE) {
-    console.log('%c🔓 개발 모드 활성화', 'color: orange; font-size: 16px; font-weight: bold;');
-    console.log('💡 인증 없이 모든 API 사용 가능');
-    console.log('📝 배포 시 DEV_MODE = false로 변경하세요');
-}
-
-// ========================================
-// 인증 관련
-// ========================================
-
-/**
- * 토큰 가져오기
- */
 function getToken() {
     return localStorage.getItem('access_token');
 }

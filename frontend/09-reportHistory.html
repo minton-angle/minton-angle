@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/09-reportHistory.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="mobile-container">
@@ -31,28 +32,32 @@
                         </div>
                     </div>
 
-                    <div class="toggle-wrapper">
-                        <div class="toggle-slider" id="slider"></div>
-                        <button class="toggle-btn active" id="btn-calendar" onclick="moveSlider('left')">
-                            리포트 캘린더<br><span class="sub-txt">*날짜별 리포트를 보고싶다면?</span>
-                        </button>
-                        <button class="toggle-btn" id="btn-total" onclick="moveSlider('right')">
-                            성장 리포트<br><span class="sub-txt">*얼마나 성장했는지 보고싶다면?</span>
-                        </button>
-                    </div>
-
-                    <p class="guide-text">
+                    <div class="bottom-content-area">
+                        <div class="toggle-wrapper">
+                            <div class="toggle-slider" id="slider"></div>
+                            <button class="toggle-btn active" id="btn-calendar" onclick="moveSlider('left')">
+                                리포트 캘린더<br><span class="sub-txt">*날짜별 리포트를<br>보고싶다면?</span>
+                            </button>
+                            <button class="toggle-btn" id="btn-total" onclick="moveSlider('right')">
+                            성장 리포트<br><span class="sub-txt">*얼마나 성장했는지<br>보고싶다면?</span>
+                            </button>
+                        </div>
+                        
+                        <p class="guide-text">
                         ** 활성화된 날짜를 누르면 해당 일자에 생성한<br>
                         리포트를 열람하실 수 있습니다.
-                    </p>
+                        </p>
+                    </div>
+
+                    
                 </main>
             </div>
 
             <nav class="navbar-section">
                 <div class="nav-item"><button class="nav-btn nav-home" onclick="location.href='01-home.html'"></button></div>
-                <div class="nav-item"><button class="nav-btn nav-gym"></button></div>
+                <div class="nav-item"><button class="nav-btn nav-play" onclick="location.href='13-playMode.html'"></button></div>
                 <div class="nav-item"><button class="nav-btn nav-history active"></button></div>
-                <div class="nav-item"><button class="nav-btn nav-settings"></button></div>
+                <div class="nav-item"><button class="nav-btn nav-myPage" onclick="location.href='10-myPage.html'"></button></div>
             </nav>
         </div>
     </div>

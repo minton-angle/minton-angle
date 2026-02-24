@@ -2,48 +2,60 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>개인 정보 수정</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>정보 수정</title>
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/10_1-editProfile.css">
 </head>
 <body>
     <div class="mobile-container">
-        <div class="content-wrapper">
-            <header class="header-nav-center">
-                <button class="btn-back" onclick="location.href='10-myPage.html'"><i class="fa-solid fa-arrow-left"></i></button>
-                <h2 class="title">개인 정보 수정</h2>
-            </header>
+        <header class="header">
+            <button class="back-btn" onclick="location.href='10-myPage.html'"></button>
+            <h1 class="header-title">정보 수정</h1>
+        </header>
 
-            <div class="scroll-container">
-                    <form class="edit-form">
-                    <div class="input-wrap">
-                        <label for="editNickname">이름 수정</label>
-                        <input type="text" id="editNickname">
+        <div class="scroll-container">
+            <form class="signup-form" id="editProfileForm">
+                <div class="field-group">
+                    <label>이름</label>
+                    <input type="text" id="editNickname" placeholder="이름을 입력하세요">
+                </div>
+                
+                <div class="row-group">    
+                    <div class="field-group half">
+                        <label>성별</label>
+                        <input type="text" id="editGender" readonly class="readonly-field">
                     </div>
-                    <div class="input-wrap">
-                        <label for="editId">아이디 수정</label>
-                        <input type="text" id="editId">
+                    <div class="field-group half">
+                        <label>손</label>
+                        <input type="text" id="editHand" readonly class="readonly-field">
                     </div>
-                    <div class="input-wrap">
-                        <label for="editPw">비밀번호 수정</label>
-                        <input type="password" id="editPw">
-                    </div>
-                    <div class="input-wrap">
-                        <label for="editGender">성별</label>
-                        <input type="text" id="editGender">
-                    </div>
-                    <div class="input-wrap">
-                        <label for="editHand">주로 사용하는 손</label>
-                        <input type="text" id="editHand">
-                    </div>
-                </form>
-            </div>
+                </div>
+
+                <div class="field-group">
+                    <label>아이디</label>
+                    <input type="text" id="editId" readonly class="readonly-field">
+                </div>
+
+                <div class="field-group">
+                    <label>새 비밀번호</label>
+                    <input type="password" id="editPw" placeholder="변경 시에만 입력 (8자 이상)">
+                </div>
+
+                <div class="field-group">
+                    <label>새 비밀번호 확인</label>
+                    <input type="password" id="editPwConfirm" placeholder="비밀번호를 다시 입력하세요">
+                </div>
+
+                
+
+                <button type="submit" class="submit-btn">변경사항 저장</button>
+            </form>
         </div>
     </div>
-    <script src="js/10_1-editProfile.js"></script>
+        
     <script src="js/common.js"></script>
+    <script src="js/10_1-editProfile.js"></script>
 </body>
 </html>

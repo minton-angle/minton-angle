@@ -85,41 +85,43 @@
 }
 
 /* 4. 버튼 스타일 */
-.btn-live {
+.btn-smash {
     box-sizing: border-box;
-    background-image: url("../assets/images/live.jpg");
-    background-position: 80% 40%;
-    background-size: 120%;
+    background-image: url("../assets/images/smash.png");
+    background-position: 100% 50%;
+    background-size: 105%;
     background-repeat: no-repeat;
     width: 100%;
     height: 14dvh;
     border-radius: 15px;
     margin-bottom: 15px;
     box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
+    opacity: 0.8;
 }
 
-.btn-upload {
+.btn-clear {
     box-sizing: border-box;
-    background-image: url("../assets/images/upload.png");
+    background-image: url("../assets/images/clear.png");
     background-repeat: no-repeat;
-    background-position: 100% 25%;
-    background-size: 130%;
+    background-position: 80% 50%;
+    background-size: 100%;
     width: 100%;
     height: 14dvh;
     border-radius: 15px;
     margin-bottom: 15px;
     box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
+    opacity: 0.8;
 }
 
-.btn-live:active, .btn-upload:active {
+.btn-smash:active, .btn-clear:active {
     transform: scale(0.98);
     opacity: 0.9;
 }
 
 .btn-content {
-    color: #ffffff;
-    padding: 10px 25px 25px 20px;
-    font-size: 19px;
+    color: #000000;
+    padding: 5px 20px 25px 20px;
+    font-size: 17px;
     font-weight: 700;
     text-align: right;
 }
@@ -130,10 +132,10 @@
 }
 
 .btn-content2 {
-    color: #ffffff;
-    padding: 20px 25px 35px 15px;
+    color: #000000;
+    padding: 15px 20px 35px 15px;
     border-radius: 20px;
-    font-size: 19px;
+    font-size: 17px;
     font-weight: 700;
     text-align: right;
 }

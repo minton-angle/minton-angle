@@ -181,13 +181,19 @@ function displayEvaluation(evaluation) {
 function displayMediaComparison(files) {
     const fixPath = (rawPath) => {
         if (!rawPath) return "";
-        let cleanPath = rawPath.replace(/\\/g, '/');
-        const marker = "backend/data/";
-        const index = cleanPath.indexOf(marker);
-        if (index !== -1) {
-            return "/" + cleanPath.substring(index);
+        // 1. 역슬래시를 슬래시로 통일
+        let path = rawPath.replace(/\\/g, '/');
+        
+        // 2. 이미 /data로 시작하거나 http로 시작하면 그대로 반환
+        if (path.startsWith('/data') || path.startsWith('http')) return path;
+        
+        // 3. /app/data로 시작하면 /data로 치환
+        if (path.startsWith('/app/data')) {
+            return path.replace('/app/data', '/data');
         }
-        return cleanPath;
+        
+        // 4. 그 외에 앞에 /가 없으면 붙여줌
+        return path.startsWith('/') ? path : '/' + path;
     };
 
     // 1단계 준비자세
