@@ -1543,41 +1543,30 @@ function renderActionCardsFromLLM(reportObj){
     // 1) pick content
     let title = null;
     let changeOne = null;
-    let focusTwo = [];
-    let miniSummary = "-";
+    let analysis = "-";
 
     if (hasSections){
       const s = reportObj?.sections?.[sectionMap[i].skey] || {};
       title = s?.title || sectionMap[i].fallbackTitle;
       changeOne = s?.change_one || "-";
-      const mini_summary = s?.mini_summary || "-";
-      miniSummary = mini_summary;
-      focusTwo = Array.isArray(s?.focus_two) ? s.focus_two : [];
+      analysis = s?.analysis || "-";
     } else {
       const legacyKey = legacyMap[i].key;
       const a = legacyKey ? (actions?.[legacyKey] || {}) : {};
       title = a?.title ? String(a.title) : (legacyKey ? actionNameFromKfKey(legacyKey) : sectionMap[i].fallbackTitle);
       changeOne = a?.problem_one ? String(a.problem_one) : "-";
-      focusTwo = Array.isArray(a?.fix_two) ? a.fix_two : [];
+      analysis = Array.isArray(a?.fix_two) && a.fix_two.length
+        ? a.fix_two.map((x)=>String(x)).join(" ")
+        : (a?.problem_one ? String(a.problem_one) : "-");
     }
 
-    const focusHtml = focusTwo.length
-      ? `<ul>${focusTwo.map((x)=>`<li>${String(x)}</li>`).join("")}</ul>`
-      : "-";
-
-    const miniSummaryHtml = `<div style="margin-top:6px;"><br/>${String(miniSummary || "-")}</div>`;
-
     // 2) inject/replace LLM block only
-
-    // changeOne은 주석처리하여 숨김 (피드백이 너무 길거나 기술적일 수 있어 UX상 부담될 수 있음)
-    // <div style="margin-top:6px;"><b>이전 기간 대비 변화</b><br/>${String(changeOne || "-")}</div>
     const body = document.getElementById(`a${n}Body`);
     if (body){
       const existing = body.querySelector(".llmActionBlock");
       const html = `
         <div class="llmActionBlock" style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(17,24,39,.18);">
-          ${miniSummaryHtml}
-          <div style="margin-top:20px;"><b> -Tip- </b><br/>${focusHtml}</div>
+          <div style="margin-top:6px;">${String(analysis || "-")}</div>
         </div>
       `;
 
