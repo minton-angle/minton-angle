@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // 0. 로그인한 사용자 이름 반영
+    const savedName = sessionStorage.getItem('user_name');
+    const userNameElement = document.querySelector('.user-name');
+
+    if (savedName && userNameElement) {
+        userNameElement.textContent = `${savedName} 님`;
+    } else if (userNameElement) {
+        userNameElement.textContent = "사용자 님"; // 이름이 없을 경우 기본값
+    }
     // 1. 필요한 요소 가져오기
     const openBtn = document.querySelector('.info-box'); // 가이드 여는 버튼
     const modal = document.getElementById('guideModal');

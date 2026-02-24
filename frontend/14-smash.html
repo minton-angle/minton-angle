@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 스매시 분석</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/14-smash.css">
+</head>
+<body>
+    <div class="mobile-container">
+        <header class="header">
+            <button class="back-btn" onclick="location.href='13_1-playSmash.html'">
+                <img src="assets/images/arrow_back.png" alt="홈으로">
+            </button>
+            <h1 class="header-title">AI 스매시 공 궤적 분석</h1>
+        </header>
+
+        <div class="scroll-container">
+            <main class="grip-content">
+                <div class="instruction-header">
+                    <h2 class="main-title">스매시 궤적 분석</h2>
+                    <p class="sub-desc">경기 영상을 업로드하면 AI가 공의 궤적을 분석합니다.</p>
+                </div>
+
+                <div id="uploadArea" class="camera-wrapper">
+                    <input type="file" id="videoInput" accept="video/*" style="display: none;">
+
+                    <div id="loading" class="loading-overlay" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>AI가 궤적을 분석 중입니다...</p>
+                    </div>
+
+                    <div id="uploadPlaceholder" class="upload-placeholder-box">
+                        <div class="upload-icon-img"></div>
+                    </div>
+
+                    <div id="imagePreview" class="image-box" style="display: none; width:100%; height:100%;">
+                        <span class="video-label expert">전문가 궤적</span> <div id="resultImage" class="result-image-bg"></div>
+                    </div>
+                </div>
+
+                <div id="emptyResult" class="empty-result-guide">
+                    <div class="guide-placeholder">
+                        <p>영상을 업로드하면<br>AI의 분석 결과가 여기에 나타납니다.</p>
+                    </div>
+                </div>
+
+                <div id="resultArea" class="result-container" style="display: none;">
+                    <div class="feedback-card">
+                        <div class="card-header">
+                            <h3 id="resTitle" class="feedback-title">궤적 일치율: 분석 중</h3>
+                            <button type="button" class="view-video-btn" onclick="openModal()">정석 영상 보기</button>
+                        </div>
+        
+                        <div class="feedback-video-box">
+                            <span class="video-label mine">내 궤적</span> <video id="previewVideo" playsinline muted loop style="width:100%; border-radius:12px;"></video>
+                        </div>
+                        <p id="resDesc" class="feedback-desc"></p>
+                    </div>
+                </div>
+
+                <div id="videoModal" class="video-modal">
+                    <div class="modal-content">
+                        <span class="close-modal" onclick="closeModal()">&times;</span>
+                        <div class="modal-video-box">
+                            <video id="modalVideo" src="assets/expert_smash_video.mp4" controls playsinline></video>
+                        </div>
+                    </div>
+                </div>  
+            </main>
+        </div>
+
+        <footer class="bottom-action">
+            <button class="next-btn active" onclick="location.href='01-home.html'">홈으로 이동하기</button>
+        </footer>
+    </div>
+    <script src="js/common.js"></script>
+    <script src="js/14-smash.js"></script>
+</body>
+</html>

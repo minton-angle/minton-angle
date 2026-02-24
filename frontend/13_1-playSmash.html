@@ -8,7 +8,7 @@
     <script src="js/common.js"></script>
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/reset.css">
-    <link rel="stylesheet" href="css/13-playMode.css">
+    <link rel="stylesheet" href="css/13_1-playSmash.css">
 </head>
 <body>
     <div class="mobile-container">
@@ -16,46 +16,29 @@
             <button class="back-btn" onclick="history.back()">
                 <img src="assets/images/arrow_back.png" alt="뒤로가기">
             </button>
-            <h1 class="header-title">경기 영상 업로드</h1>
+            <h1 class="header-title">스매시 분석 가이드</h1>
         </header>
 
         <div class="scroll-container">
             <main class="upload-content">
                 <div class="upload-section">
-                    <div class="upload-box" id="upload-box" onclick="document.getElementById('video-input').click()">
-                        <div class="upload-placeholder" id="upload-placeholder">
-                            <div class="upload-icon">
-                                <img src="assets/images/album.png" alt="업로드">
-                            </div>
-                            <p class="upload-text">앨범에서 영상 불러오기</p>
-                        </div>
-                        
-                        <div class="video-preview" id="video-preview" style="display: none;">
-                            <video id="preview-video" playsinline muted loop></video>
+                    <div class="upload-box" id="example-box">
+                        <div class="video-preview" style="display: block;">
+                            <video id="preview-video" src="assets/videos/example_smash.mp4" playsinline muted loop autoplay></video>
                         </div>
                     </div>
-                    <input type="file" id="video-input" accept="video/*" style="display: none;">
                 </div>
 
                 <div class="info-container">
                     <div class="info-card">
                         <p class="info-highlight">
-                            * 정확한 경기 피드백을 위해 영상을 촬영하시기 전,<br>
-                            <strong>아래 주의사항을 꼭 읽어주세요!</strong>
+                            위 영상처럼 촬영하면<br>
+                            <strong>더 정확한 피드백을 받을 수 있어요!</strong>
                         </p>
                         <ul class="info-list">
-                            <li>
-                                <span>•</span>
-                                <p><strong>촬영 구도:</strong> 정확한 분석을 위해 휴대폰을 가로로 눕혀서 촬영해주세요.</p>
-                            </li>
-                            <li>
-                                <span>•</span>
-                                <p><strong>촬영 거리:</strong> 셔틀콕이 반대편으로 넘어가는 궤적이 모두 담길 수 있도록 멀리서 촬영해주세요.</p>
-                            </li>
-                            <li>
-                                <span>•</span>
-                                <p><strong>조명 확인:</strong> 영상의 선명도를 위해 조명 반사가 최소화되는 구도를 잡아주세요.</p>
-                            </li>
+                            <li><span>•</span><p><strong>촬영 구도:</strong> 가로로 눕혀서 촬영해주세요.</p></li>
+                            <li><span>•</span><p><strong>촬영 거리:</strong> 전신과 셔틀콕 궤적이 다 담기게 멀리서 촬영해주세요.</p></li>
+                            <li><span>•</span><p><strong>조명 확인:</strong> 그림자나 반사가 적은 곳이 좋습니다.</p></li>
                         </ul>
                     </div>
                 </div>
@@ -63,9 +46,9 @@
         </div>
 
         <footer class="bottom-action">
-            <button class="submit-btn" id="submit-btn" onclick="startAnalysis()" disabled>분석 시작</button>
+            <button class="submit-btn" id="go-next-btn" onclick="goToUpload()">분석하러 가기</button>
         </footer>
     </div>
-    <script src="js/13-playMode.js"></script>
+    <script src="js/13_1-playSmash.js"></script>
 </body>
 </html>

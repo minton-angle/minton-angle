@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 그립 판독</title>
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/02_1-gripCapture.css">
+</head>
+<body>
+    <div class="mobile-container">
+        <div id="youtubeModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <button id="closeModal" class="close-modal-btn">&times;</button>
+                <div class="video-container">
+                    <div id="player"></div>
+                </div>
+                <p class="modal-caption">영상을 보고 올바른 그립을 따라해보세요!</p>
+            </div>
+        </div>
+
+        <header class="header">
+            <button class="back-btn" onclick="location.href='01-home.html'">
+                <img src="assets/images/arrow_back.png" alt="홈으로">
+            </button>
+            <h1 class="header-title">AI 실시간 그립 판독</h1>
+        </header>
+
+        <div class="scroll-container">
+            <main class="grip-content">
+                <div class="instruction-header">
+                    <h2 class="main-title">그립 촬영 안내</h2>
+                    <p class="sub-desc">아래 카메라 버튼을 눌러 촬영해주세요</p>
+                </div>
+
+                <div id="cameraArea" class="camera-wrapper">
+                    <div id="loading" class="loading-overlay">
+                        <div class="spinner"></div>
+                        <p>AI 판독 중...</p>
+                    </div>
+
+                    <button id="reCaptureBtn" class="re-capture-overlay-btn" style="display: none;">
+                        🔄 다시 촬영하기
+                    </button>
+
+                    <div class="camera-guide">
+                        <div class="guide-box">
+                            <span class="corner top-left"></span>
+                            <span class="corner top-right"></span>
+                            <span class="corner bottom-left"></span>
+                            <span class="corner bottom-right"></span>
+                        </div>
+                    </div>
+
+                    <div id="webcamContainer" class="webcam-box"></div>
+                    
+                    <button id="shutterBtn" class="shutter-button">
+                        <img src="assets/images/camera_icon.png" alt="촬영">
+                    </button>
+                </div>
+
+                <div id="emptyResult" class="empty-result-guide">
+                    <div class="guide-placeholder">
+                        <p>촬영을 완료하면<br>여기에 판독 결과와 피드백이 표시됩니다.</p>
+                    </div>
+                </div>
+
+                <div id="resultArea" class="result-container" style="display: none;">
+                    <div class="feedback-card">
+                        <h3 id="resTitle" class="feedback-title">판독 결과</h3>
+                        <p id="resDesc" class="feedback-desc"></p>
+                    </div>
+
+                    <div class="image-comparison">
+                        <div class="compare-item">
+                            <p class="img-label">내 그립</p>
+                            <div id="myGrip" class="img-box"></div>
+                        </div>
+                        <div class="compare-item">
+                            <p class="img-label">올바른 예시</p>
+                            <div class="img-box">
+                                <img src="assets/images/gripGuide.jpg" alt="올바른 예시">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <footer class="bottom-action">
+            <button class="next-btn active" onclick="location.href='01-home.html'">홈으로 이동하기</button>
+        </footer>
+    </div>
+    <script src="js/02_1-gripCapture.js"></script>
+</body>
+</html>
