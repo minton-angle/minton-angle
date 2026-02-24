@@ -33,22 +33,6 @@
 }
 
 /* 2. 유저 섹션 스타일 */
-/*.user-section {
-    background-color: rgba(255, 255, 255, 0.6); /* 가독성을 위해 불투명도 조절 */
-    /*backdrop-filter: blur(2px);
-    border-radius: 40px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    display: flex;
-    flex-direction: row;
-    gap: 10px;
-    padding: 30px 30px;
-    color: #1d1d1f;
-    margin-top: 15px; /* 상단 여백 조절 */
-    /*margin-bottom: 30px;
-    align-items: center;
-    justify-content: center;
-}*/
-
 .user-section {
     flex-shrink: 0;
     background-color: rgba(255, 255, 255, 0.45); 
@@ -78,12 +62,6 @@
 
 /* 3. 모드 선택 섹션 */
 .btn-section {
-    /*background-color: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(2px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 40px;
-    padding: 30px 20px;
-    margin-bottom: 80px;*/ /* 네비바에 가려지지 않게 하단 여백 */
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -140,9 +118,9 @@
 
 .btn-content {
     color: #ffffff;
-    padding: 10px 20px 25px 20px;
-    font-size: 18px;
-    font-weight: 400;
+    padding: 10px 25px 25px 20px;
+    font-size: 19px;
+    font-weight: 700;
     text-align: right;
 }
 
@@ -153,10 +131,10 @@
 
 .btn-content2 {
     color: #ffffff;
-    padding: 25px 30px 35px 15px;
+    padding: 20px 25px 35px 15px;
     border-radius: 20px;
-    font-size: 18px;
-    font-weight: 400;
+    font-size: 19px;
+    font-weight: 700;
     text-align: right;
 }
 
@@ -170,11 +148,11 @@
     position: absolute;
     /* [수정] 바닥에서 띄워서 안쪽으로 들어오게 함 */
     bottom: 24px; 
-    left: 10px;
-    right: 10px;
+    left: 10dvw;
+    right: 10dvw;
     /*transform: translateX(-50%);*/
     /*width: 90%;*/ /* 양옆 여백 생성 */
-    height: 70px;
+    height: 55px;
     background-color: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.4);
@@ -196,8 +174,8 @@
 }
 
 .nav-btn {
-    width: 32px;
-    height: 32px;
+    width: 25px;
+    height: 25px;
     background-color: transparent;
     background-size: contain;
     background-repeat: no-repeat;
@@ -210,20 +188,20 @@
 
 .nav-home {
     background-image: url('../assets/images/home.png');
-    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+    /*filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));*/
 }
 
 .nav-play {
     background-image: url('../assets/images/play.png');
-    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+    /*filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));*/
 }
 
 .nav-history {
-    background-image: url('../assets/images/history.png');
-    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+    background-image: url('../assets/images/calendar.png');
+    /*filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));*/
 }
 
 .nav-myPage {
     background-image: url('../assets/images/myPage.png');
-    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
+    /*filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));*/
 }

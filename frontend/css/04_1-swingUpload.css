@@ -14,9 +14,26 @@
 }*/
 
 html, body {
+    display: flex;
     height: 100%;
     margin: 0;
+    padding: 0;
     overflow: hidden;
+}
+
+.mobile-container {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+}
+
+.scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+body {
     font-family: 'Pretendard', sans-serif;
 }
 
@@ -24,6 +41,7 @@ html, body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    width: 600px;
 }
 
 /* 1. 헤더 영역 (기존 유지) */

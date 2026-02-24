@@ -1,4 +1,5 @@
 html, body {
+    display: flex;
     height: 100dvh;
     overflow: hidden;
 }
@@ -77,7 +78,7 @@ body {
     font-weight: 700;
     color: #025B36;
     text-align: center;
-    margin-top: 2dvh;
+    margin-top: 3dvh;
     margin-bottom: 5px;
 }
 
@@ -90,15 +91,15 @@ body {
 
 /* 3. 이미지 및 카메라 박스 */
 .image-pair {
+    margin-top: 15px;
     display: flex;
     justify-content: center;
     width: 100%;
-    gap: 12px;
     margin-bottom: 2dvh;
 }
 
 .img-box {
-    height: 25dvh;
+    height: 28dvh;
     aspect-ratio: 1 / 1;
     border-radius: 20px;
     overflow: hidden;
@@ -111,11 +112,12 @@ body {
 }
 
 .camera-box {
+    margin-right: 5px;
     appearance: none;
     border: none;
     background: none;
     padding: 0;
-    height: 25dvh;
+    height: 23dvh;
     aspect-ratio: 1 / 1;
     border-radius: 20px;
     overflow: hidden;
@@ -201,7 +203,7 @@ body {
 }
 
 .info-card-title {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 700;
     color: #003B23;
     text-align: center;
@@ -213,12 +215,12 @@ body {
 }
 
 .info-list li {
-    font-size: 2dvh;
+    font-size: 15px;
     color:#494949;
     font-weight: 500;
-    line-height: 25px;
+    line-height: 30px;
     display: flex;
-    gap: 8px;
+    gap: 10px;
 }
 
 .info-list li span {
@@ -234,22 +236,27 @@ body {
 
 .next-btn {
     width: 100%;
-    background-color: #ccc;
+    /* 1. 처음부터 초록색으로 설정 */
+    background-color: #1C593F; 
     color: #fff;
-    cursor: not-allowed;
-    transition: background-color 0.3s;
     border: none;
-    padding: 2.5dvh;
+    padding: 2dvh;
     border-radius: 50px;
     font-weight: 700;
     font-size: 22px;
-    cursor: pointer;
-    transition: opacity 0.2s;
+    /* 2. 항상 클릭 가능한 상태 */
+    cursor: pointer; 
+    transition: all 0.2s ease; /* 모든 변화를 부드럽게 */
 }
 
+/* 마우스를 올렸을 때 (데스크탑 대비) */
+.next-btn:hover {
+    opacity: 0.9;
+}
+
+/* 3. 버튼을 누르고 있을 때의 효과 */
 .next-btn:active {
-    background-color: #025b36;
-    cursor: pointer;
+    background-color: #025b36; /* 더 진한 초록색 */
     opacity: 0.8;
-    transform: scale(0.98);
+    transform: scale(0.98); /* 살짝 눌리는 느낌 */
 }

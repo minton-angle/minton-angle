@@ -1,6 +1,7 @@
 /* 1. 헤더 영역 (common.css 기반) */
 /* 1. 전체 페이지 스크롤 방지 (추가) */
 html, body {
+    display: flex;
     height: 100%;
     margin: 0;
     overflow: hidden; /* 화면이 아래로 밀리는 것을 원천 차단 */
@@ -13,7 +14,7 @@ html, body {
     padding: 1dvh 1.5dvh 2dvh;
     background-color: #fff;
     position: sticky;
-    top: 1dvh;
+    /* top: 1dvh; */
     z-index: 10;
 }
 
@@ -30,6 +31,7 @@ html, body {
 }
 
 .app-wrapper {
+    width: 600px;
     display: flex;
     flex-direction: column;
     height: 100vh; /* 기기 화면 높이에 딱 맞춤 */
@@ -162,4 +164,3 @@ html, body {
 .status-item.active.bad { background-color: #FFD2D2; color: #FF4D4D; }
 .status-item.active.normal { background-color: #FFF4D2; color: #FFB800; }
 .status-item.active.good { background-color: #E2FFE9; color: #2ECC71; }
-

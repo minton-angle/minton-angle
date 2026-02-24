@@ -6,7 +6,7 @@ body {
 
 .mobile-container {
     width: 100%;
-    background-color: #fcfcfc;
+    background-color: #ffffff;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -89,11 +89,17 @@ input {
     width: 100%;
     box-sizing: border-box;
     padding: 2.5dvh;
-    border: 1px solid #000;
-    border-radius: 25px;
+    border: 0.5px solid #000;
+    border-radius: 12px;
     font-size: 14px;
     outline: none;
     background-color: white;
+}
+
+input::placeholder {
+    font-size: 3dvw !important;
+    font-weight: 400;
+    color: #aaa !important;
 }
 
 .row-group {
@@ -141,7 +147,7 @@ input {
     max-width: none !important;
     
     position: absolute; /* 겹치기 위해 필수 */
-    width: 55%;         
+    width: 50%;         
     height: calc(100% - 10px); /* 위아래 여백 5px씩 제외 */
     top: 5px;
     border: none;
@@ -202,7 +208,7 @@ input {
     max-width: none !important;
     
     position: absolute; /* 겹치기 위해 필수 */
-    width: 55%;         /* 요구하신 60% 너비 */
+    width: 50%;         /* 요구하신 60% 너비 */
     height: calc(100% - 10px); /* 위아래 여백 5px씩 제외 */
     top: 5px;
     border: none;
@@ -262,7 +268,7 @@ input {
     background-color: #F5B342;
     color: white;
     border: none;
-    padding: 10px 15px;
+    padding: 10px 3dvw;
     border-radius: 20px;
     font-size: 14px;
     cursor: pointer;
@@ -271,11 +277,11 @@ input {
 /* 하단 회원가입 제출 버튼 */
 .submit-btn {
     width: 85%;
-    padding: 18px;
-    background-color: #3E6D4F;
+    padding: 20px;
+    background-color: #28805c;
     color: white;
     border: none;
-    border-radius: 25px;
+    border-radius: 12px;
     font-size: 18px;
     font-weight: bold;
     cursor: pointer;

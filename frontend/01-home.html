@@ -15,13 +15,16 @@
                 
                 <div class="scroll-container home-bg">
                     <main>
-                        <div class="logo-box"></div>
+                        <div class="top-bar">
+                            <div class="logo-box"></div>
+                        </div>
                         <section class="user-section">
                             <div class="user-image-container"></div>
                             <div class="user-info">
                                 <div class="user-name">김고수 님</div>
                                 <div class="user-welcome">환영합니다!</div>
                             </div>
+                            <button class="info-box"></button>
                         </section>
 
                         <section class="btn-section">
@@ -48,6 +51,33 @@
                 </nav>
 
             </div> 
+
+            <div id="guideModal" class="modal-overlay">
+                <div class="modal-content">
+                    <button class="close-btn" id="closeGuide">&times;</button>
+        
+                    <div class="guide-header">
+                        <h2>⭐️ 이용 가이드 ⭐️</h2>
+                    </div>
+
+                    <div class="tutorial-wrapper">
+                        <div class="tutorial-slider" id="tutorialSlider">
+                            <img src="assets/images/tutorial_1.png" alt="1" class="t-img">
+                            <img src="assets/images/tutorial_2.png" alt="2" class="t-img">
+                            <img src="assets/images/tutorial_3.png" alt="3" class="t-img">
+                            <img src="assets/images/tutorial_4.png" alt="4" class="t-img">
+                        </div>
+                    </div>
+
+                    <div class="dot-container" id="dotContainer">
+                        <span class="t-dot active"></span>
+                        <span class="t-dot"></span>
+                        <span class="t-dot"></span>
+                        <span class="t-dot"></span>
+                    </div>
+                </div>
+            </div>
+
         </div> 
     </div> 
     <script src="js/01-home.js"></script>

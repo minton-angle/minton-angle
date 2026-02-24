@@ -1,48 +1,60 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. 세션에서 개별 정보 가져오기
-    const savedName = sessionStorage.getItem('userName');
-    const savedId = sessionStorage.getItem('userId');
-    const savedPw = sessionStorage.getItem('userPw');
-    const savedGender = sessionStorage.getItem('userGender');
-    const savedHand = sessionStorage.getItem('userHand');
-
-    // 각 input 요소 가져오기
-    const nicknameInput = document.getElementById('editNickname');
+document.addEventListener('DOMContentLoaded', async () => {
+    const editForm = document.getElementById('editProfileForm');
+    const nameInput = document.getElementById('editNickname');
     const idInput = document.getElementById('editId');
     const pwInput = document.getElementById('editPw');
+    const pwConfirmInput = document.getElementById('editPwConfirm');
     const genderInput = document.getElementById('editGender');
     const handInput = document.getElementById('editHand');
 
-    // 2. 세션에 데이터가 있다면 input에 채워넣기
-    if (savedName) {
-        nicknameInput.value = savedName;
-        // 아이디, 비밀번호, 성별 등은 로그인 시 세션에 저장되어 있어야 나타납니다.
-        idInput.value = savedId || "mintun123"; // 데이터 없으면 더미값
-        pwInput.value = savedPw || "password123";
-        genderInput.value = savedGender || "남성";
-        handInput.value = savedHand || "오른손";
-    } else {
-        // 로그인 정보가 아예 없는 경우 (테스트용 기본값)
-        nicknameInput.value = "김고수";
-        idInput.value = "kim_gosu";
-        genderInput.value = "남성";
-        handInput.value = "오른손";
+    const nameRegex = /^[가-힣a-zA-Z]+$/; 
+    const pwRegex = /^[a-zA-Z0-9]{8,20}$/; 
+
+    // 1. 내 정보 불러오기
+    try {
+        const userData = await apiCall('/api/auth/me', { method: 'GET', auth: true });
+        if (userData) {
+            nameInput.value = userData.user_name || "";
+            idInput.value = userData.user_id || "";
+            genderInput.value = userData.sex === 'female' ? '여성' : '남성';
+            handInput.value = userData.hand === 'left' ? '왼손' : '오른손';
+        }
+    } catch (error) {
+        alert('정보를 불러오지 못했습니다.');
     }
 
-    // 3. 가상 키보드 제어 (입력창 클릭 시 노출)
-    const inputs = document.querySelectorAll('input');
-    const keyboard = document.getElementById('mockKeyboard');
+    // 2. 정보 수정 제출
+    editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-    inputs.forEach(input => {
-        input.addEventListener('focus', () => {
-            keyboard.style.display = 'block';
-        });
-    });
-
-    // 화면의 다른 곳 클릭 시 키보드 숨기기
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.input-wrap') && !e.target.closest('#mockKeyboard')) {
-            if (keyboard) keyboard.style.display = 'none';
+        if (!nameRegex.test(nameInput.value)) {
+            return alert('이름 형식이 올바르지 않습니다.');
         }
-    }, true);
+
+        // 비밀번호 입력했을 때만 검사
+        if (pwInput.value) {
+            if (!pwRegex.test(pwInput.value)) {
+                return alert('비밀번호는 영문/숫자 조합 8자 이상이어야 합니다.');
+            }
+            if (pwInput.value !== pwConfirmInput.value) {
+                return alert('비밀번호가 일치하지 않습니다.');
+            }
+        }
+
+        try {
+            await apiCall('/api/auth/update-profile', {
+                method: 'PUT',
+                auth: true,
+                body: JSON.stringify({
+                    name: nameInput.value,
+                    password: pwInput.value || null
+                })
+            });
+            alert('정보가 수정되었습니다!');
+            sessionStorage.setItem('user_name', nameInput.value); // 세션 이름 업데이트
+            location.href = '10-myPage.html';
+        } catch (error) {
+            alert('수정에 실패했습니다: ' + error.message);
+        }
+    });
 });
