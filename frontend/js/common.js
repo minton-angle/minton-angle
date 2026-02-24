@@ -3,7 +3,7 @@
 // ========================================
 
 // API 기본 URL
-const API_BASE_URL = "http://98.86.191.189";
+const API_BASE_URL = "https://hoofed-shantell-superaffluently.ngrok-free.dev";
 
 // ⭐ 개발 모드 설정 (배포 시 false로 변경!)
 const DEV_MODE = false;
