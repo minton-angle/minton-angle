@@ -72,15 +72,29 @@ async def get_analysis_result(post_idx: str, db: Session = Depends(get_db)):
         print(f"📊 결과 조회: {post_idx}")
         print(f"파일 개수: {len(files)}")
         
-        # 파일 타입별 경로 매핑
+       # 파일 타입별 경로 매핑
         file_paths = {}
         for file in files:
-            print(f"  {file.file_type}: {file.file_path}")
+            # DB에 저장된 원래 경로 (예: /app/data/upload_keyframes/...)
+            raw_path = file.file_path
             
-            # 앞에 / 추가
-            path = file.file_path if file.file_path.startswith('/') else f"/{file.file_path}"
+            print(f"   [원본 경로] {file.file_type}: {raw_path}")
+
+            # 도커 내부 절대경로(/app/data)를 브라우저용 주소(/data)로 치환
+            if raw_path.startswith('/app/data'):
+                path = raw_path.replace('/app/data', '/data')
+            elif raw_path.startswith('data'):
+                path = f"/data/{raw_path[5:]}" if raw_path.startswith('data/') else f"/{raw_path}"
+            else:
+                path = raw_path if raw_path.startswith('/') else f"/{raw_path}"
+            
+            # /data/data 처럼 중복되는 경우 방지
+            if path.startswith('/data/data'):
+                path = path.replace('/data/data', '/data')
+
+            print(f"   [변환 주소] {file.file_type}: {path}")
             file_paths[file.file_type] = path
-        
+
         print(f"{'='*50}\n")
         
         return {

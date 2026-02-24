@@ -71,12 +71,9 @@ def update_user(
 
 def delete_user(db: Session, user_id: str) -> bool:
     """사용자 삭제 (회원탈퇴)"""
-    user = get_user_by_id(db, user_id)
-    
+    user = db.query(User).filter(User.id == user_id).first() 
     if not user:
         return False
-    
     db.delete(user)
     db.commit()
-    
     return True

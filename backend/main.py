@@ -81,7 +81,7 @@ app.include_router(report_router)
 app.include_router(gripRouters.router)
 
 # 정적 파일 서빙
-app.mount("/backend/data", StaticFiles(directory="data"), name="data")
+app.mount("/data", StaticFiles(directory="/app/data"), name="data")
 
 
 @app.get("/")
