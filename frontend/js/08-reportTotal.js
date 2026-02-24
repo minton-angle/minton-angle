@@ -1,4 +1,22 @@
-// const API_BASE = "http://localhost:8000"; // FastAPI 주소
+function stageKeyFromActionIndex(n){
+  // 5-card order: 1 Ready, 2 Rotation, 3 Backswing, 4 Impact, 5 FollowSwing
+  if (String(n) === "1") return "1_Ready_Total";
+  if (String(n) === "2") return "2_Rotation_Total";
+  if (String(n) === "3") return "3_Backswing_Total";
+  if (String(n) === "4") return "4_Impact_Total";
+  if (String(n) === "5") return "5_FollowSwing_Total";
+  return null;
+}
+
+function extractStageSeries(sessions, stageKey){
+  const key = String(stageKey || "");
+  return (Array.isArray(sessions) ? sessions : []).map((s)=>{
+    const v = s?.stage_scores?.[key];
+    const num = Number(v);
+    return Number.isFinite(num) ? num : null;
+  });
+}
+const API_BASE = "http://localhost:8000"; // FastAPI 주소
 
 // ====== GT Profile (종합 리포트 페이지에서는 사용 안 함) ======
 // NOTE: 종합 페이지는 세션 히스토리 기반이므로, GT 범위는 서버/다른 페이지에서 처리하는 것을 권장합니다.
@@ -7,27 +25,35 @@
 // ====== KF 키 → 사용자 친화 명칭 ======
 function actionNameFromKfKey(kfKey) {
   const k = String(kfKey || "").toLowerCase();
-  if (k.includes("kf1")) return "백스윙 동작";
-  if (k.includes("kf2")) return "임팩트 동작";
-  if (k.includes("kf3")) return "팔로스루 동작";
+  if (k.includes("kf1")) return "백스윙";
+  if (k.includes("kf2")) return "임팩트";
+  if (k.includes("kf3")) return "팔로스윙";
   return "-";
 }
 
-// KF 키 → 동작 번호 (1,2,3) 매핑
 function kfFieldFromActionIndex(n){
-  if (String(n) === "1") return "kf1_error";
-  if (String(n) === "2") return "kf2_error";
-  if (String(n) === "3") return "kf3_error";
+  // 5-card order: 1 Ready, 2 Rotation, 3 Backswing, 4 Impact, 5 FollowSwing
+  // KF error series exists only for cards 3~5.
+  if (String(n) === "3") return "kf1_error";
+  if (String(n) === "4") return "kf2_error";
+  if (String(n) === "5") return "kf3_error";
   return null;
+}
+
+function kfKeyOfAction(actionNum){
+  return kfFieldFromActionIndex(actionNum);
 }
 
 function trendPillText(direction, delta){
   const dir = String(direction || "flat");
   const d = Number(delta);
   const abs = Number.isFinite(d) ? Math.abs(d).toFixed(2) : "-";
-  if (dir === "improved") return `개선 (${abs}°↓)`;
-  if (dir === "worsened") return `악화 (${abs}°↑)`;
-  return `정체 (${abs}°)`;
+
+  // If delta looks like degrees (legacy path), keep old arrow. Otherwise treat as score.
+  // Heuristic: degrees deltas are usually small (< 20). Scores are also < 20, but we prefer score wording here.
+  if (dir === "improved") return `개선 (Δ ${abs}점)`;
+  if (dir === "worsened") return `악화 (Δ ${abs}점)`;
+  return `정체 (Δ ${abs}점)`;
 }
 
 function applyTrendPill(el, direction){
@@ -56,6 +82,21 @@ function std(values){
   return Math.sqrt(xs.reduce((a,x)=>a + (x-m)*(x-m), 0) / xs.length);
 }
 
+// 팔로우스윙(카드5) 패스 여부 시리즈 추출: prefers followswing_pass, fallback to stage_scores["5_FollowSwing_Total"]
+function extractFollowSwingPassSeries(sessions){
+  return (Array.isArray(sessions) ? sessions : []).map((s)=>{
+    // primary: boolean from backend
+    const v = s?.followswing_pass;
+    if (v === true) return true;
+    if (v === false) return false;
+
+    // fallback: infer from stage score total (0/100)
+    const t = Number(s?.stage_scores?.["5_FollowSwing_Total"]);
+    if (Number.isFinite(t)) return t >= 50; // 100=>true, 0=>false
+    return null;
+  });
+}
+
 function extractKfSeries(sessions, field){
   return (Array.isArray(sessions) ? sessions : []).map((s)=>s?.[field]);
 }
@@ -65,27 +106,45 @@ function buildActionInsightText(actionLabel, curMean, prevMean, curStd){
   const pm = Number.isFinite(prevMean) ? prevMean.toFixed(2) : "-";
   const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
 
-  return `평균 오차: <b>${cm}°</b> (이전 ${pm}°)<br/>재현성(편차): <b>${sd}°</b>
-  <ul>
-    <li>평균 오차는 낮을수록 좋습니다.</li>
-    <li>편차가 크면 같은 동작을 반복했을 때 결과가 흔들린다는 의미입니다.</li>
-  </ul>`;
+  return `평균 점수: <b>${cm}점</b> (이전 ${pm}점)<br/>변동성(표준편차): <b>${sd}점</b>`;
+}
+
+function followswingFeedbackFromFalseRate(falseRate){
+  // falseRate(0~1)
+  // - 40% 미만: 잘하고 있다
+  // - 40% 이상 ~ 80% 미만: 개선 필요
+  // - 80% 이상: 위험 부상이 있다
+  if (!Number.isFinite(falseRate)) return "-";
+  if (falseRate >= 0.80) return "위험 부상이 있어요!";
+  if (falseRate >= 0.40) return "팔로우 스윙에 개선이 필요해요!";
+  return "자세가 좋으시네요! 그대로 유지해주세요!";
+}
+
+function followswingTrendPillText(direction, deltaPp){
+  const dp = Number(deltaPp);
+  const abs = Number.isFinite(dp) ? Math.abs(dp).toFixed(0) : "-";
+  if (direction === "improved") return `개선 (Δ ${abs}%p 감소)`;
+  if (direction === "worsened") return `악화 (Δ ${abs}%p 증가)`;
+  return `정체 (Δ ${abs}%p)`;
 }
 
 function renderActionCards(currentSessions, prevSessions){
   const cards = [
-    { n: 1, label: "백스윙 동작" },
-    { n: 2, label: "임팩트 동작" },
-    { n: 3, label: "팔로스루 동작" },
+    { n: 1, label: "준비" },
+    { n: 2, label: "회전" },
+    { n: 3, label: "백스윙" },
+    { n: 4, label: "임팩트" },
+    { n: 5, label: "팔로스윙" },
   ];
 
-  let worst = { n: 1, mean: -1 };
-  let volatile = { n: 1, std: -1 };
+  let worst = { n: 3, mean: -1 };
+  let volatile = { n: 3, std: -1 };
 
   for (const c of cards){
-    const field = kfFieldFromActionIndex(c.n);
-    const curArr = extractKfSeries(currentSessions, field);
-    const prevArr = extractKfSeries(prevSessions, field);
+    const stageKey = stageKeyFromActionIndex(c.n);
+
+    const curArr = extractStageSeries(currentSessions, stageKey);
+    const prevArr = extractStageSeries(prevSessions, stageKey);
 
     const curMean = meanAbs(curArr);
     const prevMean = meanAbs(prevArr);
@@ -95,45 +154,113 @@ function renderActionCards(currentSessions, prevSessions){
     let delta = null;
     if (Number.isFinite(curMean) && Number.isFinite(prevMean)){
       delta = curMean - prevMean;
-      if (delta < -1e-9) direction = "improved";
-      else if (delta > 1e-9) direction = "worsened";
+      if (delta > 1e-9) direction = "improved";
+      else if (delta < -1e-9) direction = "worsened";
     }
 
-    // per-action score gauge (0~100)
-    const actionScore = Number.isFinite(curMean) ? computeActionScoreFromMean(curMean) : 0;
-    setHalfGauge(c.n, actionScore, direction);
+    // 카드 5: 성공률 기반 게이지, 그 외는 기존대로 stage mean 사용
+    let actionScore;
+    if (String(c.n) === "5"){
+      // success rate = 100 - falseRate%
+      const curSeries = extractFollowSwingPassSeries(currentSessions);
+      const curValid = curSeries.filter((v)=> v === true || v === false);
+      const curTotalN = curValid.length;
+      const curFalseN = curValid.filter((v)=> v === false).length;
+      const curFalseRate = curTotalN ? (curFalseN / curTotalN) : 0;
 
-    if (Number.isFinite(curMean) && curMean > worst.mean){
+      const successRate = 100 - Math.round(curFalseRate * 100);
+      actionScore = clamp(successRate, 0, 100);
+
+      // 성공률은 높을수록 좋으므로 direction은 기존 점수 direction 유지
+      setHalfGauge(c.n, actionScore, direction);
+    } else {
+      actionScore = Number.isFinite(curMean) ? Math.round(clamp(curMean, 0, 100)) : 0;
+      setHalfGauge(c.n, actionScore, direction);
+    }
+
+    // Per-card mini stage history chart (cards 1~4): stage_scores overlay (current vs previous)
+    if (String(c.n) !== "5"){
+      renderActionMiniStageChart(c.n, curArr, prevArr, __RANGE_FILTER__);
+    }
+
+    // worst: lowest mean score
+    if (Number.isFinite(curMean) && (worst.mean < 0 || curMean < worst.mean)){
       worst = { n: c.n, mean: curMean };
     }
+    // volatile: largest std
     if (Number.isFinite(curStd) && curStd > volatile.std){
       volatile = { n: c.n, std: curStd };
     }
 
-    const pill = document.getElementById(`a${c.n}TrendPill`);
-    if (pill){
-      pill.textContent = trendPillText(direction, delta);
-      applyTrendPill(pill, direction);
-    }
-
-    const meta = document.getElementById(`a${c.n}Meta`);
-    if (meta){
-      const cm = Number.isFinite(curMean) ? curMean.toFixed(2) : "-";
-      const sd = Number.isFinite(curStd) ? curStd.toFixed(2) : "-";
-      meta.innerHTML = `최근 평균 오차 <b>${cm}°</b> · 편차 <b>${sd}°</b>`;
-    }
-
+    // special case: card 5 (FollowSwing) feedback
     const body = document.getElementById(`a${c.n}Body`);
-    if (body){
+    if (!body) continue;
+
+    // FollowSwing: boolean-based feedback (false rate) + previous period comparison
+    if (String(c.n) === "5"){
+      const curSeries = extractFollowSwingPassSeries(currentSessions);
+      const curValid = curSeries.filter((v)=> v === true || v === false);
+      const curTotalN = curValid.length;
+      const curFalseN = curValid.filter((v)=> v === false).length;
+      const curFalseRate = curTotalN ? (curFalseN / curTotalN) : NaN;
+
+      const prevSeries = extractFollowSwingPassSeries(prevSessions);
+      const prevValid = prevSeries.filter((v)=> v === true || v === false);
+      const prevTotalN = prevValid.length;
+      const prevFalseN = prevValid.filter((v)=> v === false).length;
+      const prevFalseRate = prevTotalN ? (prevFalseN / prevTotalN) : NaN;
+
+      const curPct = Number.isFinite(curFalseRate) ? Math.round(curFalseRate * 100) : null;
+      const prevPct = Number.isFinite(prevFalseRate) ? Math.round(prevFalseRate * 100) : null;
+
+      const deltaPp = (Number.isFinite(curFalseRate) && Number.isFinite(prevFalseRate))
+        ? Math.round((curFalseRate - prevFalseRate) * 100)
+        : null;
+
+      // false rate는 낮을수록 좋음
+      let fsDir = "flat";
+      if (deltaPp != null){
+        if (deltaPp < 0) fsDir = "improved";
+        else if (deltaPp > 0) fsDir = "worsened";
+      }
+
+      // Half gauge: 성공률(%)
+      const successRate = 100 - Math.round((Number.isFinite(curFalseRate) ? curFalseRate : 0) * 100);
+      const actionScore = clamp(successRate, 0, 100);
+      setHalfGauge(c.n, actionScore, fsDir);
+
+      const msg = followswingFeedbackFromFalseRate(curFalseRate);
+      body.innerHTML = `기간 내 팔로우 스윙을 못한 비율: <b>${curPct == null ? "-" : curPct + "%"}</b> (False ${curFalseN}/${curTotalN})<br/>` +
+                       `이전 기간내 못한 비율: <b>${prevPct == null ? "-" : prevPct + "%"}</b> (False ${prevFalseN}/${prevTotalN})<br/>` +
+                       `변화: <b>${deltaPp == null ? "-" : (deltaPp > 0 ? "+" : "") + deltaPp + "%p"}</b><br/>` +
+                       `<b>${msg}</b>`;
+
+      // pill: reflect false-rate delta
+      const pillEl = document.getElementById(`a${c.n}TrendPill`);
+      if (pillEl){
+        pillEl.textContent = followswingTrendPillText(fsDir, deltaPp == null ? NaN : deltaPp);
+        applyTrendPill(pillEl, fsDir);
+      }
+    } else {
       body.innerHTML = buildActionInsightText(c.label, curMean, prevMean, curStd);
+      const pill = document.getElementById(`a${c.n}TrendPill`);
+      if (pill){
+        pill.textContent = trendPillText(direction, delta);
+        applyTrendPill(pill, direction);
+      }
     }
   }
 
-  // 추천 영상: 평균 오차 worst + 편차 worst 기반 자동 큐레이션
-  const worstField = kfFieldFromActionIndex(worst.n);
-  const volField = kfFieldFromActionIndex(volatile.n);
-  renderYoutubeLinksByKfKeys([worstField, volField]);
+  // 추천 영상: 평균 점수 worst + 편차 worst 기반 자동 큐레이션 (stage keys)
+  const worstKey = stageKeyFromActionIndex(worst.n);
+  const volKey = stageKeyFromActionIndex(volatile.n);
+  const keys = [worstKey, volKey].filter(Boolean);
+  renderYoutubeLinksByKfKeys(keys);
+
+  // FollowSwing 성공/실패율 도넛(현재 기간)
+  renderFollowSwingDonutCurrent(currentSessions);
 }
+
 // ====== Half gauge helpers (per action card) ======
 const HALF_GAUGE_DASH = 157; // approx half circumference for the SVG arc
 
@@ -161,17 +288,11 @@ function computeActionScoreFromMean(meanErr){
 }
 
 // ====== 동작별 피드백 카드 렌더 ======
-function kfKeyOfAction(actionNum){
-  if (String(actionNum) === "1") return "kf1_error";
-  if (String(actionNum) === "2") return "kf2_error";
-  if (String(actionNum) === "3") return "kf3_error";
-  return null;
-}
 
 function setText(id, html){
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = (html == null || html === "") ? "-" : String(html);
+  el.innerHTML = (html == null || html === "") ? "" : String(html);
 }
 
 // ===== A안: 동작별 간단 구조 =====
@@ -256,26 +377,53 @@ function youtubeThumbUrl(videoId) {
 
 // 제품에서 큐레이션한 목록만 사용 (채널/영상 ID 고정)
 const CURATED_YT = {
-  // 동작 1: 준비/그립/백스윙
+  // legacy KF buckets
   action1: [
     { videoId: "toQ7tOx7Tvs", title: "The 4 Grips In Badminton (올바른 그립 전환)", channel: "Badminton Insight" },
     { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (준비/타이밍)", channel: "Badminton Insight" },
   ],
-  // 동작 2: 임팩트/파워/타이밍
   action2: [
     { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (파워와 타이밍)", channel: "Badminton Insight" },
   ],
-  // 동작 3: 팔로스루/회전/손가락-손목 사용
   action3: [
     { videoId: "zCq36gnqGdI", title: "How To Use Your Wrist In Badminton (손목이 아니라 손가락)", channel: "Badminton Insight" },
+  ],
+
+  // stage buckets (A안)
+  ready: [
+    { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (준비/타이밍)", channel: "Badminton Insight" },
+    { videoId: "toQ7tOx7Tvs", title: "The 4 Grips In Badminton (그립/준비)", channel: "Badminton Insight" },
+  ],
+  rotation: [
+    { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (회전/타이밍)", channel: "Badminton Insight" },
+  ],
+  backswing: [
+    { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (백스윙 연결)", channel: "Badminton Insight" },
+  ],
+  impact: [
+    { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (임팩트 포인트)", channel: "Badminton Insight" },
+  ],
+  followswing: [
+    { videoId: "zCq36gnqGdI", title: "How To Use Your Wrist In Badminton (팔로스윙/손가락)", channel: "Badminton Insight" },
   ],
 };
 
 function curatedListForKf(kfKey) {
-  const k = String(kfKey || "").toLowerCase();
+  const raw = String(kfKey || "");
+  const k = raw.toLowerCase();
+
+  // stage keys
+  if (k.includes("1_ready_total") || k === "ready") return CURATED_YT.ready;
+  if (k.includes("2_rotation_total") || k === "rotation") return CURATED_YT.rotation;
+  if (k.includes("3_backswing_total") || k === "backswing") return CURATED_YT.backswing;
+  if (k.includes("4_impact_total") || k === "impact") return CURATED_YT.impact;
+  if (k.includes("5_followswing_total") || k === "followswing") return CURATED_YT.followswing;
+
+  // legacy KF keys
   if (k.includes("kf1")) return CURATED_YT.action1;
   if (k.includes("kf2")) return CURATED_YT.action2;
   if (k.includes("kf3")) return CURATED_YT.action3;
+
   return [];
 }
 
@@ -306,7 +454,7 @@ function renderYoutubeLinksByKfKeys(kfKeys) {
   const list = uniqByVideoId(picked).slice(0, 3);
 
   if (!list.length) {
-    wrap.innerHTML = `<div class="ytEmpty">-</div>`;
+    wrap.innerHTML = `<div class="ytEmpty"></div>`;
     return;
   }
 
@@ -436,7 +584,7 @@ function setScore(score) {
 // ====== 기간 라벨/성장 요약/스코어 링 색상 헬퍼 ======
 function rangeLabelFromKey(r){
   const x = String(r || "").toLowerCase();
-  if (x === "7d") return "1주";
+  if (x === "7d") return "1주일";
   if (x === "1m") return "1개월";
   if (x === "3m") return "3개월";
   if (x === "all") return "전체";
@@ -471,11 +619,11 @@ function renderGrowthSummary(comparison, rangeKey){
   const abs = Number.isFinite(dlt) ? Math.abs(dlt).toFixed(2) : null;
 
   if (dir === "improved" && abs != null) {
-    el.innerHTML = `지난 ${label} 대비 평균 오차가 <b style="color:#16a34a">${abs}° 감소</b>했습니다.`;
+    el.innerHTML = `지난 ${label} 대비 평균 오차가 </br> <b style="color:#16a34a">${abs}° 감소</b>했습니다.<br/>꾸준한 훈련이 유지되고 있어요!`;
   } else if (dir === "worsened" && abs != null) {
-    el.innerHTML = `지난 ${label} 대비 평균 오차가 <b style="color:#b91c1c">${abs}° 증가</b>했습니다.`;
+    el.innerHTML = `지난 ${label} 대비 평균 오차가 </br> <b style="color:#b91c1c">${abs}° 증가</b>했습니다.<br/> 훈련에 좀더 집중해 보아요!`;
   } else {
-    el.textContent = `지난 ${label} 대비 변화가 거의 없습니다.`;
+    el.textContent = `지난 ${label} 대비 변화가 거의 없군요. 유지하는 것도 좋은 현상입니다!`;
   }
 }
 
@@ -544,8 +692,12 @@ function renderTableFromSession(session) {
     rows.push(["동작 1", kf1]);
     rows.push(["동작 2", kf2]);
     rows.push(["동작 3", kf3]);
+    rows.push(["동작 1", kf1]);
+    rows.push(["동작 2", kf2]);
+    rows.push(["동작 3", kf3]);
   } else {
     // 우선순위 2) 종합 kf_error만 있으면 1줄로 표시
+    rows.push(["평균(전체)", session?.kf_error]);
     rows.push(["평균(전체)", session?.kf_error]);
   }
 
@@ -564,7 +716,16 @@ function renderTableFromSession(session) {
 }
 
 // ====== Chart.js 렌더링 ======
-const charts = { scoreKfHistory: null };
+const charts = {
+  scoreKfHistory: null,
+  // per-action mini charts: actionMini1..4
+  actionMini1: null,
+  actionMini2: null,
+  actionMini3: null,
+  actionMini4: null,
+  // FollowSwing은 boolean 기반이므로 mini chart 제외, 대신 도넛 차트로 성공/실패 비율 표시
+  followSwingDonut: null
+};
 
 let __ALL_SESSIONS__ = [];
 let __KF_FILTER__ = "ALL"; // ALL | KF1 | KF2 | KF3
@@ -621,10 +782,113 @@ function getFilteredSessions(all){
 }
 
 function destroyChart(key) {
-  if (charts[key]) {
-    charts[key].destroy();
+  if (charts && charts[key]) {
+    try { charts[key].destroy(); } catch (_) {}
     charts[key] = null;
   }
+}
+
+function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeKey){
+  const n = String(actionNum);
+  if (n === "5") return; // FollowSwing은 boolean 기반: 미니차트 제외
+
+  const canvas = document.getElementById(`a${n}StageChart`);
+  if (!canvas) return;
+
+  const chartKey = `actionMini${n}`;
+  destroyChart(chartKey);
+
+  const r = String(rangeKey || "7d").toLowerCase();
+  let N = Array.isArray(currentSeries) ? currentSeries.length : 0;
+  if (r === "7d") N = 7;
+  else if (r === "1m") N = 30;
+  else if (r === "3m") N = 90;
+  else if (r === "all") N = Array.isArray(currentSeries) ? currentSeries.length : 0;
+
+  N = clamp(Number(N) || 0, 1, 120);
+  const labels = Array.from({ length: N }, (_, i) => String(i + 1));
+
+  function alignLastN(arr){
+    const xs = Array.isArray(arr) ? arr : [];
+    const tail = xs.slice(-N);
+    const pad = Array(Math.max(0, N - tail.length)).fill(null);
+    return pad.concat(tail).map((v)=>{
+      const num = Number(v);
+      return Number.isFinite(num) ? num : null;
+    });
+  }
+
+  const cur = alignLastN(currentSeries);
+  const prev = alignLastN(prevSeries);
+
+  // y축 자동 확대
+  const allVals = [...cur, ...prev]
+    .filter((v)=> Number.isFinite(Number(v)))
+    .map(Number);
+
+  let yMin = 0;
+  let yMax = 100;
+
+  if (allVals.length){
+    const vMin = Math.min(...allVals);
+    const vMax = Math.max(...allVals);
+
+    const pad = 5;
+    yMin = Math.floor((vMin - pad) / 5) * 5;
+    yMax = Math.ceil((vMax + pad) / 5) * 5;
+
+    yMin = clamp(yMin, 0, 100);
+    yMax = clamp(yMax, 0, 100);
+
+    if (yMax - yMin < 10) yMax = clamp(yMin + 10, 0, 100);
+    if (yMax <= yMin){ yMin = 0; yMax = 100; }
+  }
+
+  charts[chartKey] = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "현재",
+          data: cur,
+          backgroundColor: "rgba(34,197,94,0.7)",
+          borderRadius: 4,
+          barPercentage: 0.9,
+          categoryPercentage: 0.5,
+        },
+        {
+          label: "이전",
+          data: prev,
+          backgroundColor: "rgba(249,115,22,0.7)",
+          borderRadius: 4,
+          barPercentage: 0.9,
+          categoryPercentage: 0.5,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: "index", intersect: false },
+      },
+      scales: {
+        x: {
+          stacked: false,
+          grid: { display: false },
+          ticks: { display: false },
+        },
+        y: {
+          min: yMin,
+          max: yMax,
+          grid: { display: false },
+          ticks: { display: false },
+        },
+      },
+    },
+  });
 }
 
 function renderScoreKfHistoryChart(currentSessions, prevSessions) {
@@ -635,51 +899,72 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
   const cur = getFilteredSessions(currentSessions);
   const prev = getFilteredSessions(prevSessions);
 
-  // ---- Build unified X labels using ISO date strings (stable), format on ticks as M.D ----
-  function isoDay(x){
-    const d = safeDate(x);
-    if (!d) return null;
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+  // ---- Index-based overlay (1..N points) ----
+  const rangeKey = (__RANGE_FILTER__ || "7d");
+  const prevLabel = rangeLabelFromKey(rangeKey);
+
+  // Choose N by selected range (fallback to current length)
+  let N = cur.length;
+  if (rangeKey === "7d") N = 7;
+  else if (rangeKey === "1m") N = 30;
+  else if (rangeKey === "3m") N = 90;
+  else if (rangeKey === "all") N = cur.length;
+
+  // Safety cap to avoid huge charts
+  N = clamp(Number(N) || 0, 1, 120);
+
+  // Build labels as simple indices
+  const labels = Array.from({ length: N }, (_, i) => String(i + 1));
+
+  // Take last N points and align to indices (pad front with null if shorter)
+  function alignLastN(xs, pick) {
+    const arr = (Array.isArray(xs) ? xs : []).map(pick);
+    const tail = arr.slice(-N);
+    const pad = Array(Math.max(0, N - tail.length)).fill(null);
+    return pad.concat(tail);
   }
 
-  const labelSet = new Set();
-  cur.forEach((s)=>{ const k = isoDay(s.created_at); if (k) labelSet.add(k); });
-  prev.forEach((s)=>{ const k = isoDay(s.created_at); if (k) labelSet.add(k); });
-
-  // If no valid dates, fallback to original month.day labels (current only)
-  const labelsISO = Array.from(labelSet).sort((a,b)=> a.localeCompare(b));
-  const useISO = labelsISO.length > 0;
-
-  const labels = useISO ? labelsISO : cur.map((s)=> formatMonthDay(s.created_at ?? null));
-
-  function mapSeries(xs, pick){
-    const map = new Map();
-    xs.forEach((s)=>{
-      const k = useISO ? isoDay(s.created_at) : formatMonthDay(s.created_at ?? null);
-      if (!k) return;
-      map.set(k, pick(s));
-    });
-    return labels.map((k)=> (map.has(k) ? map.get(k) : null));
-  }
-
-  const curScore = mapSeries(cur, (s)=>{
-    const direct = Number(s.score);
+  const curScore = alignLastN(cur, (s) => {
+    const direct = Number(s?.score);
     if (Number.isFinite(direct)) return direct;
     return computeScoreFromKfError(s?.kf_error);
   });
 
-  const curErr = mapSeries(cur, (s)=> (Number.isFinite(Number(s?.kf_error)) ? Number(s.kf_error) : null));
-
-  const prevScore = mapSeries(prev, (s)=>{
-    const direct = Number(s.score);
+  const prevScore = alignLastN(prev, (s) => {
+    const direct = Number(s?.score);
     if (Number.isFinite(direct)) return direct;
     return computeScoreFromKfError(s?.kf_error);
   });
 
-  const prevErr = mapSeries(prev, (s)=> (Number.isFinite(Number(s?.kf_error)) ? Number(s.kf_error) : null));
+  // Dynamic Y zoom (based on visible values from both series)
+  const allVals = [...curScore, ...prevScore].filter((v) => Number.isFinite(Number(v))).map(Number);
+  let yMin = 0;
+  let yMax = 100;
+  if (allVals.length) {
+    const vMin = Math.min(...allVals);
+    const vMax = Math.max(...allVals);
+    // add padding and snap to 5-point steps
+    const pad = 5;
+    yMin = Math.floor((vMin - pad) / 5) * 5;
+    yMax = Math.ceil((vMax + pad) / 5) * 5;
+
+    // ensure a minimum visible range
+    if (yMax - yMin < 10) {
+      const mid = (yMax + yMin) / 2;
+      yMin = Math.floor((mid - 5) / 5) * 5;
+      yMax = Math.ceil((mid + 5) / 5) * 5;
+    }
+
+    // clamp to score domain
+    yMin = clamp(yMin, 0, 100);
+    yMax = clamp(yMax, 0, 100);
+
+    // if equal after clamp, fallback
+    if (yMax <= yMin) {
+      yMin = 0;
+      yMax = 100;
+    }
+  }
 
   charts.scoreKfHistory = new Chart(ctx, {
     type: "line",
@@ -687,48 +972,29 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
       labels,
       datasets: [
         // current
+        // current
         {
           label: "SCORE",
+          data: curScore,
           data: curScore,
           pointRadius: 2,
           tension: 0.25,
           yAxisID: "y",
           borderColor: "#10b981",
-          backgroundColor: "#10b981",
-          spanGaps: true,
-        },
-        {
-          label: "KF ERROR",
-          data: curErr,
-          pointRadius: 2,
-          tension: 0.25,
-          yAxisID: "y1",
-          borderColor: "#f59e0b",
-          backgroundColor: "#f59e0b",
-          spanGaps: true,
-        },
-
-        // previous (dashed overlay)
-        {
-          label: "SCORE (prev)",
-          data: prevScore,
-          pointRadius: 0,
-          tension: 0.25,
-          yAxisID: "y",
           borderColor: "#10b981",
           backgroundColor: "#10b981",
-          borderDash: [6, 4],
+          spanGaps: true,
           spanGaps: true,
         },
+        // previous (orange overlay)
         {
-          label: "KF ERROR (prev)",
-          data: prevErr,
-          pointRadius: 0,
+          label: `SCORE(${prevLabel} 전)`,
+          data: prevScore,
+          pointRadius: 2,
           tension: 0.25,
-          yAxisID: "y1",
-          borderColor: "#f59e0b",
-          backgroundColor: "#f59e0b",
-          borderDash: [6, 4],
+          yAxisID: "y",
+          borderColor: "rgba(249,115,22,0.6)",
+          backgroundColor: "rgba(249,115,22,0.6)",
           spanGaps: true,
         },
       ],
@@ -740,37 +1006,24 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
         legend: { display: true, position: "bottom" },
         tooltip: {
           callbacks: {
-            label: (c) => {
-              const name = String(c.dataset.label || "");
-              if (name.includes("KF ERROR")) return ` ${c.parsed.y}°`;
-              return ` ${c.parsed.y} 점`;
-            },
+            label: (c) => ` ${c.parsed.y} 점`
           },
         },
       },
       scales: {
         y: {
           position: "left",
-          min: 0,
-          max: 100,
+          min: yMin,
+          max: yMax,
           ticks: { font: { size: 10 } },
-          title: { display: true, text: "SCORE" },
-        },
-        y1: {
-          position: "right",
-          beginAtZero: true,
-          ticks: { font: { size: 10 } },
-          grid: { drawOnChartArea: false },
-          title: { display: true, text: "KF ERROR (°)" },
+          title: { display: false, text: "" },
+          grid: { display: false },
         },
         x: {
+          grid: { display: false },
           ticks: {
             font: { size: 10 },
-            callback: (val, idx) => {
-              // labels[idx] is ISO day string or already formatted
-              const raw = labels[idx];
-              return useISO ? formatMonthDay(raw) : raw;
-            }
+            callback: (val, idx) => labels[idx]
           }
         },
       },
@@ -804,6 +1057,96 @@ function renderSeverityDonutChart(angles) {
         },
       },
     },
+  });
+}
+
+// ✅ FollowSwing 성공/실패율(%) 도넛 (현재 기간만)
+function computeFollowSwingRates(sessions){
+  const series = extractFollowSwingPassSeries(sessions);
+  const valid = series.filter((v)=> v === true || v === false);
+  const total = valid.length;
+  const fail = valid.filter((v)=> v === false).length;
+  const success = valid.filter((v)=> v === true).length;
+
+  if (!total) {
+    return { total: 0, success: 0, fail: 0, successPct: 0, failPct: 0 };
+  }
+
+  const successPct = Math.round((success / total) * 100);
+  const failPct = 100 - successPct;
+  return { total, success, fail, successPct, failPct };
+}
+
+function renderFollowSwingDonutCurrent(currentSessions){
+  const ctx = document.getElementById("followSwingDonutChart");
+  if (!ctx) return;
+
+  destroyChart("followSwingDonut");
+
+  const r = computeFollowSwingRates(currentSessions);
+
+  // Center text plugin (Chart.js v3+)
+  const centerTextPlugin = {
+    id: "centerTextPlugin",
+    afterDraw(chart){
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      const center = meta?.data?.[0];
+      if (!center) return;
+
+      const x = center.x;
+      const y = center.y;
+
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      // main
+      ctx.font = "700 18px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.fillStyle = "rgba(17,24,39,.92)";
+      ctx.fillText(`${r.successPct}%`, x, y - 2);
+
+      // sub
+      ctx.font = "600 11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.fillStyle = "rgba(17,24,39,.55)";
+      ctx.fillText(`성공 (${r.success}/${r.total})`, x, y + 16);
+
+      ctx.restore();
+    }
+  };
+
+  charts.followSwingDonut = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["성공", "실패"],
+      datasets: [
+        {
+          label: "FollowSwing",
+          data: [r.successPct, r.failPct],
+          backgroundColor: ["rgba(34,197,94,0.85)", "rgba(239,68,68,0.75)"],
+          borderWidth: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "70%",
+      plugins: {
+        legend: {
+          display: true,
+          position: "bottom",
+          labels: { boxWidth: 10, font: { size: 10 } },
+        },
+        tooltip: {
+          callbacks: {
+            label: (c)=> ` ${c.label}: ${c.parsed}%`,
+          }
+        }
+      },
+      animation: { duration: 700 },
+    },
+    plugins: [centerTextPlugin],
   });
 }
 
@@ -848,6 +1191,15 @@ function formatMonthDay(x){
   return `${m}.${day}`;
 }
 
+// created_at이 유효한 날짜면 "M.D" 형식으로, 아니면 원래 문자열 그대로 반환
+function formatMonthDay(x){
+  const d = safeDate(x);
+  if (!d) return String(x ?? "-");
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${m}.${day}`;
+}
+
 // ✅ 평균 |오차| 계산
 function meanAbsFromAngles(angles){
   const nums = Object.values(angles || {})
@@ -855,6 +1207,14 @@ function meanAbsFromAngles(angles){
     .filter(Number.isFinite);
   if (!nums.length) return null;
   return nums.reduce((a,b)=>a+b,0) / nums.length;
+}
+
+// 
+function computeScoreFromAngles(angles){
+  const m = meanAbsFromAngles(angles);
+  if (m == null) return 0;
+  // 각도 평균오차를 kfError로 간주하여 기존 점수 매핑 사용
+  return computeScoreFromKfError(m);
 }
 
 // ✅ KF별 평균 오차(bar) + worst KF 텍스트 표시
@@ -1049,12 +1409,16 @@ let __RANGE_FILTER__ = "7d";
 window.__LAST_SESSION__ = null;
 
 function wireRangeTabs(onChange){
-  const tabs = Array.from(document.querySelectorAll(".rangeTab"));
+  // 기간 탭(1주/1개월/3개월/전체)만 바인딩: LLM 생성 버튼(btnGenerateLLM)이 실수로 같이 묶이지 않도록 범위를 제한
+  const tabs = Array.from(document.querySelectorAll(".rangeTabs .rangeTab[data-range]"));
   if (!tabs.length) return;
 
   tabs.forEach((btn)=>{
     btn.addEventListener("click", ()=>{
-      const v = String(btn.dataset.range || "7d").toLowerCase();
+      // 기간 탭만 바인딩 (btnGenerateLLM 등은 제외)
+      const rawRange = btn.getAttribute("data-range");
+      if (!rawRange) return; // safety
+      const v = String(rawRange || "7d").toLowerCase();
       __RANGE_FILTER__ = (v === "7d" || v === "1m" || v === "3m" || v === "all") ? v : "7d";
 
       tabs.forEach((b)=>{
@@ -1063,6 +1427,7 @@ function wireRangeTabs(onChange){
         b.setAttribute("aria-selected", active ? "true" : "false");
       });
 
+      if (typeof onChange === "function") onChange(__RANGE_FILTER__);
       if (typeof onChange === "function") onChange(__RANGE_FILTER__);
     });
   });
@@ -1098,6 +1463,12 @@ async function refreshByRange(range){
     ? Number(last.score)
     : computeScoreFromKfError(last?.kf_error);
   setScore(initialScore);
+
+  // If server provides the latest LLM report, render it (doesn't affect charts)
+  const latestLLM = payload?.latest_llm_report?.report || null;
+  if (latestLLM) {
+    renderLLMReport(latestLLM);
+  }
 }
 
 // ====== LLM 리포트 생성 호출 (DB 기반) ======
@@ -1119,10 +1490,11 @@ function getPostIdxFallback() {
 }
 
 // ====== LLM 리포트 생성 (기존 라우터: /api/report/post/{post_idx}) ======
+// ====== LLM 리포트 생성 (기존 라우터: /api/report/post/{post_idx}) ======
 async function generateLLMReportByPostIdx(postIdx, lang = "ko") {
-  const url = `${API_BASE}/api/report/post/${encodeURIComponent(postIdx)}?lang=${encodeURIComponent(lang)}`;
+  const r = (__RANGE_FILTER__ || "7d");
+  const url = `${API_BASE}/api/report/post/${encodeURIComponent(postIdx)}?lang=${encodeURIComponent(lang)}&range=${encodeURIComponent(r)}`;
   const res = await fetch(url, { method: "POST" });
-
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`LLM report failed: ${res.status} ${text}`);
@@ -1137,48 +1509,102 @@ function renderYoutubeLinksFromReport(reportObj){
   const plateauKf = reportObj?.plateau?.kf || reportObj?.plateau?.key || null;
   const consKf = reportObj?.consistency?.kf || reportObj?.consistency?.key || null;
 
+  // score-based report fallback: use sections to choose videos
+  // backswing -> kf1, impact -> kf2, followswing -> kf3
+  const hasSections = reportObj && typeof reportObj === "object" && reportObj.sections && typeof reportObj.sections === "object";
+  const sectionFallbackKeys = hasSections ? [
+    "1_Ready_Total",
+    "2_Rotation_Total",
+    "3_Backswing_Total",
+    "4_Impact_Total",
+    "5_FollowSwing_Total",
+  ] : [];
+
   const keys = [];
   if (plateauKf) keys.push(plateauKf);
   if (consKf && consKf !== plateauKf) keys.push(consKf);
 
-  // fallback: 전체 대표
-  if (!keys.length) keys.push("kf1_error", "kf2_error", "kf3_error");
+  // fallback: 전체 대표 (sections가 있으면 섹션 기반 fallback 우선)
+  if (!keys.length) {
+    if (sectionFallbackKeys.length) keys.push(...sectionFallbackKeys);
+    else keys.push("1_Ready_Total", "2_Rotation_Total", "3_Backswing_Total", "4_Impact_Total", "5_FollowSwing_Total");
+  }
 
   renderYoutubeLinksByKfKeys(keys);
 }
 
 // LLM report -> 동작 카드(기존 actionCard UI)에 요약/피드백 반영
 function renderActionCardsFromLLM(reportObj){
-  const actions = reportObj?.actions || {};
+  const hasSections = reportObj && typeof reportObj === "object" && reportObj.sections && typeof reportObj.sections === "object";
 
-  // actions는 { kf1: {...}, kf2: {...}, kf3: {...} } 형태를 기대
-  const map = [
-    { n: 1, key: "kf1" },
-    { n: 2, key: "kf2" },
-    { n: 3, key: "kf3" },
+  // New(score-based): sections -> 5 cards mapping
+  const sectionMap = [
+    { n: 1, skey: "ready", fallbackTitle: "준비" },
+    { n: 2, skey: "rotation", fallbackTitle: "회전" },
+    { n: 3, skey: "backswing", fallbackTitle: "백스윙" },
+    { n: 4, skey: "impact", fallbackTitle: "임팩트" },
+    { n: 5, skey: "followswing", fallbackTitle: "팔로스윙" },
   ];
 
-  for (const m of map){
-    const a = actions?.[m.key] || {};
+  // Legacy: actions, only cards 3~5
+  const actions = reportObj?.actions || {};
+  const legacyMap = [
+    { n: 1, key: null },
+    { n: 2, key: null },
+    { n: 3, key: "kf1" },
+    { n: 4, key: "kf2" },
+    { n: 5, key: "kf3" },
+  ];
 
-    const title = a?.title ? String(a.title) : "-";
-    const problem = a?.problem_one ? String(a.problem_one) : "-";
-    const fixes = Array.isArray(a?.fix_two) ? a.fix_two : [];
-    const fixHtml = fixes.length ? `<ul>${fixes.map((x)=>`<li>${String(x)}</li>`).join("")}</ul>` : "-";
+  for (let i = 0; i < 5; i++){
+    const n = i + 1;
 
-    const body = document.getElementById(`a${m.n}Body`);
-    if (body){
-      body.innerHTML = `
-        <div><b>${title}</b></div>
-        <div style="margin-top:6px;"><b>개선 포인트</b><br/>${problem}</div>
-        <div style="margin-top:6px;"><b>추천 루틴</b><br/>${fixHtml}</div>
-      `;
+    // 1) pick content
+    let title = null;
+    let changeOne = null;
+    let analysis = "-";
+
+    if (hasSections){
+      const s = reportObj?.sections?.[sectionMap[i].skey] || {};
+      title = s?.title || sectionMap[i].fallbackTitle;
+      changeOne = s?.change_one || "-";
+      analysis = s?.analysis || "-";
+    } else {
+      const legacyKey = legacyMap[i].key;
+      const a = legacyKey ? (actions?.[legacyKey] || {}) : {};
+      title = a?.title ? String(a.title) : (legacyKey ? actionNameFromKfKey(legacyKey) : sectionMap[i].fallbackTitle);
+      changeOne = a?.problem_one ? String(a.problem_one) : "-";
+      analysis = Array.isArray(a?.fix_two) && a.fix_two.length
+        ? a.fix_two.map((x)=>String(x)).join(" ")
+        : (a?.problem_one ? String(a.problem_one) : "-");
     }
 
-    // meta에 간단 라벨
-    const meta = document.getElementById(`a${m.n}Meta`);
+    // 2) inject/replace LLM block only
+    const body = document.getElementById(`a${n}Body`);
+    if (body){
+      const existing = body.querySelector(".llmActionBlock");
+      const html = `
+        <div class="llmActionBlock" style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(17,24,39,.18);">
+          <div style="margin-top:6px;">${String(analysis || "-")}</div>
+        </div>
+      `;
+
+      if (existing){
+        existing.outerHTML = html;
+      } else {
+        body.insertAdjacentHTML("beforeend", html);
+      }
+    }
+
+    // 3) meta badge
+    const meta = document.getElementById(`a${n}Meta`);
     if (meta){
-      meta.innerHTML = `LLM 요약 반영됨`;
+      if (!meta.querySelector(".llmAppliedBadge")){
+        meta.insertAdjacentHTML(
+          "beforeend",
+          ` <span class="llmAppliedBadge" style="margin-left:6px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:900; background:rgba(32,201,151,.14); border:1px solid rgba(32,201,151,.28); color:rgba(17,24,39,.86);">SCORE 비교</span>`
+        );
+      }
     }
   }
 }
@@ -1191,17 +1617,20 @@ function renderLLMReport(reportObj){
     console.groupEnd();
   }
 
-  // 상단 요약 텍스트(있으면)
+  // 상단 성장 문구(summarySub)는 DB 비교(comparison) 기반으로 유지합니다.
+  // LLM의 summary는 별도 영역이 있을 때만 표시합니다.
   const summaryText = reportObj?.summary ? String(reportObj.summary) : null;
-  if (summaryText){
-    const sub = document.getElementById("summarySub");
-    if (sub) sub.textContent = summaryText;
+  const growth = reportObj?.growth || null;
+  const deltaAvg = growth && Number.isFinite(Number(growth.delta_average_score)) ? Number(growth.delta_average_score).toFixed(2) : null;
+  const growthMsg = growth?.message ? String(growth.message) : null;
+
+  const llmSumEl = document.getElementById("llmSummary");
+  if (llmSumEl) {
+    if (growthMsg && deltaAvg != null) llmSumEl.textContent = `${growthMsg} (Δ ${deltaAvg})`;
+    else llmSumEl.textContent = summaryText || "-";
   }
 
-  // A안: 동작별 간단 구조 -> actionCard에 반영
   renderActionCardsFromLLM(reportObj);
-
-  // 추천 영상(썸네일 카드) 렌더
   renderYoutubeLinksFromReport(reportObj);
 }
 
@@ -1228,7 +1657,7 @@ async function loadFromDB(range = "7d") {
 }
 
 // ====== 부트스트랩 ======
-(async function init() {
+async function init() {
   const payload = await loadFromDB(__RANGE_FILTER__);
 
   const current = Array.isArray(payload?.current_sessions) ? payload.current_sessions : [];
@@ -1237,6 +1666,12 @@ async function loadFromDB(range = "7d") {
 
   const last = current.length ? current[current.length - 1] : null;
 
+  // 세션 히스토리 전역 상태 (현재 기간 기준)
+  __ALL_SESSIONS__ = current;
+
+  // 상단 성장 문구 + 링 색상 (초기)
+  renderGrowthSummary(comp, payload?.range || __RANGE_FILTER__);
+  setScoreRingColor(comp?.direction);
   // 세션 히스토리 전역 상태 (현재 기간 기준)
   __ALL_SESSIONS__ = current;
 
@@ -1260,6 +1695,12 @@ async function loadFromDB(range = "7d") {
   renderActionCards(current, prev);
   // 동작 카드 캐러셀 스크롤 감지(에러 방지)
   wireActionCarousel();
+  renderScoreKfHistoryChart(current, prev);
+
+  // KF별 분석 차트
+  renderActionCards(current, prev);
+  // 동작 카드 캐러셀 스크롤 감지(에러 방지)
+  wireActionCarousel();
 
   // 현재 세션(가장 최근) 스냅샷
   window.__CURRENT_FRAME__ = last?.frame ?? "ALL";
@@ -1270,6 +1711,8 @@ async function loadFromDB(range = "7d") {
 
   // LLM 생성 버튼 wiring (LLM 섹션을 숨겨도 버튼은 유지)
   wireLLMGenerateButton();
+  // LLM 생성 버튼 wiring (LLM 섹션을 숨겨도 버튼은 유지)
+  wireLLMGenerateButton();
 
   // 초기 점수: 최근 세션의 score 또는 kf_error 기반
   const initialScore = Number.isFinite(Number(last?.score))
@@ -1278,7 +1721,12 @@ async function loadFromDB(range = "7d") {
 
   setScore(initialScore);
 
-})();
+  // Render latest LLM report on first load if available
+  const latestLLM = payload?.latest_llm_report?.report || null;
+  if (latestLLM) {
+    renderLLMReport(latestLLM);
+  }
+}
 
 // ====== LLM 리포트 생성/갱신 버튼 ======
 function wireLLMGenerateButton(){
@@ -1292,6 +1740,7 @@ function wireLLMGenerateButton(){
       btn.textContent = "생성 중...";
       console.log("[LLM GENERATE] post_idx=", (getPostIdxFromURL() || getPostIdxFallback()), "range=", __RANGE_FILTER__);
       const postIdx = getPostIdxFromURL() || getPostIdxFallback();
+      if (!postIdx) throw new Error("post_idx가 없습니다. URL에 ?post_idx=... 를 붙이세요.");
       const report = await generateLLMReportByPostIdx(postIdx, "ko");
       renderLLMReport(report);
 

@@ -1,0 +1,83 @@
+{
+    "total_score": 77.2,
+    "details": {
+        "Ready": {
+            "Arm_Angle": {
+                "measured": 23.34,
+                "target": "18 ~ 70",
+                "diff": 0,
+                "score": 100
+            },
+            "Left_Wrist_Height": {
+                "measured": -0.0856,
+                "target": "< 0",
+                "diff": 0,
+                "score": 100
+            },
+            "Stance_Width": {
+                "measured": 0.2234,
+                "target": "> 0.1541",
+                "diff": 0,
+                "score": 100
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 0.07,
+                "target": "-0.5 ~ 2.0",
+                "diff": 0,
+                "score": 100
+            }
+        },
+        "Rotation": {
+            "Hip_Frontal_Alignment": {
+                "measured_x_diff": 0.0215,
+                "target": "< 0.03 (Facing Front)",
+                "score": 100
+            },
+            "Shoulder_Frontal_Alignment": {
+                "measured_ratio": 0.29,
+                "measured_x_diff": 0.0448,
+                "score": 68
+            }
+        },
+        "Backswing": {
+            "Wrist_X_Depth": {
+                "measured": -0.1178,
+                "target": "< 0",
+                "score": 100
+            },
+            "Elbow_Lift": {
+                "measured": 0.78,
+                "target": "1.5 ~ 3.0",
+                "score": 0
+            },
+            "L_Shape_Angle": {
+                "measured": 144.02,
+                "target": "60 ~ 110",
+                "score": 0
+            }
+        },
+        "Impact": {
+            "Arm_Extension_Angle": {
+                "measured": 167.45,
+                "target": "140 ~ 180",
+                "diff": 0,
+                "score": 100
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 3.53,
+                "target": "2.5 ~ 4.5",
+                "diff": 0,
+                "score": 100
+            }
+        },
+        "FollowSwing": {
+            "Performance": {
+                "score": 50,
+                "success": false,
+                "message": "Wrist dropped but did not fully cross the elbow line (Strict Check Fail)",
+                "has_dropped_y": true,
+                "has_crossed_x": false
+            }
+        }
+    }
+}
