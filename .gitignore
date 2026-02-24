@@ -24,9 +24,6 @@ models/*.pkl
 .DS_Store
 Thumbs.db
 
-# 모든 PNG 이미지 파일 무시
-*.png
-
 # Test 폴더 설정
 test/*
 
@@ -34,3 +31,16 @@ test/*
 !test/extract_gt_baseline.py
 !test/test_db_connection.py
 backend/data/
+
+
+# Installer & System files
+*.sh
+*.deb
+Anaconda3-*
+
+# Log files
+*.log
+backend/log.out
+
+# Other project folders
+docker-minecraft-server/

@@ -70,7 +70,7 @@ def decode_access_token(token: str) -> Optional[str]:
         return None
 
 # ========================================
-# 현재 사용자 조회
+# 현재 사용자 조회 
 # ========================================
 def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -78,59 +78,43 @@ def get_current_user(
 ):
     """
     JWT 토큰으로 현재 사용자 조회
-    
-    ⭐ DEV_MODE = True → 인증 스킵 (개발용)
-    ⭐ DEV_MODE = False → 정상 인증 (배포용)
-    
-    Args:
-        token: Bearer 토큰
-        db: 데이터베이스 세션
-    
-    Returns:
-        User: 인증된 사용자 객체
-    
-    Raises:
-        HTTPException: 인증 실패 시 (DEV_MODE=False일 때만)
+    - DEV_MODE=False 상태에서 실제 토큰 검증 수행
     """
     from app.models.userModels import User
-    
-    # ⭐⭐⭐ 개발 모드: 인증 완전 스킵 ⭐⭐⭐
-    if DEV_MODE:
-        print("🔓 [개발 모드] 인증 스킵")
-        dummy_user = User(
-            id="dev_user",
-            name="개발자",
-            password=hash_password("dev"),
-            sex=None,
-            hand=None
-        )
-        return dummy_user
-    
-    # ⭐ 배포 모드: 실제 인증
     from app.crud import userCrud
-    
+
+    # 인증 실패 시 던질 공통 에러 설정
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="인증 정보가 유효하지 않습니다.",
+        detail="인증 정보가 유효하지 않거나 만료되었습니다.",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
+    # 1. 토큰 존재 여부 확인
     if not token:
+        print("❌ 인증 실패: 토큰이 없습니다.")
         raise credentials_exception
-    
+
     try:
+        # 2. JWT 토큰 디코딩 및 만료 체크
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         
         if user_id is None:
+            print("❌ 인증 실패: 토큰에 유저 ID(sub) 정보가 없습니다.")
             raise credentials_exception
             
-    except JWTError:
+    except JWTError as e:
+        print(f"❌ 인증 실패: 토큰 해석 중 오류 발생 ({str(e)})")
         raise credentials_exception
-    
+
+    # 3. DB에서 실제 유저 조회
     user = userCrud.get_user_by_id(db, user_id)
     
     if user is None:
+        print(f"❌ 인증 실패: DB에 유저({user_id})가 존재하지 않습니다.")
         raise credentials_exception
-    
+
+    # 4. 인증 성공 (실제 유저 객체 반환)
+    print(f"✅ 인증 성공: {user.id} 님 환영합니다.")
     return user
