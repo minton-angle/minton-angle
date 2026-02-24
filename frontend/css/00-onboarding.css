@@ -1,10 +1,9 @@
 /* 온보딩 페이지 전용 스타일 */
 main {
   display: flex;
-  flex-direction: column;
+  flec-direction: column;
   align-items: center;
   width: 100%;
-  font-family: 'Pretendard', sans-serif;
 }
 
 .home-bg {
@@ -21,14 +20,10 @@ main {
 
 .logo-box {
     background-image: url('../assets/images/logo2.png');
-    width: 65dvw;
-    height: 30dvw;
+    width: 280px;
+    height: 190px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    align-items: center;
-    display: flex;
-    justify-content: center;
-    margin: auto;
-    margin-top: 60%;
+    margin: 250px auto 0 auto;
 }

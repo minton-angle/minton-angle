@@ -692,12 +692,8 @@ function renderTableFromSession(session) {
     rows.push(["동작 1", kf1]);
     rows.push(["동작 2", kf2]);
     rows.push(["동작 3", kf3]);
-    rows.push(["동작 1", kf1]);
-    rows.push(["동작 2", kf2]);
-    rows.push(["동작 3", kf3]);
   } else {
     // 우선순위 2) 종합 kf_error만 있으면 1줄로 표시
-    rows.push(["평균(전체)", session?.kf_error]);
     rows.push(["평균(전체)", session?.kf_error]);
   }
 
@@ -972,18 +968,14 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
       labels,
       datasets: [
         // current
-        // current
         {
           label: "SCORE",
-          data: curScore,
           data: curScore,
           pointRadius: 2,
           tension: 0.25,
           yAxisID: "y",
           borderColor: "#10b981",
-          borderColor: "#10b981",
           backgroundColor: "#10b981",
-          spanGaps: true,
           spanGaps: true,
         },
         // previous (orange overlay)
@@ -1180,15 +1172,6 @@ function renderAnglesRadarChart(angles) {
 function safeDate(d){
   const x = new Date(d);
   return Number.isFinite(x.getTime()) ? x : null;
-}
-
-// created_at이 유효한 날짜면 "M.D" 형식으로, 아니면 원래 문자열 그대로 반환
-function formatMonthDay(x){
-  const d = safeDate(x);
-  if (!d) return String(x ?? "-");
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  return `${m}.${day}`;
 }
 
 // created_at이 유효한 날짜면 "M.D" 형식으로, 아니면 원래 문자열 그대로 반환
@@ -1428,7 +1411,6 @@ function wireRangeTabs(onChange){
       });
 
       if (typeof onChange === "function") onChange(__RANGE_FILTER__);
-      if (typeof onChange === "function") onChange(__RANGE_FILTER__);
     });
   });
 }
@@ -1490,7 +1472,6 @@ function getPostIdxFallback() {
 }
 
 // ====== LLM 리포트 생성 (기존 라우터: /api/report/post/{post_idx}) ======
-// ====== LLM 리포트 생성 (기존 라우터: /api/report/post/{post_idx}) ======
 async function generateLLMReportByPostIdx(postIdx, lang = "ko") {
   const r = (__RANGE_FILTER__ || "7d");
   const url = `${API_BASE}/api/report/post/${encodeURIComponent(postIdx)}?lang=${encodeURIComponent(lang)}&range=${encodeURIComponent(r)}`;
@@ -1500,7 +1481,6 @@ async function generateLLMReportByPostIdx(postIdx, lang = "ko") {
     throw new Error(`LLM report failed: ${res.status} ${text}`);
   }
 
-  const data = await res.json(); // { report: { ... } } 또는 { ... }
   const data = await res.json(); // { report: { ... } } 또는 { ... }
   return data?.report ?? data;
 }
@@ -1637,14 +1617,11 @@ function renderLLMReport(reportObj){
 
 // ====== 초기 로드: DB에서 JSON 가져오기 (실제 DB) ======
 async function loadFromDB(range = "7d") {
-async function loadFromDB(range = "7d") {
   const postIdx = getPostIdxFromURL() || getPostIdxFallback();
   if (!postIdx) {
     throw new Error("post_idx가 없습니다. URL에 ?post_idx=... 를 붙이세요.");
   }
 
-  const r = (range || "7d").toLowerCase();
-  const url = `${API_BASE}/api/report/analysis/post/${encodeURIComponent(postIdx)}?range=${encodeURIComponent(r)}`;
   const r = (range || "7d").toLowerCase();
   const url = `${API_BASE}/api/report/analysis/post/${encodeURIComponent(postIdx)}?range=${encodeURIComponent(r)}`;
   console.log("[DB FETCH REQUEST]", url);
@@ -1663,25 +1640,13 @@ async function loadFromDB(range = "7d") {
 // ====== 부트스트랩 ======
 (async function init() {
   const payload = await loadFromDB(__RANGE_FILTER__);
-  const payload = await loadFromDB(__RANGE_FILTER__);
 
   const current = Array.isArray(payload?.current_sessions) ? payload.current_sessions : [];
   const prev = Array.isArray(payload?.prev_sessions) ? payload.prev_sessions : [];
   const comp = payload?.comparison || null;
 
   const last = current.length ? current[current.length - 1] : null;
-  const current = Array.isArray(payload?.current_sessions) ? payload.current_sessions : [];
-  const prev = Array.isArray(payload?.prev_sessions) ? payload.prev_sessions : [];
-  const comp = payload?.comparison || null;
 
-  const last = current.length ? current[current.length - 1] : null;
-
-  // 세션 히스토리 전역 상태 (현재 기간 기준)
-  __ALL_SESSIONS__ = current;
-
-  // 상단 성장 문구 + 링 색상 (초기)
-  renderGrowthSummary(comp, payload?.range || __RANGE_FILTER__);
-  setScoreRingColor(comp?.direction);
   // 세션 히스토리 전역 상태 (현재 기간 기준)
   __ALL_SESSIONS__ = current;
 
@@ -1690,12 +1655,6 @@ async function loadFromDB(range = "7d") {
   setScoreRingColor(comp?.direction);
 
   // KF 탭 클릭 시 차트를 현재 필터 기준으로 재렌더
-  wireRangeTabs(async (r) => {
-    try {
-      await refreshByRange(r);
-    } catch (e) {
-      alert(e.message);
-    }
   wireRangeTabs(async (r) => {
     try {
       await refreshByRange(r);
@@ -1711,12 +1670,6 @@ async function loadFromDB(range = "7d") {
   renderActionCards(current, prev);
   // 동작 카드 캐러셀 스크롤 감지(에러 방지)
   wireActionCarousel();
-  renderScoreKfHistoryChart(current, prev);
-
-  // KF별 분석 차트
-  renderActionCards(current, prev);
-  // 동작 카드 캐러셀 스크롤 감지(에러 방지)
-  wireActionCarousel();
 
   // 현재 세션(가장 최근) 스냅샷
   window.__CURRENT_FRAME__ = last?.frame ?? "ALL";
@@ -1725,8 +1678,6 @@ async function loadFromDB(range = "7d") {
   // 메타/스냅샷 렌더
   renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
 
-  // LLM 생성 버튼 wiring (LLM 섹션을 숨겨도 버튼은 유지)
-  wireLLMGenerateButton();
   // LLM 생성 버튼 wiring (LLM 섹션을 숨겨도 버튼은 유지)
   wireLLMGenerateButton();
 

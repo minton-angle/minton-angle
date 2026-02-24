@@ -2,19 +2,19 @@
 ANALYSIS 모델 (CV 분석 결과)
 """
 
+# backend/app/models/analysisModels.py
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.db.base import Base
+# from sqlalchemy.orm import relationship
 
 class Analysis(Base):
     __tablename__ = "analysis"
     
-    idx = Column(String(36), primary_key=True)
-    post_idx = Column(String(36), ForeignKey('post.idx', ondelete='CASCADE'), nullable=False)
-    
-    swing_num = Column(Integer, nullable=True)  # ⭐ 추가! (1, 2, 3)
-    
+    idx = Column(String(36), primary_key=True)  # ← 변경
+    post_idx = Column(String(36), ForeignKey('post.idx', ondelete='CASCADE'), nullable=False)  # ← 변경
     kf1 = Column(Integer)
     kf2 = Column(Integer)
     kf3 = Column(Integer)

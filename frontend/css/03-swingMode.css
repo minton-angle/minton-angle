@@ -1,56 +1,42 @@
 /* 1. 배경 이미지 설정 (scroll-container에 적용) */
 .home-bg {
     background-image: url('../assets/images/background2.png');
-    /* [핵심 수정] 100% -> cover: 이미지가 가로로 찌그러지지 않고 화면을 꽉 채움 */
-    background-size: cover; 
+    background-size: 100%;
     background-repeat: no-repeat;
     background-position: center;
+    padding-bottom: 100px;
     display: flex;
-    /*flex: 1;*/
+    flex: 1;
     flex-direction: column;
-    /*min-height: 100%;*/
-    height: 100dvh;
-    width: 100%;
-    max-width: 600px;
-    margin: 0 auto;
-    /*overflow: hidden;*/
-    box-sizing: border-box;
-    /* 하단바가 둥둥 떠 있으므로 여백을 충분히 줌 */
-    padding: 5dvh 20px 12dvh 20px; 
-    position: relative;
-    overflow: hidden;
+    min-height: 100%;
 }
 
 .logo-box {
     background-image: url('../assets/images/logo2.png');
-    width: 140px;
-    height: 10dvh;
-    flex-shrink: 0;
+    width: 150px;
+    height: 100px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: left center;
-    margin-top: 1dvh;
+    margin-top: 20px;
 }
 
 /* 2. 유저 섹션 스타일 */
 .user-section {
-    flex-shrink: 0;
-    background-color: rgba(255, 255, 255, 0.45); 
-    backdrop-filter: blur(8px);
-    border-radius: 32px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.6); /* 가독성을 위해 불투명도 조절 */
+    backdrop-filter: blur(2px);
+    border-radius: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
     display: flex;
     flex-direction: row;
-    padding: 3dvh;
+    gap: 10px;
+    padding: 30px 30px;
     color: #1d1d1f;
-    margin-top: 3dvh;
-    margin-bottom: 3dvh;
-    /*margin-left: 10px;
-    margin-right: 10px;*/
-    align-items: center; 
+    margin-top: 15px; /* 상단 여백 조절 */
+    margin-bottom: 30px;
+    align-items: center;
     justify-content: center;
 }
-
 
 .user-text {
     font-size: 23px;
@@ -62,23 +48,19 @@
 
 /* 3. 모드 선택 섹션 */
 .btn-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 0;
-    background-color: rgba(255, 255, 255, 0.45);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 32px;
-    padding: 2dvh 20px;
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 40px;
+    padding: 30px 20px;
+    margin-bottom: 80px; /* 네비바에 가려지지 않게 하단 여백 */
 }
 
 .selectmode-section {
     width: 100%;
     color: #1a4b2f;
     font-size: 26px;
-    font-weight: 600;
+    font-weight: 400;
     line-height: 1.4;
     text-align: left;
     margin-bottom: 25px;
@@ -86,26 +68,24 @@
 
 /* 4. 버튼 스타일 */
 .btn-live {
-    box-sizing: border-box;
     background-image: url("../assets/images/live.jpg");
     background-position: 80% 40%;
     background-size: 120%;
     background-repeat: no-repeat;
     width: 100%;
-    height: 14dvh;
+    padding: 25px;
     border-radius: 15px;
     margin-bottom: 15px;
     box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
 }
 
 .btn-upload {
-    box-sizing: border-box;
     background-image: url("../assets/images/upload.png");
     background-repeat: no-repeat;
     background-position: 100% 25%;
     background-size: 130%;
     width: 100%;
-    height: 14dvh;
+    padding: 10px;
     border-radius: 15px;
     margin-bottom: 15px;
     box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
@@ -118,9 +98,9 @@
 
 .btn-content {
     color: #ffffff;
-    padding: 10px 25px 25px 20px;
-    font-size: 19px;
-    font-weight: 700;
+    padding: 10px 20px 25px 20px;
+    font-size: 18px;
+    font-weight: 400;
     text-align: right;
 }
 
@@ -131,10 +111,10 @@
 
 .btn-content2 {
     color: #ffffff;
-    padding: 20px 25px 35px 15px;
+    padding: 25px 30px 35px 15px;
     border-radius: 20px;
-    font-size: 19px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 400;
     text-align: right;
 }
 
@@ -146,62 +126,67 @@
 /* 5. 네비게이션 바 (하단 고정용) */
 .navbar-section {
     position: absolute;
-    /* [수정] 바닥에서 띄워서 안쪽으로 들어오게 함 */
-    bottom: 24px; 
-    left: 10dvw;
-    right: 10dvw;
-    /*transform: translateX(-50%);*/
-    /*width: 90%;*/ /* 양옆 여백 생성 */
-    height: 55px;
-    background-color: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 40px; /* 캡슐 형태 */
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 85px;
+    background-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    align-items: center;
+    z-index: 10;
+    border-radius: 40px;
     display: flex;
     justify-content: space-around;
-    align-items: center;
-    padding: 0 10px;
-    z-index: 1000;
-    /*margin-left: 10px;
-    margin-right: 10px;*/
+    padding: 12px 12px;
 }
 
 .nav-item {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    height: 100%;
 }
 
 .nav-btn {
-    width: 25px;
-    height: 25px;
+    width: 45px;
+    height: 45px;
     background-color: transparent;
+    border: none;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
 }
 
+.nav-btn:active {
+    transform: scale(0.9);
+}
+
 .nav-text {
-    display: none;
+    font-size: 15px;
+    font-weight: 500;
+    color: white;
+    padding-top: 8px;
 }
 
 .nav-home {
     background-image: url('../assets/images/home.png');
-    /*filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));*/
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
 }
 
-.nav-play {
-    background-image: url('../assets/images/play.png');
-    /*filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));*/
+.nav-gym {
+    background-image: url('../assets/images/gym.png');
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
 }
 
 .nav-history {
-    background-image: url('../assets/images/calendar.png');
-    /*filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));*/
+    background-image: url('../assets/images/history.png');
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
 }
 
-.nav-myPage {
-    background-image: url('../assets/images/myPage.png');
-    /*filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));*/
+.nav-settings {
+    background-image: url('../assets/images/settings.png');
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.3));
 }

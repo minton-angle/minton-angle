@@ -1,20 +1,18 @@
 /* 1. 헤더 영역 (common.css 기반) */
 /* 1. 전체 페이지 스크롤 방지 (추가) */
 html, body {
-    display: flex;
     height: 100%;
     margin: 0;
     overflow: hidden; /* 화면이 아래로 밀리는 것을 원천 차단 */
-    font-family: 'Pretendard', sans-serif;
 }
 
 .header {
     display: flex;
     align-items: center;
-    padding: 1dvh 1.5dvh 2dvh;
+    padding: 16px 20px;
     background-color: #fff;
     position: sticky;
-    /* top: 1dvh; */
+    top: 24px;
     z-index: 10;
 }
 
@@ -24,14 +22,13 @@ html, body {
     left: 0;
     right: 0;
     text-align: center;
-    font-size: 2.9dvh;
+    font-size: 18px;
     font-weight: 700;
     color: #025B36;
     pointer-events: none;
 }
 
 .app-wrapper {
-    width: 600px;
     display: flex;
     flex-direction: column;
     height: 100vh; /* 기기 화면 높이에 딱 맞춤 */
@@ -152,8 +149,8 @@ html, body {
 .status-item {
     flex: 1;
     text-align: center;
-    padding: 2dvh 0;
-    font-size: 2dvh;
+    padding: 8px 0;
+    font-size: 12px;
     font-weight: 700;
     border-radius: 50px;
     color: #CCC;
@@ -164,3 +161,4 @@ html, body {
 .status-item.active.bad { background-color: #FFD2D2; color: #FF4D4D; }
 .status-item.active.normal { background-color: #FFF4D2; color: #FFB800; }
 .status-item.active.good { background-color: #E2FFE9; color: #2ECC71; }
+
