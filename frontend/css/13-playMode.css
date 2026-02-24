@@ -88,7 +88,7 @@
 .btn-smash {
     box-sizing: border-box;
     background-image: url("../assets/images/smash.png");
-    background-position: 120% 50%;
+    background-position: 100% 50%;
     background-size: 105%;
     background-repeat: no-repeat;
     width: 100%;
@@ -96,6 +96,7 @@
     border-radius: 15px;
     margin-bottom: 15px;
     box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
+    opacity: 0.8;
 }
 
 .btn-clear {
@@ -109,6 +110,7 @@
     border-radius: 15px;
     margin-bottom: 15px;
     box-shadow: 0 4px 15px rgba(20, 120, 102, 0.3);
+    opacity: 0.8;
 }
 
 .btn-smash:active, .btn-clear:active {
