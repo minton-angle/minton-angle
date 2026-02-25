@@ -405,11 +405,13 @@ class PostReportResponse(BaseModel):
     report: Dict[str, Any]
 
 
-@router.post("/post/{post_idx}", response_model=PostReportResponse)
+@router.post("/post/{post_idx}")
 def posture_report_from_post(
     post_idx: str,
     lang: str = "ko",
     range: str = "7d",
+    snapshot_only: bool = False,
+    debug_meta: bool = False,
     db: Session = Depends(get_db),
 ):
     """
@@ -754,6 +756,10 @@ def posture_report_from_post(
             "[LLM INPUT] trend=%s",
             json.dumps(meta.get("trend", {}), ensure_ascii=False),
         )
+        # ---- Snapshot mode (test-only) ----
+        # snapshot_only=True 인 경우 LLM 호출/DB저장을 하지 않고 meta만 반환합니다.
+        if snapshot_only:
+            return {"meta": meta}
         # (2) LLM 호출
         report = generate_report(angles=angles, meta=meta, lang=lang)
         # (3) ✅ DB 저장 (llm_report)
@@ -769,7 +775,10 @@ def posture_report_from_post(
         logger_api.info("[LLM SAVE] post_idx=%s llm_report_idx=%s", post_idx, llm_row.idx)
 
         # (4) 응답
-        return {"report": report, "llm_report_idx": llm_row.idx}
+        payload = {"report": report, "llm_report_idx": llm_row.idx}
+        if debug_meta:
+            payload["meta"] = meta
+        return payload
 
     except HTTPException:
         raise
