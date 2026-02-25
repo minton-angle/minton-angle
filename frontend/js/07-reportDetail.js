@@ -1,25 +1,20 @@
 /**
  * 07-reportDetail.js
- * GolfAnalyzer 기반 details 구조 대응 버전
+ * [최종 통합본] 팀원 업데이트(실시간 탭/슬라이더) + 배포 환경(ngrok/Docker) 대응
  */
 
 let currentType = 'video';
 let allSwingData = {};
+let currentSeqIdx = 0;
+let seqFiles = {};
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadAnalysisResult();
-});
-
-// ------------------------------------------------------------------ //
-//  슬라이더
-// ------------------------------------------------------------------ //
 const SEQ_KEYS = [
     'seq1_ready', 'seq2_takeaway', 'seq3_backswing',
     'seq4_downswing1', 'seq5_downswing2', 'seq6_impact'
 ];
 const SEQ_LABELS = ['준비', '테이크어웨이', '백스윙', '다운스윙1', '다운스윙2', '임팩트'];
 
-// 전문가 시퀀스 이미지 경로
+// 전문가 시퀀스 이미지 경로 (로컬 에셋)
 const EXPERT_SEQ = [
     'assets/Seq_1_Ready.jpg',
     'assets/Seq_2_Takeaway.jpg',
@@ -29,61 +24,31 @@ const EXPERT_SEQ = [
     'assets/Seq_6_Impact.jpg',
 ];
 
-let currentSeqIdx = 0;
-let seqFiles = {};
+document.addEventListener('DOMContentLoaded', () => {
+    loadAnalysisResult();
+});
 
-function initSeqSlider(files) {
-    seqFiles = files;
-    currentSeqIdx = 0;
-    updateSeqSlider();
+// ------------------------------------------------------------------ //
+//  1. 배포 환경 경로 치환 유틸리티
+// ------------------------------------------------------------------ //
+function fixPath(raw) {
+    if (!raw) return '';
+    let p = raw.replace(/\\/g, '/');
+    if (p.startsWith('http')) return p;
+    // Docker 내부 경로(/app/data)를 외부 접근 경로(/data)로 변환
+    if (p.includes('/app/data')) p = p.replace('/app/data', '/data');
+    if (p.includes('/data/data')) p = p.replace('/data/data', '/data');
+    
+    const marker = 'backend/data/';
+    const idx = p.indexOf(marker);
+    if (idx !== -1) p = '/' + p.substring(idx);
+    
+    return p.startsWith('/') ? p : '/' + p;
 }
 
-function stepSeq(dir) {
-    currentSeqIdx = (currentSeqIdx + dir + 6) % 6;
-    updateSeqSlider();
-}
-
-function updateSeqSlider() {
-    // 내 스윙
-    const userImg = document.getElementById('phase2-user-seq-img');
-    const userPath = seqFiles[SEQ_KEYS[currentSeqIdx]];
-    if (userImg && userPath) userImg.src = `${API_BASE_URL}${userPath}`;
-
-    // 전문가 스윙
-    const expertImg = document.getElementById('phase2-expert-seq-img');
-    if (expertImg) expertImg.src = EXPERT_SEQ[currentSeqIdx];
-
-    // 라벨
-    const label = document.getElementById('current-step-label');
-    if (label) label.textContent = `${SEQ_LABELS[currentSeqIdx]} (${currentSeqIdx + 1}/6)`;
-}
-
-function syncPlayVideos() {
-    const v1 = document.getElementById('phase3-user-video');
-    const v2 = document.getElementById('phase3-expert-video');
-    if (v1) { v1.currentTime = 0; v1.play(); }
-    if (v2) { v2.currentTime = 0; v2.play(); }
-}
-
-function switchSwing(swingNum) {
-    document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
-        btn.classList.toggle('active', (idx + 1) === swingNum);
-    });
-
-    const swingData = allSwingData[swingNum] || allSwingData[String(swingNum)];
-    if (swingData) {
-        displayResult({
-            success: true,
-            total_score: swingData.total_score,
-            scores: swingData.scores,
-            files: swingData.files
-        });
-        console.log(`✅ ${swingNum}회차 전환 완료`);
-    } else {
-        console.warn(`⚠️ ${swingNum}회차 데이터 없음`, allSwingData);
-    }
-}
-
+// ------------------------------------------------------------------ //
+//  2. 백엔드 데이터 로드 (apiCall/ngrok 대응)
+// ------------------------------------------------------------------ //
 async function loadAnalysisResult() {
     const urlParams = new URLSearchParams(window.location.search);
     const postIdx = urlParams.get('post_id');
@@ -95,27 +60,29 @@ async function loadAnalysisResult() {
     }
 
     try {
-        // 1. API 엔드포인트 결정
+        // API 엔드포인트 설정
         const endpoint = currentType === 'realtime' 
             ? `/api/report/realtime/result/${postIdx}` 
             : `/api/upload/result/${postIdx}`;
 
-        // 2. apiCall 사용 (인증 토큰 자동 포함)
+        console.log(`📡 데이터 요청 중... (${currentType})`);
+
+        // common.js의 apiCall 사용 (ngrok 헤더 및 인증 자동 처리)
         const result = await apiCall(endpoint, {
             method: 'GET',
-            auth: true // 토큰이 필요한 API이므로 true 설정
+            auth: true,
+            headers: { "ngrok-skip-browser-warning": "69420" } // ngrok 경고 페이지 우회
         });
 
         console.log('✅ 서버 응답 전체:', result);
 
-        // 3. 데이터 처리 로직 (팀원분 로직 유지)
         if (currentType === 'realtime' && result.swings) {
             // 실시간 모드일 때 탭 표시
             document.getElementById('realtime-tabs').style.display = 'flex';
             allSwingData = result.swings;
-            switchSwing(1);
+            switchSwing(1); // 1회차 데이터 먼저 로드
         } else {
-            // 일반 업로드 모드: success 혹은 scores 데이터가 있는지 확인
+            // 일반 업로드 모드
             if (result.success || result.scores) {
                 displayResult(result);
             } else {
@@ -130,10 +97,43 @@ async function loadAnalysisResult() {
 }
 
 // ------------------------------------------------------------------ //
-//  2. 전체 화면 바인딩
+//  3. 실시간 스윙 회차 전환 (팀원 개선 로직 통합)
+// ------------------------------------------------------------------ //
+function switchSwing(swingNum) {
+    document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', (idx + 1) === swingNum);
+    });
+
+    const swingData = allSwingData[swingNum] || allSwingData[String(swingNum)];
+    if (!swingData) {
+        console.warn(`⚠️ ${swingNum}회차 데이터 없음`, allSwingData);
+        return;
+    }
+
+    // ⭐ 슬라이더 파일 정보 갱신 (참조 끊기 위해 복사)
+    currentSeqIdx = 0;
+    seqFiles = { ...swingData.files }; 
+    
+    console.log(`🔄 ${swingNum}회차 전환:`, seqFiles.seq1_ready);
+
+    displayResult({
+        success: true,
+        total_score: swingData.total_score,
+        scores: swingData.scores,
+        files: swingData.files
+    });
+
+    // 슬라이더 강제 업데이트
+    updateSeqSlider();
+}
+
+// ------------------------------------------------------------------ //
+//  4. 전체 화면 바인딩
 // ------------------------------------------------------------------ //
 function displayResult(result) {
     let data = result;
+    
+    // 실시간 모드 데이터 구조 조정
     if (result.type === 'realtime' && result.swings) {
         const swing3 = result.swings['3'] || result.swings[3];
         if (swing3) {
@@ -149,20 +149,17 @@ function displayResult(result) {
     displayOverallScore(data.total_score || 0);
 
     const details = data.scores?.details || data.details || {};
-    console.log('📊 details 전체:', JSON.stringify(details, null, 2));
-
     displayStageScores(details);
     displayEvaluation(details);
 
     if (data.files) {
-        console.log('📁 files:', data.files);
         displayMediaComparison(data.files);
         initSeqSlider(data.files);
     }
 }
 
 // ------------------------------------------------------------------ //
-//  3. 총점 + 원형 게이지
+//  5. 시각화 및 미디어 처리 (배포 경로 적용)
 // ------------------------------------------------------------------ //
 function displayOverallScore(score) {
     const scoreVal = Math.round(score);
@@ -173,7 +170,7 @@ function displayOverallScore(score) {
 
     let gradeText, comment;
     if (scoreVal >= 80)      { gradeText = '완벽해요! 🎉';          comment = '전문가 수준의 스윙입니다. 폼이 아주 훌륭해요!'; }
-    else if (scoreVal >= 60) { gradeText = '잘하고 있어요! 👍';     comment = '기본이 탄탄합니다. 몇 가지만 개선하면 완벽해질 거예요.'; }
+    else if (scoreVal >= 60) { gradeText = '잘하고 있어요! 👍';      comment = '기본이 탄탄합니다. 몇 가지만 개선하면 완벽해질 거예요.'; }
     else if (scoreVal >= 40) { gradeText = '조금 더 연습해봐요 💪'; comment = '아래 피드백을 참고해서 스윙 궤적을 교정해보세요.'; }
     else                     { gradeText = '기초부터 다시! 📚';      comment = '정확한 타점과 팔 펴짐 동작에 집중해 연습하세요.'; }
 
@@ -188,8 +185,65 @@ function displayOverallScore(score) {
     }
 }
 
+function displayMediaComparison(files) {
+    const setImg = (id, path) => {
+        const el = document.getElementById(id);
+        if (el && path) el.src = `${API_BASE_URL}${fixPath(path)}`;
+    };
+
+    const setVideo = (id, path) => {
+        const el = document.getElementById(id);
+        if (el && path) {
+            const fullUrl = `${API_BASE_URL}${fixPath(path)}`;
+            console.log(`🎬 video src: ${id} → ${fullUrl}`);
+            el.src = fullUrl;
+            el.load();
+        }
+    };
+
+    // Phase 1 & 2 이미지
+    setImg('phase1-user-img', files.ready || files.kf1_image);
+    setImg('phase2-backswing-img', files.seq3_backswing);
+    setImg('phase2-impact-img',    files.seq6_impact);
+
+    // Phase 3 영상
+    setVideo('phase3-user-video', files.followswing || files.follow_video);
+}
+
 // ------------------------------------------------------------------ //
-//  4. 단계별 점수 배지
+//  6. 슬라이더 로직
+// ------------------------------------------------------------------ //
+function initSeqSlider(files) {
+    seqFiles = files;
+    currentSeqIdx = 0;
+    updateSeqSlider();
+}
+
+function stepSeq(dir) {
+    currentSeqIdx = (currentSeqIdx + dir + 6) % 6;
+    updateSeqSlider();
+}
+
+function updateSeqSlider() {
+    // 내 스윙 이미지 업데이트
+    const userImg = document.getElementById('phase2-user-seq-img');
+    const userPath = seqFiles[SEQ_KEYS[currentSeqIdx]];
+    if (userImg && userPath) {
+        const fullUrl = `${API_BASE_URL}${fixPath(userPath)}`;
+        userImg.src = fullUrl;
+    }
+
+    // 전문가 스윙 이미지 업데이트
+    const expertImg = document.getElementById('phase2-expert-seq-img');
+    if (expertImg) expertImg.src = EXPERT_SEQ[currentSeqIdx];
+
+    // 라벨 업데이트
+    const label = document.getElementById('current-step-label');
+    if (label) label.textContent = `${SEQ_LABELS[currentSeqIdx]} (${currentSeqIdx + 1}/6)`;
+}
+
+// ------------------------------------------------------------------ //
+//  7. 점수 배지 및 평가 결과
 // ------------------------------------------------------------------ //
 function displayStageScores(details) {
     const readyScores = Object.values(details.Ready || {}).map(v => v.score || 0);
@@ -220,68 +274,26 @@ function getScoreClass(score) {
     return 'low';
 }
 
-// ------------------------------------------------------------------ //
-//  5. 지표별 상태 표시
-// ------------------------------------------------------------------ //
 function displayEvaluation(details) {
-
-    // ── Ready ──────────────────────────────────────────────
     const ready = details.Ready || {};
+    setEval('eval-ready-arm', ready.Arm_Angle, v => v >= 18 && v <= 70 ? '적정' : v > 70 ? '넓음' : '좁음', d => d.measured);
+    setEval('eval-ready-wrist-h', ready.Left_Wrist_Height, v => v < 0 ? '적정' : v < 0.1 ? '낮음' : '높음', d => d.measured);
+    setEval('eval-ready-stance', ready.Stance_Width, v => v >= 100 ? '적정' : '좁음', d => d.score);
+    setEval('eval-ready-ratio', ready.Wrist_Height_Ratio, v => v >= -0.5 && v <= 2.0 ? '적정' : v > 2.0 ? '높음' : '낮음', d => d.measured);
 
-    setEval('eval-ready-arm', ready.Arm_Angle,
-        v => v >= 18 && v <= 70 ? '적정' : v > 70 ? '넓음' : '좁음',
-        d => d.measured);
-
-    setEval('eval-ready-wrist-h', ready.Left_Wrist_Height,
-        v => v < 0 ? '적정' : v < 0.1 ? '낮음' : '높음',
-        d => d.measured);
-
-    setEval('eval-ready-stance', ready.Stance_Width,
-        v => v >= 100 ? '적정' : '좁음',
-        d => d.score);
-
-    setEval('eval-ready-ratio', ready.Wrist_Height_Ratio,
-        v => v >= -0.5 && v <= 2.0 ? '적정' : v > 2.0 ? '높음' : '낮음',
-        d => d.measured);
-
-    // ── Rotation ───────────────────────────────────────────
     const rot = details.Rotation || {};
+    setEval('eval-rot-hip', rot.Hip_Max_Rotation, v => v >= 80 ? '안정' : '기울어짐', d => d.score);
+    setEval('eval-rot-shoulder', rot.Shoulder_Max_Rotation, v => v >= 80 ? '적정' : v >= 60 ? '과함' : '부족', d => d.score);
 
-    setEval('eval-rot-hip', rot.Hip_Frontal_Alignment,
-        v => v <= 0.03 ? '안정' : '기울어짐',
-        d => d.measured_x_diff);
-
-    setEval('eval-rot-shoulder', rot.Shoulder_Frontal_Alignment,
-        v => v >= 0.4 && v <= 0.7 ? '적정' : v > 0.7 ? '과함' : '부족',
-        d => d.measured_ratio);
-
-    // ── Backswing ──────────────────────────────────────────
     const bs = details.Backswing || {};
+    setEval('eval-bs-wrist', bs.Wrist_X_Depth, v => v < -0.05 ? '깊음' : v < 0 ? '적정' : '얕음', d => d.measured);
+    setEval('eval-bs-elbow', bs.Elbow_Lift, v => v >= 1.5 && v <= 3.0 ? '적정' : v > 3.0 ? '높음' : '낮음', d => d.measured);
+    setEval('eval-bs-lshape', bs.L_Shape_Angle, v => v >= 60 && v <= 110 ? '적정' : v > 110 ? '넓음' : '좁음', d => d.measured);
 
-    setEval('eval-bs-wrist', bs.Wrist_X_Depth,
-        v => v < -0.05 ? '깊음' : v < 0 ? '적정' : '얕음',
-        d => d.measured);
-
-    setEval('eval-bs-elbow', bs.Elbow_Lift,
-        v => v >= 1.5 && v <= 3.0 ? '적정' : v > 3.0 ? '높음' : '낮음',
-        d => d.measured);
-
-    setEval('eval-bs-lshape', bs.L_Shape_Angle,
-        v => v >= 60 && v <= 110 ? '적정' : v > 110 ? '넓음' : '좁음',
-        d => d.measured);
-
-    // ── Impact ─────────────────────────────────────────────
     const imp = details.Impact || {};
+    setEval('eval-impact-arm', imp.Arm_Extension_Angle, v => v >= 160 ? '펴짐' : v >= 140 ? '적정' : '굽힘', d => d.measured);
+    setEval('eval-impact-wrist', imp.Wrist_Height_Ratio, v => v > 4.5 ? '높음' : '낮음', d => d.measured);
 
-    setEval('eval-impact-arm', imp.Arm_Extension_Angle,
-        v => v >= 160 ? '펴짐' : v >= 140 ? '적정' : '굽힘',
-        d => d.measured);
-
-    setEval('eval-impact-wrist', imp.Wrist_Height_Ratio,
-        v => v > 4.5 ? '높음' : '낮음',
-        d => d.measured);
-
-    // ── FollowSwing ────────────────────────────────────────
     const fw = details.FollowSwing?.Performance;
     const fwEl = document.getElementById('eval-follow');
     if (fwEl && fw) {
@@ -292,37 +304,20 @@ function displayEvaluation(details) {
     }
 }
 
-// ------------------------------------------------------------------ //
-//  공통 지표 setter - eval-options 방식
-// ------------------------------------------------------------------ //
 function setEval(elId, data, labelFn, valFn) {
     const el = document.getElementById(elId);
     if (!el || !data) return;
-
-    const val   = valFn(data);
+    const val = valFn(data);
     const label = labelFn(val);
-    
-    const PASS_LABELS = ['적정', '안정', '성공 ✓', '펴짐'];
-    const isPass = PASS_LABELS.includes(label);
-
+    const isPass = ['적정', '안정', '성공 ✓', '펴짐'].includes(label);
     activateOption(el, label, isPass);
 }
 
-/**
- * eval-options 안에서 해당 data-val 을 활성화
- * @param {Element} container - .eval-options 요소
- * @param {string}  label     - 활성화할 값 (data-val)
- * @param {boolean} isPass    - true → 주황, false → 초록
- */
 function activateOption(container, label, isPass) {
     container.querySelectorAll('span[data-val]').forEach(span => {
         span.classList.remove('active-pass', 'active-fail');
-        if (span.dataset.val === label) {
-            span.classList.add(isPass ? 'active-pass' : 'active-fail');
-        }
+        if (span.dataset.val === label) span.classList.add(isPass ? 'active-pass' : 'active-fail');
     });
-
-    // ⭐ eval-item 박스에도 클래스 붙이기
     const evalItem = container.closest('.eval-item');
     if (evalItem) {
         evalItem.classList.remove('pass', 'fail');
@@ -330,55 +325,15 @@ function activateOption(container, label, isPass) {
     }
 }
 
-// ------------------------------------------------------------------ //
-//  6. 미디어 파일 표시
-// ------------------------------------------------------------------ //
-function displayMediaComparison(files) {
-    console.log('📁 files 전체:', files);
-
-    const fixPath = (raw) => {
-        if (!raw) return '';
-        let p = raw.replace(/\\/g, '/');
-        if (p.startsWith('http')) return p;
-        if (p.startsWith('/app/data')) p = p.replace('/app/data', '/data');
-        if (p.startsWith('/data/data')) p = p.replace('/data/data', '/data');
-        const marker = 'backend/data/';
-        const idx = p.indexOf(marker);
-        if (idx !== -1) p = '/' + p.substring(idx);
-        return p.startsWith('/') ? p : '/' + p;
-    };
-
-    const setImg = (id, path) => {
-        const el = document.getElementById(id);
-        if (el && path) el.src = `${API_BASE_URL}${fixPath(path)}`;
-    };
-
-    const setVideo = (id, path) => {
-        const el = document.getElementById(id);
-        if (el && path) {
-            const fullUrl = path.startsWith('/data/')
-                ? `${API_BASE_URL}${path}`
-                : `${API_BASE_URL}${fixPath(path)}`;
-            console.log(`🎬 video src: ${id} → ${fullUrl}`);
-            el.src = fullUrl;
-            el.load();
-        }
-    };
-
-    // Phase 1
-    setImg('phase1-user-img', files.kf1_image);
-
-    // Phase 2 키프레임
-    setImg('phase2-backswing-img', files.seq3_backswing);
-    setImg('phase2-impact-img',    files.seq6_impact);
-
-    // Phase 3
-    setVideo('phase3-user-video', files.follow_video);
+// 동영상 동시 재생
+function syncPlayVideos() {
+    const videos = document.querySelectorAll('video');
+    videos.forEach(v => {
+        v.currentTime = 0;
+        v.play();
+    });
 }
 
-// ------------------------------------------------------------------ //
-//  7. 에러 처리
-// ------------------------------------------------------------------ //
 function showError(message) {
     const content = document.querySelector('.report-content');
     if (!content) return;
@@ -392,4 +347,4 @@ function showError(message) {
         </div>`;
 }
 
-console.log('📄 07-reportDetail.js 로드 완료');
+console.log('📄 07-reportDetail.js 배포 최적화 버전 로드 완료');

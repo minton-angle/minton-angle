@@ -93,16 +93,16 @@ class SwingService:
         self._validate_request(request)
         
         # 1. Keypoints 추출
+        # ✅ 수정 - 프론트에서 받은 keypoints 직접 사용
         keypoints_list = []
-        for frame_id, frame_base64 in enumerate(request.frames):
-            keypoints = self.pose_detector.extract_from_base64(frame_base64)
-            if keypoints:
-                keypoints['frame_id'] = frame_id
-                keypoints_list.append(keypoints)
-        
+        if request.keypoints:
+            for frame_id, kp in enumerate(request.keypoints):
+                if kp:
+                    kp['frame_id'] = frame_id
+                    keypoints_list.append(kp)
+
         if not keypoints_list:
             raise ValueError("사람이 감지되지 않았습니다. 전신이 보이게 촬영해주세요.")
-        
         # 2. 키프레임 감지
         kf1, kf2, kf3 = self.detect_keyframes(keypoints_list)
         
@@ -194,6 +194,7 @@ class SwingService:
             post_id=post_id,
             quick_feedback=quick_feedback,
             save_to_db=True,
+            total_score=eval_result['total_score'],
             stage_scores=self._calc_stage_scores(eval_result['details'])
         )
 
@@ -233,10 +234,9 @@ class SwingService:
         # 3회차 완료 시
         if request.swing_num == 3:
             all_analyses = db.query(Analysis).filter(Analysis.post_idx == post_id).all()
-            avg_score = sum(
+            avg_score = round(sum(
                 a.score_json.get('total_score', 0) for a in all_analyses
-            ) // len(all_analyses)
-            
+            ) / len(all_analyses), 1)
             post.total_score = avg_score
             post.status = "DONE"
             db.commit()
@@ -270,6 +270,7 @@ class SwingService:
             post_id=post_id,
             quick_feedback=quick_feedback,
             save_to_db=True,
+            total_score=eval_result['total_score'],
             stage_scores=self._calc_stage_scores(eval_result['details'])
         )
 
@@ -339,22 +340,21 @@ class SwingService:
 
     def _build_file_paths(self, files) -> dict:
         mapping = {
-            "READY":          "kf1_image",
+            "READY":          "ready",        # ⭐ kf1_image → ready
             "SEQ1_READY":     "seq1_ready",
             "SEQ2_TAKEAWAY":  "seq2_takeaway",
             "SEQ3_BACKSWING": "seq3_backswing",
             "SEQ4_DOWNSWING1":"seq4_downswing1",
             "SEQ5_DOWNSWING2":"seq5_downswing2",
             "SEQ6_IMPACT":    "seq6_impact",
-            "IMPACT":         "kf3_image",
-            "FOLLOWSWING":    "follow_video",
+            "IMPACT":         "impact",       # ⭐ kf3_image → impact
+            "FOLLOWSWING":    "followswing",  # ⭐ follow_video → followswing
         }
         result = {}
         for f in files:
             key = mapping.get(f.file_type)
             if key:
                 clean = f.file_path.replace("\\", "/")
-                # ⭐ realtime 경로 변환
                 for marker in ["backend/data/", "data/realtime/", "data/upload/"]:
                     idx = clean.find(marker)
                     if idx != -1:

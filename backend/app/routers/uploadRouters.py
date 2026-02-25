@@ -127,15 +127,15 @@ async def get_analysis_result(post_idx: str, db: Session = Depends(get_db)):
             "post_idx": post_idx,
             "total_score": post.total_score,
             "files": {
-                "kf1_image":   file_paths.get("READY"),
+                "ready":   file_paths.get("READY"),
                 "seq1_ready":  file_paths.get("SEQ1_READY"),
                 "seq2_takeaway": file_paths.get("SEQ2_TAKEAWAY"),
                 "seq3_backswing": file_paths.get("SEQ3_BACKSWING"),
                 "seq4_downswing1": file_paths.get("SEQ4_DOWNSWING1"),
                 "seq5_downswing2": file_paths.get("SEQ5_DOWNSWING2"),
                 "seq6_impact": file_paths.get("SEQ6_IMPACT"),
-                "kf3_image":   file_paths.get("IMPACT"),
-                "follow_video": file_paths.get("FOLLOWSWING"),
+                "impact":   file_paths.get("IMPACT"),
+                "followswing": file_paths.get("FOLLOWSWING"),
             },
             "keyframes": {
                 "kf1": analysis.kf1 if analysis else None,

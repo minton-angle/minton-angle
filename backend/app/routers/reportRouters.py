@@ -77,15 +77,15 @@ def fix_path(raw_path: str) -> str:
 
 # ⭐ 파일 타입 → 프론트 키 매핑
 FILE_TYPE_MAP = {
-    "READY":           "kf1_image",
+    "READY":           "ready",        # ⭐ kf1_image → ready
     "SEQ1_READY":      "seq1_ready",
     "SEQ2_TAKEAWAY":   "seq2_takeaway",
     "SEQ3_BACKSWING":  "seq3_backswing",
     "SEQ4_DOWNSWING1": "seq4_downswing1",
     "SEQ5_DOWNSWING2": "seq5_downswing2",
     "SEQ6_IMPACT":     "seq6_impact",
-    "IMPACT":          "kf3_image",
-    "FOLLOWSWING":     "follow_video",
+    "IMPACT":          "impact",       # ⭐ kf3_image → impact
+    "FOLLOWSWING":     "followswing",  # ⭐ follow_video → followswing
 }
 
 
@@ -362,8 +362,9 @@ async def get_realtime_result(post_idx: str, db: Session = Depends(get_db)):
         
         file_paths = {}
         for f in swing_files:
-            clean_path = fix_path(f.file_path)
-            file_paths[f.file_type.lower()] = clean_path
+            key = FILE_TYPE_MAP.get(f.file_type)  # ⭐ lower() 대신 FILE_TYPE_MAP 사용
+            if key:
+                file_paths[key] = fix_path(f.file_path)
         
         swings[str(swing_num)] = {
             "swing_num": swing_num,
@@ -379,5 +380,3 @@ async def get_realtime_result(post_idx: str, db: Session = Depends(get_db)):
         "total_score": post.total_score,
         "swings": swings
     }
-
-    

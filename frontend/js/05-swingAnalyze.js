@@ -248,8 +248,11 @@ async function sendFramesToBackend(swingNum, frames) {
         
         const response = await apiCall('/api/realtime/analyze-swing', {
             method: 'POST',
+            headers: {
+                "ngrok-skip-browser-warning": "69420" // 👈 이 줄을 추가하세요!
+            },
             body: JSON.stringify({
-                user_id: 'user_001',
+                user_id: getData('user_id'),
                 swing_num: swingNum,
                 post_id: swingNum > 1 ? getData('post_id') : null,
                 keypoints: keypoints,
@@ -294,9 +297,11 @@ function updateUIWithResult(swingNum, result) {
         el.classList.remove('active', 'bad', 'normal', 'good')
     );
     
-    const avgScore = result.overall_average || result.total_score || 0;
-    let status = 'bad';
+    // ⭐ total_score 우선, 없으면 overall_average
+    const avgScore = result.total_score || result.overall_average || 0;
+    console.log(`📊 스윙 ${swingNum} 점수:`, avgScore);  // ⭐ 디버깅용
     
+    let status = 'bad';
     if (avgScore >= 80) {
         status = 'good';
     } else if (avgScore >= 60) {
@@ -304,7 +309,6 @@ function updateUIWithResult(swingNum, result) {
     }
     
     const target = document.getElementById(`res-${swingNum}-${status}`);
-    
     if (target) {
         target.classList.add('active', status);
     }
