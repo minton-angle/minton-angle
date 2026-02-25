@@ -1,0 +1,67 @@
+{
+    "total_score": 75.0,
+    "details": {
+        "Ready": {
+            "Arm_Angle": {
+                "measured": 108.5,
+                "target": "18 ~ 70",
+                "diff": 38.5,
+                "score": 20
+            },
+            "Left_Wrist_Height": {
+                "measured": 0.1234,
+                "target": "< 0",
+                "diff": 0.1234,
+                "score": 40
+            },
+            "Stance_Width": {
+                "measured": 0.1326,
+                "target": "> 0.0974",
+                "diff": 0,
+                "score": 100
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 0.38,
+                "target": "-0.5 ~ 2.0",
+                "diff": 0,
+                "score": 100
+            }
+        },
+        "Rotation": {
+            "Hip_Max_Rotation": {
+                "min_diff": 0.019,
+                "target": "< 0.02",
+                "score": 100
+            },
+            "Shoulder_Max_Rotation": {
+                "min_diff": 0.0049,
+                "target": "< 0.03",
+                "score": 100
+            }
+        },
+        "Backswing": {},
+        "Impact": {
+            "Arm_Extension_Angle": {
+                "measured": 108.03,
+                "target": "140 ~ 180",
+                "diff": 31.97,
+                "score": 10
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 1.94,
+                "target": "2.5 ~ 4.5",
+                "diff": 0.56,
+                "score": 60
+            }
+        },
+        "FollowSwing": {
+            "Performance": {
+                "score": 100,
+                "success": true,
+                "message": "Perfect Follow Swing (Angle > 30 & Crossed)",
+                "has_reached_30": true,
+                "has_crossed_x": true
+            }
+        }
+    }
+}

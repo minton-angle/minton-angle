@@ -8,9 +8,9 @@ import sys
 # [1] 설정 및 컬럼 매핑 (사용자 환경에 맞게 수정)
 # ==============================================================================
 
-INPUT_CSV_PATH = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/wooil/wooil.csv'
-OUTPUT_DIR = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/wooil/wooil_backswing_no_result_1'
-OUTPUT_CSV_NAME = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/wooil/wooil_backswing_no_results_1.csv'
+INPUT_CSV_PATH = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/junseo/junseo.csv'
+OUTPUT_DIR = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/junseo/junseo_backswing_no_result_1'
+OUTPUT_CSV_NAME = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/junseo/junseo_backswing_no_results_1.csv'
 
 # [매핑 수정 가이드]
 # 오른쪽(Value)을 실제 CSV 컬럼명으로 수정하세요.

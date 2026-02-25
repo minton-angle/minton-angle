@@ -1,0 +1,85 @@
+{
+    "total_score": 85.0,
+    "details": {
+        "Ready": {
+            "Arm_Angle": {
+                "measured": 23.34,
+                "target": "18 ~ 70",
+                "diff": 0,
+                "score": 100
+            },
+            "Left_Wrist_Height": {
+                "measured": -0.0856,
+                "target": "< 0",
+                "diff": 0,
+                "score": 100
+            },
+            "Stance_Width": {
+                "measured": 0.2234,
+                "target": "> 0.1541",
+                "diff": 0,
+                "score": 100
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 0.07,
+                "target": "-0.5 ~ 2.0",
+                "diff": 0,
+                "score": 100
+            }
+        },
+        "Rotation": {
+            "Hip_Max_Rotation": {
+                "initial_diff": 0.086,
+                "min_diff": 0.0046,
+                "target_msg": "0 (Fully Crossed)",
+                "score": 100
+            },
+            "Shoulder_Max_Rotation": {
+                "initial_diff": 0.1541,
+                "min_diff": 0.0027,
+                "target_msg": "0 (Fully Crossed)",
+                "score": 100
+            }
+        },
+        "Backswing": {
+            "Elbow_Lift": {
+                "measured": 0.78,
+                "target": "1.5 ~ 3.0",
+                "score": 0
+            },
+            "Wrist_X_Depth": {
+                "measured": -0.1178,
+                "target": "0 (Failed: Elbow Lift is 0)",
+                "score": 0
+            },
+            "L_Shape_Angle": {
+                "measured": 144.02,
+                "target": "0 (Failed: Elbow Lift is 0)",
+                "score": 0
+            }
+        },
+        "Impact": {
+            "Arm_Extension_Angle": {
+                "measured": 167.45,
+                "target": "140 ~ 180",
+                "diff": 0,
+                "score": 100
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 3.53,
+                "target": "2.5 ~ 4.5",
+                "diff": 0,
+                "score": 100
+            }
+        },
+        "FollowSwing": {
+            "Performance": {
+                "score": 100,
+                "success": true,
+                "message": "Perfect Follow Swing (Angle > 30 & X Matched)",
+                "has_reached_30": true,
+                "has_matched_x": true
+            }
+        }
+    }
+}

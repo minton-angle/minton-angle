@@ -285,7 +285,7 @@ if __name__ == "__main__":
     preprocessor = Preprocessor()
     
     # 2. 분석할 영상 경로 지정 (여기에 경로를 넣으시면 됩니다!)
-    VIDEO_PATH = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/wooil/wooil.mp4'
+    VIDEO_PATH = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/junseo/junseo.mp4'
     
     # 3. 영상 처리 실행 (DataFrame 형태로 결과가 나옵니다)
     result_df = preprocessor.process_video(VIDEO_PATH)
@@ -296,6 +296,6 @@ if __name__ == "__main__":
         print(result_df.head()) # 데이터 앞부분 살짝 확인
         
         # CSV 파일로 저장 (원하는 저장 경로로 수정하세요)
-        SAVE_PATH = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/wooil/wooil.csv'
+        SAVE_PATH = '/Users/minji/Documents/minton-angle/backend/data/standard/0224_resources/junseo/junseo.csv'
         result_df.to_csv(SAVE_PATH, index=False)
         print(f"\n🎉 전처리 성공! 데이터가 [{SAVE_PATH}]에 저장되었습니다.")

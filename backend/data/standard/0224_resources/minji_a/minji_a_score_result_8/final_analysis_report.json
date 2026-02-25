@@ -1,0 +1,83 @@
+{
+    "total_score": 65.4,
+    "details": {
+        "Ready": {
+            "Arm_Angle": {
+                "measured": 79.12,
+                "target": "18 ~ 70",
+                "diff": 9.12,
+                "score": 80
+            },
+            "Left_Wrist_Height": {
+                "measured": 0.0172,
+                "target": "< 0",
+                "diff": 0.0172,
+                "score": 80
+            },
+            "Stance_Width": {
+                "measured": 0.1513,
+                "target": "> 0.1373",
+                "diff": 0,
+                "score": 100
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 0.39,
+                "target": "-0.5 ~ 2.0",
+                "diff": 0,
+                "score": 100
+            }
+        },
+        "Rotation": {
+            "Hip_Frontal_Alignment": {
+                "measured_x_diff": 0.0633,
+                "target": "< 0.03 (Facing Front)",
+                "score": 67
+            },
+            "Shoulder_Frontal_Alignment": {
+                "measured_ratio": 0.98,
+                "measured_x_diff": 0.1346,
+                "score": 16
+            }
+        },
+        "Backswing": {
+            "Elbow_Lift": {
+                "measured": 24.68,
+                "target": "1.5 ~ 3.0",
+                "score": 0
+            },
+            "Wrist_X_Depth": {
+                "measured": -0.0452,
+                "target": "< 0 (Failed: Elbow Lift is 0)",
+                "score": 0
+            },
+            "L_Shape_Angle": {
+                "measured": 159.97,
+                "target": "60 ~ 110",
+                "score": 0
+            }
+        },
+        "Impact": {
+            "Arm_Extension_Angle": {
+                "measured": 164.02,
+                "target": "140 ~ 180",
+                "diff": 0,
+                "score": 100
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 0.33,
+                "target": "2.5 ~ 4.5",
+                "diff": 2.17,
+                "score": 10
+            }
+        },
+        "FollowSwing": {
+            "Performance": {
+                "score": 100,
+                "success": true,
+                "message": "Perfect Follow Swing: Wrist crossed the elbow line",
+                "has_dropped_y": true,
+                "has_crossed_x": true
+            }
+        }
+    }
+}

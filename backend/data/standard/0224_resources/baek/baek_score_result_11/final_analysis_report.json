@@ -1,0 +1,85 @@
+{
+    "total_score": 93.0,
+    "details": {
+        "Ready": {
+            "Arm_Angle": {
+                "measured": 49.81,
+                "target": "18 ~ 70",
+                "diff": 0,
+                "score": 100
+            },
+            "Left_Wrist_Height": {
+                "measured": -0.0713,
+                "target": "< 0",
+                "diff": 0,
+                "score": 100
+            },
+            "Stance_Width": {
+                "measured": 0.1994,
+                "target": "> 0.1814",
+                "diff": 0,
+                "score": 100
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 0.19,
+                "target": "-0.5 ~ 2.0",
+                "diff": 0,
+                "score": 100
+            }
+        },
+        "Rotation": {
+            "Hip_Max_Rotation": {
+                "initial_diff": 0.1087,
+                "min_diff": 0.0164,
+                "target_msg": "0 (Fully Crossed)",
+                "score": 100
+            },
+            "Shoulder_Max_Rotation": {
+                "initial_diff": 0.1814,
+                "min_diff": 0.0268,
+                "target_msg": "0 (Fully Crossed)",
+                "score": 100
+            }
+        },
+        "Backswing": {
+            "Elbow_Lift": {
+                "measured": 1.56,
+                "target": "1.5 ~ 3.0",
+                "score": 100
+            },
+            "Wrist_X_Depth": {
+                "measured": -0.1246,
+                "target": "< 0",
+                "score": 100
+            },
+            "L_Shape_Angle": {
+                "measured": 120.44,
+                "target": "60 ~ 110",
+                "score": 59
+            }
+        },
+        "Impact": {
+            "Arm_Extension_Angle": {
+                "measured": 170.52,
+                "target": "140 ~ 180",
+                "diff": 0,
+                "score": 100
+            },
+            "Wrist_Height_Ratio": {
+                "measured": 1.9,
+                "target": "2.5 ~ 4.5",
+                "diff": 0.6,
+                "score": 60
+            }
+        },
+        "FollowSwing": {
+            "Performance": {
+                "score": 100,
+                "success": true,
+                "message": "Perfect Follow Swing (Angle > 30 & X Matched)",
+                "has_reached_30": true,
+                "has_matched_x": true
+            }
+        }
+    }
+}
