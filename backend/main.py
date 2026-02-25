@@ -35,6 +35,7 @@ from app.db.base import Base
 from app.db.session import engine
 from app.routers import swingRouters, uploadRouters, calendarRouters, gripRouters
 from app.routers.reportRouters import router as report_router
+from app.routers.totalReportRouters import router as total_report_router
 from app.routers.userRouters import router as user_router
 
 # DB 테이블 생성
@@ -60,6 +61,7 @@ app.include_router(swingRouters.router)
 app.include_router(uploadRouters.router)
 app.include_router(calendarRouters.router)
 app.include_router(report_router)
+app.include_router(total_report_router)
 app.include_router(gripRouters.router)
 
 # 🚀 [핵심 수정] 정적 파일 경로 자동 설정

@@ -379,3 +379,5 @@ async def get_realtime_result(post_idx: str, db: Session = Depends(get_db)):
         "total_score": post.total_score,
         "swings": swings
     }
+
+    
