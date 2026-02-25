@@ -427,7 +427,7 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
 /* ===== FollowSwing: Injury risk half gauge (3-level, segmented) ===== */
 .riskGauge{
   width: 100%;
-  padding: 5px 6px;
+  padding: 6px 8px 4px; /* 아래 여백 더 줄임 */
   border-radius: 12px;
   background: rgba(243,244,246,.55);
   border: 1px solid rgba(17,24,39,.06);
@@ -438,22 +438,22 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
   font-size: 12px;
   font-weight: 900;
   color: rgba(17,24,39,.78);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   letter-spacing: -.2px;
 }
 
 .riskGauge__gauge{
   position: relative;
   width: 100%;
-  aspect-ratio: 110 / 42;          /* ↓ 전체 높이 축소 */
+  aspect-ratio: 110 / 30;          /* ✅ 더 납작하게(아래 여백 축소) */
 }
 
 .riskGauge__svg{
   width: 100%;
-  height: 50%;
+  height: 62%;
   position: absolute;
   left: 0;
-  top: -6px;
+  top: -10px; /* 게이지를 위로 당김 */
 }
 
 /* pathLength=157 기준으로 "끊김"을 만들기 위해 gap을 둡니다.
@@ -506,12 +506,13 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
   position: absolute;
   left: 0;
   right: 0;
-  top: 40%;          /* bottom 제거 */
+  top: 38%;          /* 중앙 텍스트를 더 위로 */
   transform: translateY(-50%);
   display: grid;
   place-items: center;
   gap: 0px;
   z-index: 2;
+  pointer-events: none;
 }
 
 .riskGauge__label{
