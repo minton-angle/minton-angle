@@ -274,6 +274,8 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
   align-items: center;
   gap: 10px;
   margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 /* ===== 캐러셀 페이지 점(인디케이터) ===== */
@@ -411,6 +413,132 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
   flex-direction: column;
   justify-content: center;
   position: relative;
+}
+
+/* FollowSwing donut wrapper (no gray box) */
+.actionMiniChartWrap--donut{
+  height: 100px;
+  width: 100px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+/* ===== FollowSwing: Injury risk half gauge (3-level, segmented) ===== */
+.riskGauge{
+  width: 100%;
+  padding: 5px 6px;
+  border-radius: 12px;
+  background: rgba(243,244,246,.55);
+  border: 1px solid rgba(17,24,39,.06);
+  margin-top: 6px;
+}
+
+.riskGauge__title{
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(17,24,39,.78);
+  margin-bottom: 6px;
+  letter-spacing: -.2px;
+}
+
+.riskGauge__gauge{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 110 / 42;          /* ↓ 전체 높이 축소 */
+}
+
+.riskGauge__svg{
+  width: 100%;
+  height: 50%;
+  position: absolute;
+  left: 0;
+  top: -6px;
+}
+
+/* pathLength=157 기준으로 "끊김"을 만들기 위해 gap을 둡니다.
+   구간 비율:
+   - 위험(빨강): 0~50%  -> 78.5
+   - 보통(노랑): 50~80% -> 47.1
+   - 양호(초록): 80~100%-> 31.4
+   + gap 2씩 끼워서 실제 segment 길이를 줄여 "떨어져 보이게" 처리
+*/
+.riskGauge__seg{
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+  opacity: .75;
+}
+
+/* 양호(초록) 80~100% */
+.riskGauge__seg--good{
+  stroke: rgba(34,197,94,.90);
+  stroke-dasharray: 29.4 157;          /* 31.4 - gap(2) */
+  stroke-dashoffset: -(78.5 + 47.1 + 2 + 2); /* 앞 구간+gap */
+}
+
+/* 보통(노랑) 50~80% */
+.riskGauge__seg--mid{
+  stroke: rgba(234,179,8,.92);
+  stroke-dasharray: 45.1 157;          /* 47.1 - gap(2) */
+  stroke-dashoffset: -(78.5 + 2);      /* 위험 구간 + gap */
+}
+
+/* 위험(빨강) 0~50% */
+.riskGauge__seg--bad{
+  stroke: rgba(239,68,68,.90);
+  stroke-dasharray: 76.5 157;          /* 78.5 - gap(2) */
+  stroke-dashoffset: 0;
+}
+
+/* 전경 진행 아크 */
+.riskGauge__fg{
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke: #6b7280;
+  stroke-dasharray: 157;
+  stroke-dashoffset: 157; /* 기본: 0% */
+  transition: stroke-dashoffset .35s ease, stroke .25s ease;
+}
+
+.riskGauge__center{
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 40%;          /* bottom 제거 */
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  gap: 0px;
+  z-index: 2;
+}
+
+.riskGauge__label{
+  font-size: 20px;
+  font-weight: 900;
+  color: rgba(17,24,39,.82);
+  transition: color .2s ease;
+}
+
+.riskGauge__pct{
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-weight: 900;
+  color: rgba(17,24,39,.92);
+}
+
+.riskGauge__unit{
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(17,24,39,.70);
+}
+.riskGauge__hint{
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(17,24,39,.55);
 }
 
 canvas {

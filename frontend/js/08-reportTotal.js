@@ -170,6 +170,9 @@ function renderActionCards(currentSessions, prevSessions){
 
       const successRate = 100 - Math.round(curFalseRate * 100);
       actionScore = clamp(successRate, 0, 100);
+      
+      // FollowSwing 전용: 부상 위험 게이지 (성공률 기반 3단계)
+      setFollowSwingRiskGauge(actionScore);
 
       // 성공률은 높을수록 좋으므로 direction은 기존 점수 direction 유지
       setHalfGauge(c.n, actionScore, direction);
@@ -228,6 +231,7 @@ function renderActionCards(currentSessions, prevSessions){
       const successRate = 100 - Math.round((Number.isFinite(curFalseRate) ? curFalseRate : 0) * 100);
       const actionScore = clamp(successRate, 0, 100);
       setHalfGauge(c.n, actionScore, fsDir);
+      setFollowSwingRiskGauge(actionScore);
 
       const msg = followswingFeedbackFromFalseRate(curFalseRate);
       body.innerHTML = `기간 내 팔로우 스윙을 못한 비율: <b>${curPct == null ? "-" : curPct + "%"}</b> (False ${curFalseN}/${curTotalN})<br/>` +
@@ -279,6 +283,39 @@ function setHalfGauge(n, score, direction){
     if (dir === "improved") fg.style.stroke = "#22c55e";
     else if (dir === "worsened") fg.style.stroke = "#ef4444";
     else fg.style.stroke = "#6b7280";
+  }
+}
+
+// ====== FollowSwing: Injury risk gauge (3-level by success rate) ======
+function setFollowSwingRiskGauge(successRate){
+  const fg = document.getElementById("fsRiskFg");
+  const labelEl = document.getElementById("fsRiskLabel");
+  const pctEl = document.getElementById("fsRiskPct");
+  if (!fg || !labelEl || !pctEl) return;
+
+  const v = clamp(Math.round(Number(successRate) || 0), 0, 100);
+  pctEl.textContent = String(v);
+
+  // 전경 진행 아크: pathLength=157 기준
+  const dash = 157;
+  const off = dash * (1 - v / 100);
+  fg.style.strokeDasharray = String(dash);
+  fg.style.strokeDashoffset = String(off);
+
+  // 성공률 기준 3단계
+  // >=80: 양호(초록), 50~79: 보통(노랑), <50: 위험(빨강)
+  if (v >= 80){
+    labelEl.textContent = "낮음";
+    labelEl.style.color = "#16a34a";
+    fg.style.stroke = "#22c55e";
+  } else if (v >= 50){
+    labelEl.textContent = "보통";
+    labelEl.style.color = "#a16207";
+    fg.style.stroke = "#eab308";
+  } else {
+    labelEl.textContent = "위험";
+    labelEl.style.color = "#b91c1c";
+    fg.style.stroke = "#ef4444";
   }
 }
 
@@ -617,11 +654,32 @@ function clamp(n, min, max) {
 }
 
 // KF 오차 기반 점수 산출
+
 function computeScoreFromKfError(kfError) {
   const meanAbs = Math.abs(Number(kfError));
   if (!Number.isFinite(meanAbs)) return 0;
   const score = 100 - (meanAbs / 20) * 100;
   return Math.round(clamp(score, 0, 100));
+}
+
+// ✅ 기간(currentSessions) 평균 점수 계산 (score가 없으면 kf_error로 환산)
+function computeAverageScoreFromSessions(sessions){
+  const xs = (Array.isArray(sessions) ? sessions : [])
+    .map((s)=>{
+      const direct = Number(s?.score);
+      if (Number.isFinite(direct)) return direct;
+
+      const err = Number(s?.kf_error);
+      if (Number.isFinite(err)) return computeScoreFromKfError(err);
+
+      return null;
+    })
+    .filter((v)=> Number.isFinite(Number(v)))
+    .map(Number);
+
+  if (!xs.length) return 0;
+  const avg = xs.reduce((a,b)=>a+b,0) / xs.length;
+  return Math.round(clamp(avg, 0, 100));
 }
 
 function setScore(score) {
@@ -662,27 +720,48 @@ function setScoreRingColor(direction){
   else fg.style.stroke = "#6b7280";
 }
 
-// comparison 기반 “지난 기간 대비” 문구 렌더
-function renderGrowthSummary(comparison, rangeKey){
+// ✅ SCORE 기반 “지난 기간 대비” 문구 렌더 (기간 평균 SCORE 비교로 통일)
+function renderGrowthSummary(comparison, rangeKey, currentSessions = [], prevSessions = []){
   const el = document.getElementById("summarySub");
   if (!el) return;
 
   const label = rangeLabelFromKey(rangeKey);
-  if (!comparison) {
+
+  // 1) 서버가 score 비교 값을 내려주면 우선 사용 (권장: comparison.delta_average_score)
+  const serverDeltaScore = Number(comparison?.delta_average_score);
+  const serverDir = String(comparison?.direction || "").toLowerCase();
+  const hasServerScoreDelta = Number.isFinite(serverDeltaScore) && (serverDir === "improved" || serverDir === "worsened" || serverDir === "flat");
+
+  // 2) 없으면 프론트에서 기간 평균 SCORE로 직접 계산
+  const curAvg = computeAverageScoreFromSessions(currentSessions);
+  const prevAvg = computeAverageScoreFromSessions(prevSessions);
+  const clientDeltaScore = (Number.isFinite(curAvg) && Number.isFinite(prevAvg)) ? (curAvg - prevAvg) : NaN;
+
+  const delta = hasServerScoreDelta ? serverDeltaScore : clientDeltaScore;
+  let dir = hasServerScoreDelta ? serverDir : "flat";
+
+  if (!hasServerScoreDelta && Number.isFinite(delta)){
+    if (delta > 1e-9) dir = "improved";
+    else if (delta < -1e-9) dir = "worsened";
+    else dir = "flat";
+  }
+
+  // 데이터가 부족하면 기본 문구
+  if (!Number.isFinite(delta)){
     el.textContent = `${label} 기준 분석 결과입니다.`;
     return;
   }
 
-  const dir = String(comparison.direction || "flat");
-  const dlt = Number(comparison.delta_mean_abs_kf_error);
-  const abs = Number.isFinite(dlt) ? Math.abs(dlt).toFixed(2) : null;
+  const abs = Math.abs(delta).toFixed(2);
+  const sign = (delta > 0) ? "+" : (delta < 0 ? "-" : "");
+  const deltaText = `${sign}${abs}점`;
 
-  if (dir === "improved" && abs != null) {
-    el.innerHTML = `지난 ${label} 대비 평균 오차가 </br> <b style="color:#16a34a">${abs}° 감소</b>했습니다.<br/>꾸준한 훈련이 유지되고 있어요!`;
-  } else if (dir === "worsened" && abs != null) {
-    el.innerHTML = `지난 ${label} 대비 평균 오차가 </br> <b style="color:#b91c1c">${abs}° 증가</b>했습니다.<br/> 훈련에 좀더 집중해 보아요!`;
+  if (dir === "improved") {
+    el.innerHTML = `지난 ${label} 대비 평균 점수가 </br> <b style="color:#16a34a">${deltaText} 상승</b>했습니다.<br/>좋은 흐름이에요!`;
+  } else if (dir === "worsened") {
+    el.innerHTML = `지난 ${label} 대비 평균 점수가 </br> <b style="color:#b91c1c">${deltaText} 하락</b>했습니다.<br/>다음 훈련에서 안정적으로 올려봐요.`;
   } else {
-    el.textContent = `지난 ${label} 대비 변화가 거의 없군요. 유지하는 것도 좋은 현상입니다!`;
+    el.textContent = `지난 ${label} 대비 평균 점수 변화가 거의 없습니다. 유지하는 것도 좋은 신호예요.`;
   }
 }
 
@@ -1169,7 +1248,6 @@ function renderFollowSwingDonutCurrent(currentSessions){
   charts.followSwingDonut = new Chart(ctx, {
     type: "doughnut",
     data: {
-      labels: ["성공", "실패"],
       datasets: [
         {
           label: "FollowSwing",
@@ -1485,9 +1563,15 @@ async function refreshByRange(range){
   const last = current.length ? current[current.length - 1] : null;
   window.__LAST_SESSION__ = last;
 
-  // 상단 성장 문구 + 링 색상
-  renderGrowthSummary(comp, payload?.range || range);
-  setScoreRingColor(comp?.direction);
+  // 상단 성장 문구 + 링 색상 (✅ SCORE 기반으로 통일)
+  renderGrowthSummary(comp, payload?.range || range, current, prev);
+
+  // SCORE 기반 direction으로 링 컬러도 맞춤 (서버 값이 없으면 프론트 계산)
+  const curAvgScore = computeAverageScoreFromSessions(current);
+  const prevAvgScore = computeAverageScoreFromSessions(prev);
+  const deltaScore = curAvgScore - prevAvgScore;
+  const scoreDir = (deltaScore > 1e-9) ? "improved" : (deltaScore < -1e-9 ? "worsened" : "flat");
+  setScoreRingColor(scoreDir);
 
   // 차트: current + prev(점선)
   renderScoreKfHistoryChart(current, prev);
@@ -1505,10 +1589,9 @@ async function refreshByRange(range){
   const meta = last?.meta || {};
   renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
 
-  const initialScore = Number.isFinite(Number(last?.score))
-    ? Number(last.score)
-    : computeScoreFromKfError(last?.kf_error);
-  setScore(initialScore);
+  // ✅ scoreRing: 최신 1건이 아니라, 선택 기간의 "평균 점수"로 표시
+  const avgScore = computeAverageScoreFromSessions(current);
+  setScore(avgScore);
 
   // If server provides the latest LLM report, render it (doesn't affect charts)
   const latestLLM = payload?.latest_llm_report?.report || null;
@@ -1714,9 +1797,14 @@ async function loadFromDB(range = "7d") {
   // 세션 히스토리 전역 상태 (현재 기간 기준)
   __ALL_SESSIONS__ = current;
 
-  // 상단 성장 문구 + 링 색상 (초기)
-  renderGrowthSummary(comp, payload?.range || __RANGE_FILTER__);
-  setScoreRingColor(comp?.direction);
+  // 상단 성장 문구 + 링 색상 (초기, ✅ SCORE 기반으로 통일)
+  renderGrowthSummary(comp, payload?.range || __RANGE_FILTER__, current, prev);
+
+  const curAvgScore0 = computeAverageScoreFromSessions(current);
+  const prevAvgScore0 = computeAverageScoreFromSessions(prev);
+  const deltaScore0 = curAvgScore0 - prevAvgScore0;
+  const scoreDir0 = (deltaScore0 > 1e-9) ? "improved" : (deltaScore0 < -1e-9 ? "worsened" : "flat");
+  setScoreRingColor(scoreDir0);
 
   // KF 탭 클릭 시 차트를 현재 필터 기준으로 재렌더
   wireRangeTabs(async (r) => {
@@ -1747,12 +1835,9 @@ async function loadFromDB(range = "7d") {
   // LLM 생성 버튼 wiring (LLM 섹션을 숨겨도 버튼은 유지)
   wireLLMGenerateButton();
 
-  // 초기 점수: 최근 세션의 score 또는 kf_error 기반
-  const initialScore = Number.isFinite(Number(last?.score))
-    ? Number(last.score)
-    : computeScoreFromKfError(last?.kf_error);
-
-  setScore(initialScore);
+  // ✅ scoreRing: 최신 1건이 아니라, 선택 기간의 "평균 점수"로 표시
+  const avgScore = computeAverageScoreFromSessions(current);
+  setScore(avgScore);
 
   // Render latest LLM report on first load if available
   const latestLLM = payload?.latest_llm_report?.report || null;
