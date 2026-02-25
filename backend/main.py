@@ -15,9 +15,8 @@ from app.db.base import Base
 from app.db.session import engine
 
 # 라우터 import
-from app.routers import swingRouters, uploadRouters
 from app.routers import swingRouters, uploadRouters, calendarRouters
-from backend.app.routers.totalRouters import router as report_router
+from app.routers.totalRouters import router as report_router
 
 # 모델 import (테이블 생성용)
 from app.models.userModels import User
