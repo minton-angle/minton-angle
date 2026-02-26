@@ -1593,11 +1593,7 @@ async function refreshByRange(range){
   const avgScore = computeAverageScoreFromSessions(current);
   setScore(avgScore);
 
-  // If server provides the latest LLM report, render it (doesn't affect charts)
-  const latestLLM = payload?.latest_llm_report?.report || null;
-  if (latestLLM) {
-    renderLLMReport(latestLLM);
-  }
+  // (LLM 새로 생성 호출 제거됨: wireRangeTabs에서 별도 처리)
 }
 
 // ====== LLM 리포트 생성 호출 (DB 기반) ======
@@ -1786,94 +1782,32 @@ async function loadFromDB(range = "7d") {
 
 // ====== 부트스트랩 ======
 (async function init() {
-  const payload = await loadFromDB(__RANGE_FILTER__);
-
-  const current = Array.isArray(payload?.current_sessions) ? payload.current_sessions : [];
-  const prev = Array.isArray(payload?.prev_sessions) ? payload.prev_sessions : [];
-  const comp = payload?.comparison || null;
-
-  const last = current.length ? current[current.length - 1] : null;
-
-  // 세션 히스토리 전역 상태 (현재 기간 기준)
-  __ALL_SESSIONS__ = current;
-
-  // 상단 성장 문구 + 링 색상 (초기, ✅ SCORE 기반으로 통일)
-  renderGrowthSummary(comp, payload?.range || __RANGE_FILTER__, current, prev);
-
-  const curAvgScore0 = computeAverageScoreFromSessions(current);
-  const prevAvgScore0 = computeAverageScoreFromSessions(prev);
-  const deltaScore0 = curAvgScore0 - prevAvgScore0;
-  const scoreDir0 = (deltaScore0 > 1e-9) ? "improved" : (deltaScore0 < -1e-9 ? "worsened" : "flat");
-  setScoreRingColor(scoreDir0);
-
-  // KF 탭 클릭 시 차트를 현재 필터 기준으로 재렌더
-  wireRangeTabs(async (r) => {
-    try {
-      await refreshByRange(r);
-    } catch (e) {
-      alert(e.message);
-    }
-  });
-
-  // 종합 리포트 페이지: 세션 히스토리(여러 번의 평가)를 시각화
-  renderScoreKfHistoryChart(current, prev);
-
-  // KF별 분석 차트
-  renderActionCards(current, prev);
-  // 동작 카드 캐러셀 스크롤 감지(에러 방지)
-  wireActionCarousel();
-  const carousel = document.querySelector(".actionCards");
-  if (carousel && typeof carousel.__syncDots === "function") carousel.__syncDots();
-
-  // 현재 세션(가장 최근) 스냅샷
-  window.__CURRENT_FRAME__ = last?.frame ?? "ALL";
-  const meta = last?.meta || {};
-
-  // 메타/스냅샷 렌더
-  renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
-
-  // LLM 생성 버튼 wiring (LLM 섹션을 숨겨도 버튼은 유지)
-  wireLLMGenerateButton();
-
-  // ✅ scoreRing: 최신 1건이 아니라, 선택 기간의 "평균 점수"로 표시
-  const avgScore = computeAverageScoreFromSessions(current);
-  setScore(avgScore);
-
-  // Render latest LLM report on first load if available
-  const latestLLM = payload?.latest_llm_report?.report || null;
-  if (latestLLM) {
-    renderLLMReport(latestLLM);
+  try {
+    // ✅ 초기 로드: 선택된 기간(기본 7d) 기준으로
+    // GET + 렌더링 + LLM 호출을 refreshByRange로 일괄 처리
+    await refreshByRange(__RANGE_FILTER__);
+  } catch (e) {
+    console.error("Initial refresh failed:", e);
   }
 
-})();
+  // ✅ 기간 탭 클릭 시마다: 1) DB GET 기반 렌더링, 2) 그 다음 LLM POST 호출
+  wireRangeTabs(async (r) => {
+    try {
+      // 1️⃣ 먼저 DB GET 기반 렌더링
+      await refreshByRange(r);
 
-// ====== LLM 리포트 생성/갱신 버튼 ======
-function wireLLMGenerateButton(){
-  const btn = document.getElementById("btnGenerateLLM");
-  if (!btn) return;
-
-  btn.addEventListener("click", async ()=>{
-    try{
-      btn.disabled = true;
-      btn.classList.add("is-active");
-      btn.textContent = "생성 중...";
-      console.log("[LLM GENERATE] post_idx=", (getPostIdxFromURL() || getPostIdxFallback()), "range=", __RANGE_FILTER__);
+      // 2️⃣ 그 다음 LLM POST 호출
       const postIdx = getPostIdxFromURL() || getPostIdxFallback();
-      if (!postIdx) throw new Error("post_idx가 없습니다. URL에 ?post_idx=... 를 붙이세요.");
-      const report = await generateLLMReportByPostIdx(postIdx, "ko");
-      renderLLMReport(report);
+      if (postIdx) {
+        const llmReport = await generateLLMReportByPostIdx(postIdx, "ko");
+        if (llmReport) {
+          renderLLMReport(llmReport);
+        }
+      }
 
-      // (선택) 생성 후 분석 데이터도 다시 로딩해서 차트/트렌드 갱신
-      await refreshByRange(__RANGE_FILTER__);
-
-      btn.textContent = "LLM 리포트 생성";
-      btn.classList.remove("is-active");
-      btn.disabled = false;
-    }catch(e){
-      btn.textContent = "LLM 리포트 생성";
-      btn.classList.remove("is-active");
-      btn.disabled = false;
+    } catch (e) {
+      console.error("Range change failed:", e);
       alert(e.message);
     }
   });
-}
+})();
