@@ -291,7 +291,14 @@ function displayStageScores(details) {
     const s2 = swingAll.length ? Math.round(swingAll.reduce((a,b) => a+b, 0) / swingAll.length) : 0;
 
     const impScores = Object.values(details.Impact || {}).map(v => v.score || 0);
-    const fwScore   = details.FollowSwing?.Performance?.score || 0;
+    let fwScore = details.FollowSwing?.Performance?.score || 0;
+    if (fwScore >= 100) {
+        fwScore = 100; // 성공
+    } else if (fwScore >= 50) {
+        fwScore = 50;  // 미흡
+    } else {
+        fwScore = 0;   // 안함
+    }
     const phase3All = [...impScores, fwScore];
     const s3 = phase3All.length ? Math.round(phase3All.reduce((a,b) => a+b, 0) / phase3All.length) : 0;
 
@@ -333,9 +340,20 @@ function displayEvaluation(details) {
     const fw = details.FollowSwing?.Performance;
     const fwEl = document.getElementById('eval-follow');
     if (fwEl && fw) {
-        const isPass = fw.score >= 100;
-        const isMid  = fw.score >= 50;
-        const label  = isPass ? '성공 ✓' : isMid ? '미흡' : '안함';
+        let label = '안함';
+        let isPass = false;
+
+        if (fw.score >= 100) {
+            label = '성공 ✓';
+            isPass = true;
+        } else if (fw.score >= 50) {
+            label = '미흡';
+            isPass = false; // 미흡은 노란색/빨간색 계열로 표시되도록 false
+        } else {
+            label = '안함';
+            isPass = false;
+        }
+
         activateOption(fwEl, label, isPass);
     }
 }

@@ -259,6 +259,7 @@ class ScoreCalculator:
         }
         rot_scores.extend([s_hip, s_sh])
 
+
         # --- Backswing ---
         bs_lms = None
         is_backswing_valid = (back_f != -1 and ready_f < back_f < impact_f)
@@ -266,48 +267,50 @@ class ScoreCalculator:
             _, bs_lms = self._get_frame_and_landmarks(cap, back_f)
 
         if bs_lms:
+            # 1. 팔꿈치 높이 (Elbow Lift)
             e_ratio = self._calc_ratio(bs_lms['r_el'], bs_lms['r_sh'], bs_lms['l_sh'])
             diff_lift = min(abs(e_ratio - 1.5), abs(e_ratio - 3.0))
-            s_lift = 100 if 1.5 <= e_ratio <= 3.0 else max(0, 100 - int(diff_lift * 400))
+            # 수정: 패널티를 200으로 조정 (너무 팍 깎이지 않게 하되 확실히 차이 나게)
+            s_lift = 100 if 1.5 <= e_ratio <= 3.0 else max(10, 100 - int(diff_lift * 200))
+            
             details['Backswing']['Elbow_Lift'] = {
                 "measured": round(e_ratio, 2), "target": "1.5~3.0", "score": int(s_lift)
             }
             bs_scores.append(s_lift)
 
-            # ⭐ 0점 연쇄 처리
-            if s_lift == 0:
-                details['Backswing']['Wrist_X_Depth'] = {
-                    "measured": round(bs_lms['r_wr'].x - bs_lms['nose'].x, 4),
-                    "target": "0 (Failed: Elbow Lift is 0)", "score": 0
-                }
-                details['Backswing']['L_Shape_Angle'] = {
-                    "measured": round(self._calc_angle(bs_lms['r_sh'], bs_lms['r_el'], bs_lms['r_wr']), 2),
-                    "target": "0 (Failed: Elbow Lift is 0)", "score": 0
-                }
-                bs_scores.extend([0, 0])
-            else:
-                wx_diff = bs_lms['r_wr'].x - bs_lms['nose'].x
-                s_wx = 100 if wx_diff < 0 else max(0, 100 - (int(wx_diff / 0.02) + 1) * 20)
-                details['Backswing']['Wrist_X_Depth'] = {
-                    "measured": round(wx_diff, 4), "target": "< 0", "score": int(s_wx)
-                }
-                bs_scores.append(s_wx)
+            # 🌟 [수정] 0점 연쇄 처리를 삭제하고 각각 독립적으로 계산합니다.
+            
+            # 2. 손목 깊이 (Wrist X Depth) - 라켓을 머리 뒤로 충분히 넘겼는가?
+            wx_diff = bs_lms['r_wr'].x - bs_lms['nose'].x
+            # 전문가: 코보다 뒤(음수), 초보자: 코보다 앞(양수)
+            # 패널티를 15점으로 완화하되, 양수가 커질수록 점수가 확 깎임
+            s_wx = 100 if wx_diff < 0 else max(10, 100 - (int(wx_diff / 0.03) + 1) * 15)
+            
+            details['Backswing']['Wrist_X_Depth'] = {
+                "measured": round(wx_diff, 4), "target": "< 0", "score": int(s_wx)
+            }
+            bs_scores.append(s_wx)
 
-                bs_ang = self._calc_angle(bs_lms['r_sh'], bs_lms['r_el'], bs_lms['r_wr'])
-                diff_ang = min(abs(bs_ang - 60), abs(bs_ang - 110))
-                s_bs_ang = 100 if 60 <= bs_ang <= 110 else max(0, 100 - int(diff_ang * 4.0))
-                details['Backswing']['L_Shape_Angle'] = {
-                    "measured": round(bs_ang, 2), "target": "60~110", "score": int(s_bs_ang)
-                }
-                bs_scores.append(s_bs_ang)
+            # 3. L자 각도 (L-Shape Angle) - 팔꿈치가 적절히 굽혀졌는가?
+            bs_ang = self._calc_angle(bs_lms['r_sh'], bs_lms['r_el'], bs_lms['r_wr'])
+            diff_ang = min(abs(bs_ang - 60), abs(bs_ang - 110))
+            # 패널티 2.0으로 조정 (10도 틀리면 20점 감점)
+            s_bs_ang = 100 if 60 <= bs_ang <= 110 else max(10, 100 - int(diff_ang * 2.0))
+            
+            details['Backswing']['L_Shape_Angle'] = {
+                "measured": round(bs_ang, 2), "target": "60~110", "score": int(s_bs_ang)
+            }
+            bs_scores.append(s_bs_ang)
 
         else:
-            # 백스윙 프레임 없으면 3개 지표 모두 0점 강제 합산
-            print("⚠️ 백스윙 프레임이 유효하지 않아 백스윙 3개 지표를 모두 0점으로 처리합니다.")
+            # 백스윙 프레임 감지 실패 시
+            print("⚠️ 백스윙 프레임 감지 실패")
             details['Backswing']['Elbow_Lift']    = {"measured": 0, "target": "1.5~3.0", "score": 0}
             details['Backswing']['Wrist_X_Depth'] = {"measured": 0, "target": "< 0",     "score": 0}
             details['Backswing']['L_Shape_Angle'] = {"measured": 0, "target": "60~110",  "score": 0}
             bs_scores.extend([0, 0, 0])
+
+
 
         # --- 시퀀스 이미지 저장 ---
         if is_backswing_valid:
