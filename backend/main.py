@@ -5,7 +5,7 @@ import sys
 import os
 import logging
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -46,7 +46,12 @@ app = FastAPI(
     description="배드민턴 자세 분석 API",
     version="1.0.0"
 )
-
+@app.middleware("http")
+async def add_ngrok_skip_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["ngrok-skip-browser-warning"] = "any_value"
+    return response
+    
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 

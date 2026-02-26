@@ -59,7 +59,7 @@ def build_post_kwargs(post_idx: str, created_at: datetime, user_id: str) -> dict
 try:
     # 🌟 여기에 팀장님의 실제 DB에 있는 사용자 ID를 적어주세요.
     USER_ID = "admin" 
-    TOTAL_DAYS = 25
+    TOTAL_DAYS = 300
 
     print(f"🚀 {USER_ID} 사용자를 위한 {TOTAL_DAYS}일치 데이터 생성을 시작합니다...")
 

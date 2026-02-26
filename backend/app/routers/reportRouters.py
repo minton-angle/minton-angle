@@ -57,21 +57,22 @@ def _mean_abs_kf_error(a: Analysis) -> float:
     return sum(vals) / len(vals)
 
 
-# ⭐ 경로 변환 유틸 함수
 def fix_path(raw_path: str) -> str:
     if not raw_path:
         return ""
+    # 1. 경로 통일
     clean = raw_path.replace("\\", "/")
-    # realtime 경로
+    
+    # 2. /app/data 패턴 처리 (도커 환경 최우선)
+    if "/app/data/" in clean:
+        return clean.replace("/app/data/", "/data/", 1)
+        
+    # 3. 그 외 marker 기반 처리 (글자 수 계산 없이 통째로 치환)
     for marker in ["data/realtime/", "data/upload/"]:
-        idx = clean.find(marker)
-        if idx != -1:
-            return "/data/" + clean[idx + len("data/"):]
-    # backend/data 패턴
-    marker = "backend/data/"
-    idx = clean.find(marker)
-    if idx != -1:
-        return "/" + clean[idx:]
+        if marker in clean:
+            idx = clean.find(marker)
+            return "/" + clean[idx:] # idx부터 끝까지 다 가져오기
+            
     return clean
 
 

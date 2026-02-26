@@ -83,31 +83,52 @@ class ScoreCalculator:
         else:              return 0
 
     # ------------------------------------------------------------------ #
-    #  영상에서 특정 프레임 + 랜드마크 추출
+    #  영상에서 특정 프레임 + 랜드마크 추출 (EXIF 회전 보정 포함)
     # ------------------------------------------------------------------ #
     def _get_frame_and_landmarks(self, cap, frame_idx: int):
+        # 주변 프레임을 탐색하여 가장 정확한 포즈를 찾음 (오프셋 로직)
         for offset in [0, -1, 1, -2, 2, -3, 3, -4, 4, -5, 5]:
             target = int(frame_idx) + offset
             if target < 0:
                 continue
+                
             cap.set(cv2.CAP_PROP_POS_FRAMES, target)
             ret, frame = cap.read()
             if not ret:
                 continue
+
+            # 🌟 [회전 보정] 핸드폰 세로 영상이 가로로 누워있는 경우 세워줌
+            h, w = frame.shape[:2]
+            if w > h:
+                # 가로가 더 길다면 시계방향으로 90도 회전
+                frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+
+            # 미디어파이프 분석 (RGB 변환 필수)
             img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = self.pose_static.process(img_rgb)
-            print(f"📐 프레임 크기: {frame.shape}, idx={target}, offset={offset}")
-            print(f"🦴 랜드마크 감지: {results.pose_landmarks is not None}")
+
+            # 랜드마크가 감지된 경우에만 반환
             if results.pose_landmarks:
                 lms = {}
                 for name, idx in MP_MAP.items():
                     lms[name] = results.pose_landmarks.landmark[idx]
+                
+                print(f"✅ 분석 성공: idx={target}, offset={offset}, shape={frame.shape}")
                 return frame, lms
 
-        print(f"⚠️ 모든 오프셋 실패: frame_idx={frame_idx}")
+        # 🌟 모든 오프셋에서 랜드마크 추출 실패 시
+        print(f"⚠️ 랜드마크 추출 실패: frame_idx={frame_idx}")
         cap.set(cv2.CAP_PROP_POS_FRAMES, int(frame_idx))
         ret, frame = cap.read()
-        return (frame if ret else None), {}
+        
+        # 실패하더라도 이미지는 똑바로 세워서 반환 (그래야 엑박이 안 뜸)
+        if ret:
+            h, w = frame.shape[:2]
+            if w > h:
+                frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+            return frame, {}
+            
+        return None, {}
 
     # ------------------------------------------------------------------ #
     #  시각화 유틸리티

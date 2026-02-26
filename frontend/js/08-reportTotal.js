@@ -268,21 +268,27 @@ function renderActionCards(currentSessions, prevSessions){
 // ====== Half gauge helpers (per action card) ======
 const HALF_GAUGE_DASH = 157; // approx half circumference for the SVG arc
 
-function setHalfGauge(n, score, direction){
+function setHalfGauge(n, score, direction) {
+  // 1. 점수 보정 및 텍스트 업데이트
   const v = clamp(Math.round(Number(score) || 0), 0, 100);
   const fg = document.getElementById(`a${n}GaugeFg`);
   const num = document.getElementById(`a${n}GaugeValue`);
   if (num) num.textContent = String(v);
 
-  if (fg){
-    // 0 -> full offset (empty), 100 -> 0 (full)
+  if (fg) {
+    // 2. 게이지 길이 조절 (0 -> empty, 100 -> full)
     const off = HALF_GAUGE_DASH * (1 - v / 100);
     fg.style.strokeDashoffset = String(off);
 
-    const dir = String(direction || "flat").toLowerCase();
-    if (dir === "improved") fg.style.stroke = "#22c55e";
-    else if (dir === "worsened") fg.style.stroke = "#ef4444";
-    else fg.style.stroke = "#6b7280";
+    // ✅ [수정 포인트] 점수대별 색상 강제 적용
+    // direction(추세)보다 현재의 '점수 상태'를 색상으로 보여주는 것이 더 직관적입니다.
+    if (v >= 80) {
+      fg.style.stroke = "#22c55e"; // 초록 (양호)
+    } else if (v >= 50) {
+      fg.style.stroke = "#eab308"; // 노랑 (보통)
+    } else {
+      fg.style.stroke = "#ef4444"; // 빨강 (주의 - 12점은 여기 해당)
+    }
   }
 }
 
@@ -1528,30 +1534,6 @@ function renderBestKFInRange(){ /* intentionally removed */ }
 let __RANGE_FILTER__ = "7d";
 window.__LAST_SESSION__ = null;
 
-function wireRangeTabs(onChange){
-  // 기간 탭(1주/1개월/3개월/전체)만 바인딩: LLM 생성 버튼(btnGenerateLLM)이 실수로 같이 묶이지 않도록 범위를 제한
-  const tabs = Array.from(document.querySelectorAll(".rangeTabs .rangeTab[data-range]"));
-  if (!tabs.length) return;
-
-  tabs.forEach((btn)=>{
-    btn.addEventListener("click", ()=>{
-      // 기간 탭만 바인딩 (btnGenerateLLM 등은 제외)
-      const rawRange = btn.getAttribute("data-range");
-      if (!rawRange) return; // safety
-      const v = String(rawRange || "7d").toLowerCase();
-      __RANGE_FILTER__ = (v === "7d" || v === "1m" || v === "3m" || v === "all") ? v : "7d";
-
-      tabs.forEach((b)=>{
-        const active = (b === btn);
-        b.classList.toggle("is-active", active);
-        b.setAttribute("aria-selected", active ? "true" : "false");
-      });
-
-      if (typeof onChange === "function") onChange(__RANGE_FILTER__);
-    });
-  });
-}
-
 async function refreshByRange(range){
   const payload = await loadFromDB(range);
 
@@ -1835,7 +1817,7 @@ async function loadFromDB(range = "7d") {
   renderMeta({ ...meta, created_at: last?.created_at, idx: last?.idx });
 
   // LLM 생성 버튼 wiring (LLM 섹션을 숨겨도 버튼은 유지)
-  wireLLMGenerateButton();
+  //wireLLMGenerateButton();
 
   // ✅ scoreRing: 최신 1건이 아니라, 선택 기간의 "평균 점수"로 표시
   const avgScore = computeAverageScoreFromSessions(current);
@@ -1871,7 +1853,7 @@ async function generateLLMReportByPostIdx(ignore, lang = "ko") {
   return data?.report ?? data;
 }
 
-// 2. 버튼 이벤트 바인딩 함수 (순서 최적화 버전)
+/* 2. 버튼 이벤트 바인딩 함수 (순서 최적화 버전)
 function wireLLMGenerateButton(){
   const btn = document.getElementById("btnGenerateLLM");
   if (!btn) return;
@@ -1909,4 +1891,122 @@ function wireLLMGenerateButton(){
       alert("리포트 생성 중 오류가 발생했습니다: " + e.message);
     }
   });
+}*/
+function wireRangeTabs(onChange) {
+  const tabs = Array.from(document.querySelectorAll(".rangeTabs .rangeTab[data-range]"));
+  if (!tabs.length) return;
+
+  tabs.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const rawRange = btn.getAttribute("data-range");
+      if (!rawRange) return;
+      
+      const v = String(rawRange || "7d").toLowerCase();
+      __RANGE_FILTER__ = v;
+
+      // 1. UI 탭 활성화 처리
+      tabs.forEach((b) => {
+        const active = (b === btn);
+        b.classList.toggle("is-active", active);
+        b.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      // 2. 로딩 바 표시
+      const loadingEl = document.getElementById("llmLoading");
+      if (loadingEl) loadingEl.style.display = "block";
+
+      try {
+        console.log(`[자동 분석] ${v} 데이터 로딩 중...`);
+
+        // 🌟 핵심 순서 (기존 버튼 성공 로직 그대로!)
+        
+        // A. 먼저 API 호출로 AI 답변을 미리 받아둡니다.
+        const userId = new URLSearchParams(window.location.search).get("user_id") || localStorage.getItem("user_id") || "admin";
+        const report = await generateLLMReportByPostIdx(userId, "ko");
+
+        // B. 그 다음, 차트와 카드의 뼈대를 갱신합니다. (여기서 기존 텍스트가 초기화됨)
+        await refreshByRange(__RANGE_FILTER__);
+
+        // C. 모든 뼈대가 그려진 직후에 AI 답변을 박습니다. (그래야 안 사라짐!)
+        renderLLMReport(report);
+
+        if (typeof onChange === "function") onChange(__RANGE_FILTER__);
+
+      } catch (e) {
+        console.error("탭 전환 및 AI 생성 실패:", e);
+      } finally {
+        if (loadingEl) loadingEl.style.display = "none";
+        
+        // 🌟 슬라이더 기능 다시 활성화
+        if (typeof wireActionCarousel === "function") {
+          wireActionCarousel(); 
+        }
+      }
+    });
+  });
 }
+
+function renderLLMReport(reportObj) {
+  // 백엔드 로그에 찍힌 구조에 맞게 접근
+  if (!reportObj) return;
+  const sections = reportObj.sections;
+  if (!sections) return;
+
+  // 1. 요약 문구 반영
+  const summarySub = document.getElementById("summarySub");
+  if (summarySub && reportObj.summary) {
+    summarySub.innerHTML = `<b>${reportObj.summary}</b>`;
+  }
+
+  // 2. 각 카드 Body에 피드백 주입
+  const mapping = {
+    ready: "a1Body",
+    rotation: "a2Body",
+    backswing: "a3Body",
+    impact: "a4Body",
+    followswing: "a5Body"
+  };
+
+  Object.keys(mapping).forEach((key) => {
+    const targetId = mapping[key];
+    const bodyEl = document.getElementById(targetId);
+    const data = sections[key];
+
+    if (bodyEl && data) {
+      // 🌟 [중요] innerHTML을 사용하여 기존 내용을 완전히 덮어씁니다.
+      bodyEl.innerHTML = `
+        <div class="llm-feedback-wrap" style="animation: fadeIn 0.4s ease;">
+          <p style="font-size: 11px; color: #888; margin-bottom: 4px;">${data.change_one || ""}</p>
+          <p style="font-size: 13px; line-height: 1.6; color: #111; font-weight: 500;">
+            ${data.analysis || ""}
+          </p>
+        </div>
+      `;
+    }
+  });
+  
+  // 유튜브 영상 갱신
+  renderYoutubeLinksFromReport(reportObj);
+}
+
+(async function init() {
+  try {
+    // 1. DB에서 데이터를 먼저 가져옵니다.
+    const payload = await loadFromDB(__RANGE_FILTER__);
+    const current = payload?.current_sessions || [];
+    
+    // 2. 탭 이벤트들을 바인딩합니다. (이제 버튼 기능이 이 안으로 들어갔죠?)
+    wireRangeTabs(); 
+
+    // 3. 페이지 처음 들어왔을 때 '1주일'치 데이터를 먼저 쫙 그려줍니다.
+    await refreshByRange(__RANGE_FILTER__);
+
+    // 4. [중요] 초기 진입 시 AI 응답도 자동으로 가져오게 하려면 여기서 호출!
+    const userId = new URLSearchParams(window.location.search).get("user_id") || "admin";
+    const firstReport = await generateLLMReportByPostIdx(userId, "ko");
+    renderLLMReport(firstReport);
+
+  } catch (e) {
+    console.error("초기화 실패:", e);
+  }
+})();

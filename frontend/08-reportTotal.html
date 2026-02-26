@@ -4,9 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Minton Angle - LLM Report</title>
-
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
   <link rel="stylesheet" href="css/reset.css">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/common.css">
@@ -24,205 +23,152 @@
       <main class="scroll-container">
         
         <section class="card card--summary">
-          <div class="summary__left">
-            <h1 id="summaryHeadline" class="summary__headline">안녕하세요!</h1>
-            <div id="summarySub" class="summary__sub"> LLM 리포트 요약해드려용~</div>
+          <div class="summary__filter-wrap" style="width:100%; margin-bottom:15px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:10px;">
+            <div class="rangeTabs" role="tablist">
+              <button type="button" class="rangeTab is-active" data-range="7d" aria-selected="true">1주일</button>
+              <button type="button" class="rangeTab" data-range="1m" aria-selected="false">1개월</button>
+              <button type="button" class="rangeTab" data-range="3m" aria-selected="false">3개월</button>
+            </div>
           </div>
 
-          <div class="summary__right">
-            <div class="scoreRing" aria-label="점수 70점">
-              <svg class="scoreRing__svg" viewBox="0 0 120 120">
-                <circle class="scoreRing__bg" cx="60" cy="60" r="46"></circle>
-                <circle id="scoreRingFg" class="scoreRing__fg" cx="60" cy="60" r="46" style="stroke-dashoffset: 86.7;"></circle>
-              </svg>
-              <div class="scoreRing__text">
-                <div id="scoreValue" class="scoreRing__num">70</div>
-                <div class="scoreRing__unit">점</div>
+          <div class="summary__content-wrap">
+            <div class="summary__left">
+              <h1 id="summaryHeadline" class="summary__headline">안녕하세요!</h1>
+              <div id="summarySub" class="summary__sub">성장 데이터를 분석 중입니다...</div>
+            </div>
+
+            <div class="summary__right">
+              <div class="scoreRing" aria-label="점수">
+                <svg class="scoreRing__svg" viewBox="0 0 120 120">
+                  <circle class="scoreRing__bg" cx="60" cy="60" r="46"></circle>
+                  <circle id="scoreRingFg" class="scoreRing__fg" cx="60" cy="60" r="46" style="stroke-dashoffset: 289;"></circle>
+                </svg>
+                <div class="scoreRing__text">
+                  <div id="scoreValue" class="scoreRing__num">-</div>
+                  <div class="scoreRing__unit">점</div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-
-        <section class="card card--llmGen">
-          <h2>AI 리포트 생성</h2>
-          <button type="button" id="btnGenerateLLM" class="btnLLM btnLLM--big" aria-label="LLM 리포트 생성/갱신">AI 리포트 업데이트</button>
-        </section>
-
-        <div class="periodStickyBar">
-          <div class="rangeTabs" role="tablist" aria-label="기간 필터">
-            <button type="button" class="rangeTab is-active" data-range="7d" aria-selected="true">1주일</button>
-            <button type="button" class="rangeTab" data-range="1m" aria-selected="false">1개월</button>
-            <button type="button" class="rangeTab" data-range="3m" aria-selected="false">3개월</button>
-          </div>
+        <div id="llmLoading" class="llm-loading-container" style="display: none;">
+          <div class="spinner"></div>
+          <p>AI 코치가 정밀 분석 리포트를 작성 중입니다...</p>
         </div>
 
         <section class="card card--actionSection">
           <h2 class="actionSection__title">동작별 분석</h2>
-        
           <div class="actionCards" aria-label="동작별 분석 카드">
+            
             <article class="actionCard" id="actionCard1">
               <div class="actionCard__top">
                 <div class="actionCard__title">준비 자세</div>
                 <div class="actionCard__right">
-                  <div class="halfGauge" aria-label="백스윙 점수">
-                    <svg class="halfGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
-                      <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
-                      <path id="a1GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" />
-                    </svg>
+                  <div class="halfGauge">
+                    <svg class="halfGauge__svg" viewBox="0 0 120 70"><path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" /><path id="a1GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" /></svg>
                     <div class="halfGauge__text"><span id="a1GaugeValue"></span><span class="halfGauge__unit">점</span></div>
                   </div>
                 </div>
               </div>
-              <div class="actionCard__meta" id="a1Meta">
-                <span class="llmAppliedBadge">SCORE 비교</span>
-                <span class="actionCard__pill" id="a1TrendPill">-</span>
-              </div>
-              <div class="actionMiniChartWrap" aria-label="동작 점수 변화 추이">
-                <canvas id="a1StageChart" class="actionMiniChart"></canvas>
-              </div>
-              <div class="actionCard__body" id="a1Body"></div>
-            </article>
-            
+              <div class="actionCard__meta" id="a1Meta"><span class="llmAppliedBadge">SCORE 비교</span><span class="actionCard__pill" id="a1TrendPill">-</span></div>
+              <div class="actionMiniChartWrap"><canvas id="a1StageChart" class="actionMiniChart"></canvas></div>
+              <div class="actionCard__body" id="a1Body"></div> </article>
+
             <article class="actionCard" id="actionCard2">
-              <div class="actionCard__top">
-                <div class="actionCard__title">회전</div>
-                <div class="actionCard__right">
-                  <div class="halfGauge" aria-label="임팩트 점수">
-                    <svg class="halfGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
-                      <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
-                      <path id="a2GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" />
-                    </svg>
-                    <div class="halfGauge__text"><span id="a2GaugeValue"></span><span class="halfGauge__unit">점</span></div>
-                  </div>
-                </div>
+              <div class="actionCard__top"><div class="actionCard__title">회전</div>
+                <div class="actionCard__right"><div class="halfGauge"><svg class="halfGauge__svg" viewBox="0 0 120 70"><path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" /><path id="a2GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" /></svg>
+                <div class="halfGauge__text"><span id="a2GaugeValue"></span><span class="halfGauge__unit">점</span></div></div></div>
               </div>
-              <div class="actionCard__meta" id="a2Meta">
-                <span class="llmAppliedBadge">SCORE 비교</span>
-                <span class="actionCard__pill" id="a2TrendPill">-</span>
-              </div>
-              <div class="actionMiniChartWrap" aria-label="동작 점수 변화 추이">
-                <canvas id="a2StageChart" class="actionMiniChart"></canvas>
-              </div>
-              <div class="actionCard__body" id="a2Body"></div>
-            </article>
+              <div class="actionCard__meta" id="a2Meta"><span class="llmAppliedBadge">SCORE 비교</span><span class="actionCard__pill" id="a2TrendPill">-</span></div>
+              <div class="actionMiniChartWrap"><canvas id="a2StageChart" class="actionMiniChart"></canvas></div>
+              <div class="actionCard__body" id="a2Body"></div> </article>
 
             <article class="actionCard" id="actionCard3">
-              <div class="actionCard__top">
-                <div class="actionCard__title">백스윙</div>
-                <div class="actionCard__right">
-                  <div class="halfGauge" aria-label="팔로스루 점수">
-                    <svg class="halfGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
-                      <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
-                      <path id="a3GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" />
-                    </svg>
-                    <div class="halfGauge__text"><span id="a3GaugeValue"></span><span class="halfGauge__unit">점</span></div>
-                  </div>
-                </div>
+              <div class="actionCard__top"><div class="actionCard__title">백스윙</div>
+                <div class="actionCard__right"><div class="halfGauge"><svg class="halfGauge__svg" viewBox="0 0 120 70"><path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" /><path id="a3GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" /></svg>
+                <div class="halfGauge__text"><span id="a3GaugeValue"></span><span class="halfGauge__unit">점</span></div></div></div>
               </div>
-              <div class="actionCard__meta" id="a3Meta">
-                <span class="llmAppliedBadge">SCORE 비교</span>
-                <span class="actionCard__pill" id="a3TrendPill">-</span>
-              </div>
-              <div class="actionMiniChartWrap" aria-label="동작 점수 변화 추이">
-                <canvas id="a3StageChart" class="actionMiniChart"></canvas>
-              </div>
-              <div class="actionCard__body" id="a3Body"></div>
-            </article>
+              <div class="actionCard__meta" id="a3Meta"><span class="llmAppliedBadge">SCORE 비교</span><span class="actionCard__pill" id="a3TrendPill">-</span></div>
+              <div class="actionMiniChartWrap"><canvas id="a3StageChart" class="actionMiniChart"></canvas></div>
+              <div class="actionCard__body" id="a3Body"></div> </article>
 
             <article class="actionCard" id="actionCard4">
-              <div class="actionCard__top">
-                <div class="actionCard__title">임팩트</div>
-                <div class="actionCard__right">
-                  <div class="halfGauge" aria-label="임팩트 점수">
-                    <svg class="halfGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
-                      <path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" />
-                      <path id="a4GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" />
-                    </svg>
-                    <div class="halfGauge__text"><span id="a4GaugeValue"></span><span class="halfGauge__unit">점</span></div>
-                  </div>
-                </div>
+              <div class="actionCard__top"><div class="actionCard__title">임팩트</div>
+                <div class="actionCard__right"><div class="halfGauge"><svg class="halfGauge__svg" viewBox="0 0 120 70"><path class="halfGauge__bg" d="M10,60 A50,50 0 0 1 110,60" /><path id="a4GaugeFg" class="halfGauge__fg" d="M10,60 A50,50 0 0 1 110,60" /></svg>
+                <div class="halfGauge__text"><span id="a4GaugeValue"></span><span class="halfGauge__unit">점</span></div></div></div>
               </div>
-              <div class="actionCard__meta" id="a4Meta">
-                <span class="llmAppliedBadge">SCORE 비교</span>
-                <span class="actionCard__pill" id="a4TrendPill">-</span>
-              </div>
-              <div class="actionMiniChartWrap" aria-label="동작 점수 변화 추이">
-                <canvas id="a4StageChart" class="actionMiniChart"></canvas>
-              </div>
-              <div class="actionCard__body" id="a4Body"></div>
-            </article>
+              <div class="actionCard__meta" id="a4Meta"><span class="llmAppliedBadge">SCORE 비교</span><span class="actionCard__pill" id="a4TrendPill">-</span></div>
+              <div class="actionMiniChartWrap"><canvas id="a4StageChart" class="actionMiniChart"></canvas></div>
+              <div class="actionCard__body" id="a4Body"></div> </article>
 
             <article class="actionCard" id="actionCard5">
-              <div class="actionCard__top">
-                <div class="actionCard__title">팔로스윙</div>
-                <div class="actionCard__right">
-                  <div class="actionMiniChartWrap" style="height:100px; width:100px; padding:0; background:transparent; border:0;">
-                    <canvas id="followSwingDonutChart" class="actionMiniChart"></canvas>
-                  </div>
-                </div>
+              <div class="actionCard__top"><div class="actionCard__title">팔로스윙</div>
+                <div class="actionCard__right"><div class="actionMiniChartWrap--donut"><canvas id="followSwingDonutChart"></canvas></div></div>
               </div>
-              <div class="actionCard__meta" id="a5Meta">
-                <span class="llmAppliedBadge">SCORE 비교</span>
-                <span class="actionCard__pill" id="a5TrendPill">-</span>
-              </div>
-              <div class="riskGauge" aria-label="팔로스윙 부상위험 게이지">
+              <div class="actionCard__meta" id="a5Meta"><span class="llmAppliedBadge">SCORE 비교</span><span class="actionCard__pill" id="a5TrendPill">-</span></div>
+              <div class="riskGauge">
                 <div class="riskGauge__title">부상위험</div>
-              
                 <div class="riskGauge__gauge">
-                  <svg class="riskGauge__svg" viewBox="0 0 120 70" preserveAspectRatio="xMidYMax meet">
-                    <!-- 3단계 배경(끊긴 세그먼트) -->
-                    <path
-                      class="riskGauge__seg riskGauge__seg--good"
-                      d="M10,60 A50,50 0 0 1 110,60"
-                      pathLength="157"
-                    />
-                    <path
-                      class="riskGauge__seg riskGauge__seg--mid"
-                      d="M10,60 A50,50 0 0 1 110,60"
-                      pathLength="157"
-                    />
-                    <path
-                      class="riskGauge__seg riskGauge__seg--bad"
-                      d="M10,60 A50,50 0 0 1 110,60"
-                      pathLength="157"
-                    />
-              
-                    <!-- 전경 진행 아크 -->
-                    <path
-                      id="fsRiskFg"
-                      class="riskGauge__fg"
-                      d="M10,60 A50,50 0 0 1 110,60"
-                      pathLength="157"
-                    />
-                  </svg>
-              
-                  <div class="riskGauge__center">
-                    <div id="fsRiskLabel" class="riskGauge__label">-</div>
-                    <div class="riskGauge__pct">
-                      <span id="fsRiskPct">-</span><span class="riskGauge__unit">%</span>
-                    </div>
-                  </div>
+                  <svg class="riskGauge__svg" viewBox="0 0 120 70"><path class="riskGauge__seg riskGauge__seg--good" d="M10,60 A50,50 0 0 1 110,60" pathLength="157" /><path class="riskGauge__seg riskGauge__seg--mid" d="M10,60 A50,50 0 0 1 110,60" pathLength="157" /><path class="riskGauge__seg riskGauge__seg--bad" d="M10,60 A50,50 0 0 1 110,60" pathLength="157" /><path id="fsRiskFg" class="riskGauge__fg" d="M10,60 A50,50 0 0 1 110,60" pathLength="157" /></svg>
+                  <div class="riskGauge__center"><div id="fsRiskLabel" class="riskGauge__label">-</div><div class="riskGauge__pct"><span id="fsRiskPct">-</span>%</div></div>
                 </div>
               </div>
-
-              <div class="actionCard__body" id="a5Body"></div>
-            </article>
+              <div class="actionCard__body" id="a5Body"></div> </article>
           </div>
-
-          <div id="actionCarouselDots" class="actionCarouselDots" aria-label="동작 카드 페이지" role="tablist"></div>
+          <div id="actionCarouselDots" class="actionCarouselDots" role="tablist"></div>
         </section>
 
         <section class="card">
           <h2>추천 영상</h2>
-          <div class="row">
-            <div id="llmYoutubeLinks" class="ytGrid"></div>
-          </div>
+          <div class="row"><div id="llmYoutubeLinks" class="ytGrid"></div></div>
         </section>
 
       </main>
     </div>
   </div>
+
+  <style>
+    /* 상단 요약 카드 가로 배치 스타일 */
+    .card--summary { flex-direction: column !important; align-items: flex-start !important; }
+    .summary__content-wrap { display: flex; width: 100%; justify-content: space-between; align-items: center; }
+    .summary__left { flex: 1; }
+    .summary__right { flex-shrink: 0; margin-left: 10px; }
+    
+    /* 로딩 애니메이션 */
+    .llm-loading-container { text-align: center; padding: 15px; background: rgba(32, 201, 151, 0.05); border-radius: 12px; margin: 10px 16px; border: 1px dashed #20c997; }
+    .spinner { width: 24px; height: 24px; border: 3px solid rgba(32,201,151,0.2); border-top: 3px solid #20c997; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 8px; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* 슬라이더(actionCards) 관련: 가로 슬라이드가 유지되도록 설정 */
+    .actionCards { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 14px; padding-bottom: 10px; scrollbar-width: none; }
+    .actionCards::-webkit-scrollbar { display: none; }
+    .actionCard { flex: 0 0 100%; scroll-snap-align: center; }
+
+    /* ✅ 모든 로딩 텍스트와 피드백에 프리텐다드 강제 적용 */
+  @font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/pretendard@v1.3.8/public/static/Pretendard-Regular.woff2') format('woff2');
+  }
+
+  .llm-loading-container, 
+  .llm-loading-text, 
+  .actionCard__body,
+  .summary__sub {
+    font-family: 'Pretendard', -apple-system, sans-serif !important;
+  }
+
+  .llm-loading-text {
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  /* 부드럽게 나타나는 효과 */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  </style>
 
   <script src="js/common.js"></script>
   <script src="js/08-reportTotal.js"></script>

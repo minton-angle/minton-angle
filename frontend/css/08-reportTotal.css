@@ -55,7 +55,7 @@
 }
 
 h1 { font-size: 18px; margin: 0 0 10px; line-height: 1.25; }
-h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
+h2 { font-size: 16px; margin: 0 0 12px; font-weight: 500; }
 .row { margin: 6px 0; }
 
 .summary__left { flex: 1 1 20dvw; }
@@ -99,7 +99,7 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
 
 .scoreRing__fg {
   fill: none;
-  stroke: #22c55e;
+  stroke: #6b7280; /* 기본색을 회색으로 변경 */
   stroke-width: 10;
   stroke-linecap: round;
   stroke-dasharray: 289.0;
@@ -197,13 +197,15 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
   height: 34px;
   padding: 0 12px;
   border-radius: 999px;
-
   border: 0;
   background: transparent;
   color: rgba(17,24,39,.62);
 
-  font-size: 15px; /* ✅ 글씨 조금 키움 */
-  font-weight: 900;
+  /* ✅ 폰트 설정 추가 */
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  
+  font-size: 14px; 
+  font-weight: 600; /* 조금 더 뚜렷하게 보이도록 600 유지 */
   cursor: pointer;
 
   transition: background .18s ease, color .18s ease, box-shadow .18s ease, transform .06s ease;
@@ -368,6 +370,13 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
   background: rgba(243,244,246,.75);
   color: rgba(17,24,39,.75);
   white-space: nowrap;
+}
+
+/* ✅ 로딩 텍스트 및 전체 요소 폰트 강제 적용 */
+.llm-loading-container,
+.llm-loading-text,
+.actionCard__body {
+  font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
 }
 
 /* ===== LLM applied badge (SCORE 비교) ===== */
