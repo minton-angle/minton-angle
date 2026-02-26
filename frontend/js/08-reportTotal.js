@@ -1788,8 +1788,16 @@ function ensureLLMBlocks(){
   }
 }
 
+// LLM 호출 전: 각 카드별로 로딩 표시 + 기간 버튼 비활성화
 function setLLMLoading(isLoading){
   ensureLLMBlocks();
+
+  // 🔒 기간 버튼 비활성화 (중복 클릭 방지)
+  const rangeButtons = document.querySelectorAll(".rangeTabs .rangeTab[data-range]");
+  rangeButtons.forEach((btn)=>{
+    btn.disabled = !!isLoading;
+  });
+
   const blocks = document.querySelectorAll(".llmActionBlock");
   blocks.forEach((b)=>{
     b.classList.toggle("is-loading", !!isLoading);
@@ -1803,12 +1811,28 @@ function setLLMLoading(isLoading){
 
 function setLLMError(message){
   ensureLLMBlocks();
+
+  // 🔓 에러 발생 시 기간 버튼 다시 활성화
+  const rangeButtons = document.querySelectorAll(".rangeTabs .rangeTab[data-range]");
+  rangeButtons.forEach((btn)=>{
+    btn.disabled = false;
+  });
+
+  // UI에는 원문 에러를 그대로 노출하지 않고, 고정 문구로 안내
+  const raw = (message == null) ? "" : String(message);
+  const isDev = (location.hostname === "localhost" || location.hostname === "127.0.0.1");
+  if (isDev && raw) {
+    console.warn("[LLM ERROR RAW]", raw);
+  }
+
+  const displayMsg = "답변 생성에 실패 하였습니다. 잠시후 다시 시도해주세요!";
+
   const blocks = document.querySelectorAll(".llmActionBlock");
   blocks.forEach((b)=>{
     b.classList.remove("is-loading");
     const content = b.querySelector(".llmActionContent");
     if (!content) return;
-    content.innerHTML = `<div class="llmError">${String(message || "LLM 호출 실패")}</div>`;
+    content.innerHTML = `<div class="llmError">${displayMsg}</div>`;
   });
 }
 
