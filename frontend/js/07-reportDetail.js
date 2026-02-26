@@ -186,18 +186,28 @@ function displayOverallScore(score) {
 }
 
 function displayMediaComparison(files) {
-    const setImg = (id, path) => {
-        const el = document.getElementById(id);
-        if (el && path) el.src = `${API_BASE_URL}${fixPath(path)}`;
-    };
-
-    const setVideo = (id, path) => {
+    const setImg = async (id, path) => {
         const el = document.getElementById(id);
         if (el && path) {
-            const fullUrl = `${API_BASE_URL}${fixPath(path)}`;
-            console.log(`🎬 video src: ${id} → ${fullUrl}`);
-            el.src = fullUrl;
-            el.load();
+            const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+            const finalUrl = `${baseUrl}${fixPath(path)}`;
+
+            try {
+                // 🌟 핵심: ngrok 경고 페이지를 무시하는 헤더를 들고 사진을 직접 요청합니다.
+                const response = await fetch(finalUrl, {
+                    headers: {
+                        'ngrok-skip-browser-warning': '69420'
+                    }
+                });
+                
+                // 받아온 데이터를 이미지로 변환
+                const blob = await response.blob();
+                const objectURL = URL.createObjectURL(blob);
+                el.src = objectURL;
+                console.log(`✅ ${id} 이미지 직빵 로드 성공!`);
+            } catch (error) {
+                console.error(`❌ 이미지 로드 실패: ${id}`, error);
+            }
         }
     };
 
