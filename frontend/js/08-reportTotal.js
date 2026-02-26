@@ -705,6 +705,7 @@ function rangeLabelFromKey(r){
   if (x === "1m") return "1개월";
   if (x === "3m") return "3개월";
   if (x === "all") return "전체";
+  if (x === "5n") return "최근 5회";
   return "기간";
 }
 
@@ -934,10 +935,11 @@ function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeK
 
   const r = String(rangeKey || "7d").toLowerCase();
   let N = Array.isArray(currentSeries) ? currentSeries.length : 0;
-  if (r === "7d") N = 7;
-  else if (r === "1m") N = 30;
-  else if (r === "3m") N = 90;
-  else if (r === "all") N = Array.isArray(currentSeries) ? currentSeries.length : 0;
+
+  // 최근 N회 기준 (빈 공간 방지)
+  if (r === "5n") N = 5;
+  else if (r === "10n") N = 10;
+  else if (r === "1m") N = Math.min(10, N);  // 1개월도 최대 10회까지만 표시
 
   N = clamp(Number(N) || 0, 1, 120);
   const labels = Array.from({ length: N }, (_, i) => String(i + 1));
@@ -946,7 +948,8 @@ function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeK
     const xs = Array.isArray(arr) ? arr : [];
     const tail = xs.slice(-N);
     const pad = Array(Math.max(0, N - tail.length)).fill(null);
-    return tail.concat(pad).map((v)=>{
+    // pad on the LEFT so the most recent values land on the RIGHT side of the chart
+    return pad.concat(tail).map((v)=>{
       const num = Number(v);
       return Number.isFinite(num) ? num : null;
     });
@@ -954,6 +957,14 @@ function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeK
 
   const cur = alignLastN(currentSeries);
   const prev = alignLastN(prevSeries);
+
+  // Find latest valid index in cur
+  const latestIdx = (() => {
+    for (let i = cur.length - 1; i >= 0; i--) {
+      if (Number.isFinite(Number(cur[i]))) return i;
+    }
+    return -1;
+  })();
 
   // --- 평균 점수 점선(현재 기간 기준) ---
   const curValsForAvg = cur
@@ -998,7 +1009,11 @@ function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeK
         {
           label: "현재",
           data: cur,
-          backgroundColor: "rgba(34,197,94,0.7)",
+          backgroundColor: (ctx) => {
+            const i = ctx.dataIndex;
+            if (i === latestIdx) return "rgba(16,185,129,0.95)"; // latest highlight
+            return "rgba(34,197,94,0.7)";
+          },
           borderRadius: 4,
           barPercentage: 0.9,
           categoryPercentage: 0.5,
@@ -1067,9 +1082,11 @@ function renderScoreKfHistoryChart(currentSessions, prevSessions) {
 
   // Choose N by selected range (fallback to current length)
   let N = cur.length;
-  if (rangeKey === "7d") N = 7;
-  else if (rangeKey === "1m") N = 30;
-  else if (rangeKey === "3m") N = 90;
+
+  // 최근 N회 기준 (날짜 고정 X, 세션 기준)
+  if (rangeKey === "5n") N = 5;
+  else if (rangeKey === "10n") N = 10;
+  else if (rangeKey === "1m") N = Math.min(10, cur.length);  // 1개월도 최근 최대 10회
   else if (rangeKey === "all") N = cur.length;
 
   // Safety cap to avoid huge charts
@@ -1553,7 +1570,7 @@ function renderMonthlySummary(sessions){
 // (removed) GT_profile-based best KF feature was removed per product decision.
 function renderBestKFInRange(){ /* intentionally removed */ }
 
-let __RANGE_FILTER__ = "7d";
+let __RANGE_FILTER__ = "5n";
 window.__LAST_SESSION__ = null;
 
 function wireRangeTabs(onChange){
@@ -1567,7 +1584,7 @@ function wireRangeTabs(onChange){
       const rawRange = btn.getAttribute("data-range");
       if (!rawRange) return; // safety
       const v = String(rawRange || "7d").toLowerCase();
-      __RANGE_FILTER__ = (v === "7d" || v === "1m" || v === "3m" || v === "all") ? v : "7d";
+      __RANGE_FILTER__ = (v === "5n" || v=== "10n" || v === "7d" || v === "1m" || v === "3m" || v === "all") ? v : "5n";
 
       tabs.forEach((b)=>{
         const active = (b === btn);

@@ -183,14 +183,19 @@ def get_analysis_by_post_alias(
     세션 목록(JSON)으로 반환합니다.
 
     Query Params:
-      - range: "7d" | "1m" | "3m" | "all" (default: 7d)
+      - range: "7d" | "1m" | "3m" | "all" | "5n" (default: 7d)
     """
     try:
         r = (range or "7d").lower().strip()
-        if r not in ("7d", "1m", "3m", "all"):
+        if r in ("5n", "last5", "recent5"):
+            r = "5n"
+        if r in ("10n", "last10", "recent10"):
+            r = "10n"
+        if r not in ("7d", "1m", "3m", "all", "5n", "10n"):
             r = "7d"
 
         now = datetime.utcnow()
+        base_q = db.query(Analysis).filter(Analysis.post_idx == post_idx)
 
         # ---- current window ----
         current_start = None
@@ -203,30 +208,36 @@ def get_analysis_by_post_alias(
         elif r == "all":
             current_start = None
 
-        base_q = db.query(Analysis).filter(Analysis.post_idx == post_idx)
-
         # current analyses
-        q_current = base_q
-        if current_start is not None:
-            q_current = q_current.filter(Analysis.create_date >= current_start)
+        if r in ("5n", "10n"):
+            n = 5 if r == "5n" else 10
+            latest = base_q.order_by(Analysis.create_date.desc()).limit(2 * n).all()
 
-        current_analyses = q_current.order_by(Analysis.create_date.asc()).all()
+            cur_desc = latest[:n]
+            prev_desc = latest[n:2 * n]
 
-        if not current_analyses:
-            raise HTTPException(status_code=404, detail="No analysis rows for this post_idx in the selected range")
+            # asc 정렬로 변환 (왼쪽=과거, 오른쪽=최신)
+            current_analyses = list(reversed(cur_desc))
+            prev_analyses = list(reversed(prev_desc))
+        else:
+            q_current = base_q
+            if current_start is not None:
+                q_current = q_current.filter(Analysis.create_date >= current_start)
 
-        # ---- previous window (same length) ----
-        prev_analyses = []
-        if current_start is not None:
-            window_days = (now - current_start).days
-            prev_start = current_start - timedelta(days=window_days)
-            prev_end = current_start
+            current_analyses = q_current.order_by(Analysis.create_date.asc()).all()
 
-            q_prev = base_q.filter(
-                Analysis.create_date >= prev_start,
-                Analysis.create_date < prev_end,
-            )
-            prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
+            # ---- previous window (same length) ----
+            prev_analyses = []
+            if current_start is not None:
+                window_days = (now - current_start).days
+                prev_start = current_start - timedelta(days=window_days)
+                prev_end = current_start
+
+                q_prev = base_q.filter(
+                    Analysis.create_date >= prev_start,
+                    Analysis.create_date < prev_end,
+                )
+                prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
 
         def to_sessions(analyses: list[Analysis]) -> list[Dict[str, Any]]:
             def _clamp_score(v: Any) -> float:
@@ -424,7 +435,11 @@ def posture_report_from_post(
 
     try:
         r = (range or "7d").lower().strip()
-        if r not in ("7d", "1m", "3m", "all"):
+        if r in ("5n", "last5", "recent5"):
+            r = "5n"
+        if r in ("10n", "last10", "recent10"):
+            r = "10n"
+        if r not in ("7d", "1m", "3m", "all", "5n", "10n"):
             r = "7d"
 
         now = datetime.utcnow()
@@ -440,27 +455,37 @@ def posture_report_from_post(
         elif r == "all":
             current_start = None
 
-        q_current = base_q
-        if current_start is not None:
-            q_current = q_current.filter(Analysis.create_date >= current_start)
+        if r in ("5n", "10n"):
+            n = 5 if r == "5n" else 10
+            latest = base_q.order_by(Analysis.create_date.desc()).limit(2 * n).all()
 
-        analyses = q_current.order_by(Analysis.create_date.asc()).all()
+            cur_desc = latest[:n]
+            prev_desc = latest[n:2 * n]
+
+            analyses = list(reversed(cur_desc))
+            prev_analyses = list(reversed(prev_desc))
+        else:
+            q_current = base_q
+            if current_start is not None:
+                q_current = q_current.filter(Analysis.create_date >= current_start)
+
+            analyses = q_current.order_by(Analysis.create_date.asc()).all()
+
+            # previous window
+
+            if current_start is not None:
+                window_days = (now - current_start).days
+                prev_start = current_start - timedelta(days=window_days)
+                prev_end = current_start
+
+                q_prev = base_q.filter(
+                    Analysis.create_date >= prev_start,
+                    Analysis.create_date < prev_end,
+                )
+                prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
 
         if not analyses:
             raise HTTPException(status_code=404, detail="No analysis rows for this post_idx in the selected range")
-
-        # previous window (same length)
-        prev_analyses = []
-        if current_start is not None:
-            window_days = (now - current_start).days
-            prev_start = current_start - timedelta(days=window_days)
-            prev_end = current_start
-
-            q_prev = base_q.filter(
-                Analysis.create_date >= prev_start,
-                Analysis.create_date < prev_end,
-            )
-            prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
 
         latest = analyses[-1]
 

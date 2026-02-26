@@ -150,8 +150,8 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
 /* 기간 필터용 세그먼티드 컨트롤 스타일 (rangeTabs) - 탭 너비 줄이고 글씨 크기 조정, Sticky 바에서 배경과 라인 제거 */
 .rangeTabs {
   /* Segmented control container */
-  display: flex;
-  gap: 0;
+  display: inline-flex;              /* 내용 기준 자동 확장 */
+  gap: 4px;
   justify-content: center;
   align-items: center;
   flex-wrap: nowrap;
@@ -204,6 +204,7 @@ h2 { font-size: 16px; margin: 0 0 12px; font-weight: 900; }
 
   font-size: 15px; /* ✅ 글씨 조금 키움 */
   font-weight: 900;
+  white-space: nowrap;           /* 줄바꿈 방지 */
   cursor: pointer;
 
   transition: background .18s ease, color .18s ease, box-shadow .18s ease, transform .06s ease;
