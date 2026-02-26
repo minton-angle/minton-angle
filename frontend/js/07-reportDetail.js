@@ -309,7 +309,7 @@ function setEval(elId, data, labelFn, valFn) {
     if (!el || !data) return;
     const val = valFn(data);
     const label = labelFn(val);
-    const isPass = ['적정', '안정', '성공 ✓', '펴짐'].includes(label);
+    const isPass = ['적정', '안정', '성공 ✓', '펴짐','높음'].includes(label);
     activateOption(el, label, isPass);
 }
 
