@@ -220,6 +220,16 @@ function displayMediaComparison(files) {
     setVideo('phase3-user-video', files.followswing || files.follow_video);
 }
 
+function setVideo(id, path) {
+    const el = document.getElementById(id);
+    if (el && path) {
+        const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+        const finalUrl = `${baseUrl}${fixPath(path)}`;
+        el.src = finalUrl;
+        el.load(); // 영상 새로 로드
+    }
+}
+
 // ------------------------------------------------------------------ //
 //  6. 슬라이더 로직
 // ------------------------------------------------------------------ //
