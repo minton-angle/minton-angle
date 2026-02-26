@@ -641,3 +641,50 @@ canvas {
 
 .btnLLM:active { transform: scale(0.98); }
 .btnLLM:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ===== LLM loading/error UI inside action cards ===== */
+.llmActionBlock{
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(17,24,39,.18);
+}
+
+.llmActionTitle{
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(17,24,39,.70);
+  letter-spacing: -.2px;
+}
+
+.llmActionContent{
+  margin-top: 6px;
+}
+
+.llmLoading{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: rgba(17,24,39,.75);
+}
+
+.llmSpinner{
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(17,24,39,.20);
+  border-top-color: rgba(17,24,39,.55);
+  animation: llmSpin 0.8s linear infinite;
+}
+
+@keyframes llmSpin{
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.llmError{
+  font-size: 13px;
+  font-weight: 800;
+  color: #b91c1c;
+}

@@ -1708,8 +1708,9 @@ function renderActionCardsFromLLM(reportObj){
     if (body){
       const existing = body.querySelector(".llmActionBlock");
       const html = `
-        <div class="llmActionBlock" style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(17,24,39,.18);">
-          <div style="margin-top:6px;">${String(analysis || "-")}</div>
+        <div class="llmActionBlock">
+          <div class="llmActionTitle">LLM 코칭</div>
+          <div class="llmActionContent">${String(analysis || "-")}</div>
         </div>
       `;
 
@@ -1757,6 +1758,59 @@ function renderLLMReport(reportObj){
   renderActionCardsFromLLM(reportObj);
   renderYoutubeLinksFromReport(reportObj);
 }
+// ====== LLM UI helpers (loading/error placeholder inside each action card) ======
+function ensureLLMBlocks(){
+  for (let n = 1; n <= 5; n++){
+    const body = document.getElementById(`a${n}Body`);
+    if (!body) continue;
+
+    let block = body.querySelector(".llmActionBlock");
+    if (!block){
+      body.insertAdjacentHTML(
+        "beforeend",
+        `
+          <div class="llmActionBlock">
+            <div class="llmActionTitle">LLM 분석코칭</div>
+            <div class="llmActionContent">기간별로 조회를 눌러주세요.</div>
+          </div>
+        `
+      );
+      block = body.querySelector(".llmActionBlock");
+    }
+
+    // Ensure expected sub-structure exists
+    if (block && !block.querySelector(".llmActionTitle")){
+      block.insertAdjacentHTML("afterbegin", `<div class="llmActionTitle">LLM 코칭</div>`);
+    }
+    if (block && !block.querySelector(".llmActionContent")){
+      block.insertAdjacentHTML("beforeend", `<div class="llmActionContent"></div>`);
+    }
+  }
+}
+
+function setLLMLoading(isLoading){
+  ensureLLMBlocks();
+  const blocks = document.querySelectorAll(".llmActionBlock");
+  blocks.forEach((b)=>{
+    b.classList.toggle("is-loading", !!isLoading);
+    const content = b.querySelector(".llmActionContent");
+    if (!content) return;
+    if (isLoading){
+      content.innerHTML = `<div class="llmLoading"><span class="llmSpinner" aria-hidden="true"></span><span>답변 로딩중...잠시 기다려주세요 </span></div>`;
+    }
+  });
+}
+
+function setLLMError(message){
+  ensureLLMBlocks();
+  const blocks = document.querySelectorAll(".llmActionBlock");
+  blocks.forEach((b)=>{
+    b.classList.remove("is-loading");
+    const content = b.querySelector(".llmActionContent");
+    if (!content) return;
+    content.innerHTML = `<div class="llmError">${String(message || "LLM 호출 실패")}</div>`;
+  });
+}
 
 // ====== 초기 로드: DB에서 JSON 가져오기 (실제 DB) ======
 async function loadFromDB(range = "7d") {
@@ -1796,12 +1850,20 @@ async function loadFromDB(range = "7d") {
       // 1️⃣ 먼저 DB GET 기반 렌더링
       await refreshByRange(r);
 
-      // 2️⃣ 그 다음 LLM POST 호출
+      // 2️⃣ 그 다음 LLM POST 호출 (로딩 표시)
       const postIdx = getPostIdxFromURL() || getPostIdxFallback();
       if (postIdx) {
-        const llmReport = await generateLLMReportByPostIdx(postIdx, "ko");
-        if (llmReport) {
-          renderLLMReport(llmReport);
+        try {
+          setLLMLoading(true);
+          const llmReport = await generateLLMReportByPostIdx(postIdx, "ko");
+          if (llmReport) {
+            renderLLMReport(llmReport);
+          }
+        } catch (err) {
+          console.error("LLM generate failed:", err);
+          setLLMError(err?.message || "LLM 호출 실패");
+        } finally {
+          setLLMLoading(false);
         }
       }
 
