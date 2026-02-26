@@ -1,3 +1,6 @@
 {
-  "rootDirectory": "frontend"
+  "buildCommand": null,
+  "outputDirectory": "frontend",
+  "installCommand": null,
+  "framework": null
 }
