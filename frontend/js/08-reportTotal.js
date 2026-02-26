@@ -946,7 +946,7 @@ function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeK
     const xs = Array.isArray(arr) ? arr : [];
     const tail = xs.slice(-N);
     const pad = Array(Math.max(0, N - tail.length)).fill(null);
-    return pad.concat(tail).map((v)=>{
+    return tail.concat(pad).map((v)=>{
       const num = Number(v);
       return Number.isFinite(num) ? num : null;
     });
