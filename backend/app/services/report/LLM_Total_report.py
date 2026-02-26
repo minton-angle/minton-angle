@@ -542,7 +542,6 @@ def _system_prompt(lang: str) -> str:
        impact: { title, change_one, analysis },
        followswing: { title, change_one, analysis }
      }
-   - today_checklist: string[]
 6-1) analysis는 해당 Stage의 "최근 N회 기준 비교 기반 분석 리포트"를 작성하는 단일 필드입니다.
      - 정확히 3문장 구조를 유지하십시오.
      - 첫 문장: 이전 횟수 대비 세부 동작 흐름(최소 2개 세부 항목)을 객관적으로 요약하십시오.
@@ -553,7 +552,6 @@ def _system_prompt(lang: str) -> str:
      - retrieved_coaching가 있는 경우, 핵심 의미만 요약 반영하십시오. (드릴 세부 묘사 금지)
      - worst_sub_current_mean이 90 미만인 경우,
        해당 worst_sub를 1회 이상 언급하여 '세부 보완 필요' 관점으로 포함하십시오.
-8) today_checklist는 정확히 3개 항목의 배열로 작성하십시오.
 9) 각 섹션은 current_mean(점수)에 따라 피드백 목적이 달라야 합니다.
    - current_mean >= 90: "유지/강점 확인" 중심으로 작성합니다.
      단, worst_sub_current_mean이 90 미만인 경우에는 '문제 지적'이 아니라
@@ -577,7 +575,6 @@ def _user_prompt(
     safe_meta = {
         "post_idx": m.get("post_idx"),
         "range": m.get("range"),
-        "summary": m.get("summary", {}),
         "trend": m.get("trend", {}),
         "score_stats": m.get("score_stats", {}),
         "insights": m.get("insights", {}),
@@ -586,20 +583,18 @@ def _user_prompt(
     }
 
     schema = {
-        "summary": "string",
         "growth": {
             "direction": "improved|worsened|flat",
             "delta_average_score": "number",
             "message": "string",
         },
         "sections": {
-            "ready": {"title": "준비", "change_one": "string", "analysis": "string"},
-            "rotation": {"title": "회전", "change_one": "string", "analysis": "string"},
-            "backswing": {"title": "백스윙", "change_one": "string", "analysis": "string"},
-            "impact": {"title": "임팩트", "change_one": "string", "analysis": "string"},
-            "followswing": {"title": "팔로스윙", "change_one": "string", "analysis": "string"},
+            "ready": {"title": "준비", "analysis": "string"},
+            "rotation": {"title": "회전", "analysis": "string"},
+            "backswing": {"title": "백스윙", "analysis": "string"},
+            "impact": {"title": "임팩트", "analysis": "string"},
+            "followswing": {"title": "팔로스윙", "analysis": "string"},
         },
-        "today_checklist": "string[]",
     }
 
     payload = {
@@ -618,7 +613,6 @@ def _user_prompt(
         "   - 2문장: 그 변화가 경기력/안정성에 주는 영향.\n"
         "   - 3문장: 개선 또는 유지 관점의 제안(지시형 금지).\n"
         "4) analysis에는 숫자/점수/퍼센트/소수점을 쓰지 않습니다(숫자 금지).\n"
-        "5) today_checklist는 정확히 3개 항목 배열입니다.\n"
         "7) Total 점수와 무관하게 worst_sub_current_mean이 90 미만인 섹션은, analysis에 worst_sub 문자열을 그대로 1회 이상 포함합니다.\n\n"
         f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
@@ -635,7 +629,7 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(report_obj, dict):
         return {}
 
-    report_obj.setdefault("summary", "-")
+    # removed summary default
     report_obj.setdefault(
         "growth",
         {"direction": "flat", "delta_average_score": 0.0, "message": "-"}
@@ -679,24 +673,12 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
     # Backward-compat: map score sections -> legacy actions(kf1/kf2/kf3) if actions missing
     if not report_obj.get("actions"):
         report_obj["actions"] = {
-            "kf1": {
-                "title": "백스윙 동작",
-                "problem_one": report_obj["sections"]["backswing"].get("change_one", "-"),
-                "fix_two": [],
-            },
-            "kf2": {
-                "title": "임팩트 동작",
-                "problem_one": report_obj["sections"]["impact"].get("change_one", "-"),
-                "fix_two": [],
-            },
-            "kf3": {
-                "title": "팔로스루 동작",
-                "problem_one": report_obj["sections"]["followswing"].get("change_one", "-"),
-                "fix_two": [],
-            },
+            "kf1": {"title": "백스윙 동작", "problem_one": "-", "fix_two": []},
+            "kf2": {"title": "임팩트 동작", "problem_one": "-", "fix_two": []},
+            "kf3": {"title": "팔로스루 동작", "problem_one": "-", "fix_two": []},
         }
 
-    report_obj.setdefault("today_checklist", [])
+    # (today_checklist 기본값 제거)
     return report_obj
 
 
