@@ -20,10 +20,15 @@
       <header class="topbar">
         <div class="topbar__title">종합 AI 피드백 리포트</div>
       </header>
-
+      <div class="periodStickyBar">
+        <div class="rangeTabs" role="tablist" aria-label="기간 필터">
+          <button type="button" class="rangeTab is-active" data-range="7d" aria-selected="true">1주일</button>
+          <button type="button" class="rangeTab" data-range="1m" aria-selected="false">1개월</button>
+        </div>
+      </div>
       <main class="scroll-container">
-        
         <section class="card card--summary">
+          
           <div class="summary__left">
             <h1 id="summaryHeadline" class="summary__headline">안녕하세요!</h1>
             <div id="summarySub" class="summary__sub"> LLM 리포트 요약해드려용~</div>
@@ -42,16 +47,6 @@
             </div>
           </div>
         </section>
-
-
-
-        <div class="periodStickyBar">
-          <div class="rangeTabs" role="tablist" aria-label="기간 필터">
-            <button type="button" class="rangeTab is-active" data-range="7d" aria-selected="true">1주일</button>
-            <button type="button" class="rangeTab" data-range="1m" aria-selected="false">1개월</button>
-            <button type="button" class="rangeTab" data-range="3m" aria-selected="false">3개월</button>
-          </div>
-        </div>
 
         <section class="card card--actionSection">
           <h2 class="actionSection__title">동작별 분석</h2>
