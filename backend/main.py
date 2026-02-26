@@ -80,9 +80,12 @@ app.include_router(calendarRouters.router)
 app.include_router(report_router)
 app.include_router(gripRouters.router)
 
-# 정적 파일 서빙
-app.mount("/backend/data", StaticFiles(directory="data"), name="data")
+# 정적 파일 서빙 - 도커 저장
+# app.mount("/data", StaticFiles(directory="/app/data"), name="data")
 
+# 로컬에서 테스트 할 때 저장 경로
+data_dir = os.path.join(current_dir, "data")
+app.mount("/data", StaticFiles(directory=data_dir), name="data")
 
 @app.get("/")
 def read_root():

@@ -97,7 +97,9 @@ class QuickFeedbackResponse(BaseModel):
     post_id: str = Field(..., description="POST ID (다음 회차에서 사용)")
     quick_feedback: str = Field(..., description="간단한 피드백 메시지")
     save_to_db: bool = Field(True, description="DB 저장 여부")
-    scores: Optional[ScoreDetail] = Field(None, description="점수 상세 (참고용)")
+    total_score: Optional[float] = Field(None, description="총점")           # ⭐ 추가
+    stage_scores: Optional[dict] = Field(None, description="단계별 점수")    # ⭐ 추가
+    scores: Optional[dict] = Field(None, description="점수 상세 (details)")  # ⭐ ScoreDetail → dict
     
     class Config:
         json_schema_extra = {
@@ -123,7 +125,7 @@ class AnalysisCompleteResponse(BaseModel):
     swing_num: int = Field(..., description="현재 스윙 횟수")
     post_id: str = Field(..., description="생성된 POST ID")
     save_to_db: bool = Field(True, description="DB 저장 여부")
-    total_score: int = Field(..., ge=0, le=100, description="종합 점수")
+    total_score: float = Field(..., ge=0, le=100, description="종합 점수")
     stage_scores: dict = Field(..., description="단계별 점수")  # ⭐ 추가!
     quick_feedback: str = Field(..., description="간단한 피드백 메시지")
     
