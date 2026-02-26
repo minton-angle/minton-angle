@@ -283,7 +283,7 @@ async function sendFramesToBackend(swingNum, frames) {
 }
 
 // ========================================
-// 9. UI 업데이트
+// 9. UI 업데이트 (수정본)
 // ========================================
 function updateUIWithResult(swingNum, result) {
     const row = document.getElementById(`row-${swingNum}`);
@@ -293,29 +293,31 @@ function updateUIWithResult(swingNum, result) {
         return;
     }
     
+    // 기존 활성화 클래스 모두 제거
     row.querySelectorAll('.status-item').forEach(el => 
         el.classList.remove('active', 'bad', 'normal', 'good')
     );
     
-    // ⭐ total_score 우선, 없으면 overall_average
     const avgScore = result.total_score || result.overall_average || 0;
-    console.log(`📊 스윙 ${swingNum} 점수:`, avgScore);  // ⭐ 디버깅용
+    console.log(`📊 스윙 ${swingNum} 점수:`, avgScore); 
     
+    // ⭐ 백엔드(SwingService.py)의 get_quick_feedback 기준과 동일하게 맞춤
     let status = 'bad';
-    if (avgScore >= 80) {
+    if (avgScore >= 70) {         // 🌟 80 -> 70으로 수정 (잘함)
         status = 'good';
-    } else if (avgScore >= 60) {
+    } else if (avgScore >= 40) {  // 🌟 60 -> 40으로 수정 (보통)
         status = 'normal';
     }
     
     const target = document.getElementById(`res-${swingNum}-${status}`);
     if (target) {
         target.classList.add('active', status);
+        console.log(`🎯 UI 활성화 완료: res-${swingNum}-${status}`);
     }
     
     const feedback = result.quick_feedback || result.feedback || "분석 완료";
     feedbackEl.innerText = `스윙 ${swingNum}회: ${feedback} (${avgScore.toFixed(1)}점)`;
-    speak(feedback);
+    // speak(feedback); // 루틴에서 이미 말하고 있다면 중복 방지를 위해 주석 처리 가능
 }
 
 console.log('📄 05-swingAnalyze.js 로드 완료');
