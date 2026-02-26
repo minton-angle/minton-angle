@@ -955,6 +955,18 @@ function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeK
   const cur = alignLastN(currentSeries);
   const prev = alignLastN(prevSeries);
 
+  // --- 평균 점수 점선(현재 기간 기준) ---
+  const curValsForAvg = cur
+    .map((v)=> Number(v))
+    .filter((v)=> Number.isFinite(v));
+  const curAvg = curValsForAvg.length
+    // 평균 계산 시 유효한 값 개수로 나누기 (0으로 나누는 경우 방지)
+    ? (curValsForAvg.reduce((a,b)=>a+b,0) / curValsForAvg.length)
+    : null;
+  const avgLine = (curAvg == null)
+    ? null
+    : Array.from({ length: N }, ()=> +curAvg.toFixed(1));
+
   // y축 자동 확대
   const allVals = [...cur, ...prev]
     .filter((v)=> Number.isFinite(Number(v)))
@@ -990,6 +1002,7 @@ function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeK
           borderRadius: 4,
           barPercentage: 0.9,
           categoryPercentage: 0.5,
+          order: 2,
         },
         {
           label: "이전",
@@ -998,7 +1011,22 @@ function renderActionMiniStageChart(actionNum, currentSeries, prevSeries, rangeK
           borderRadius: 4,
           barPercentage: 0.9,
           categoryPercentage: 0.5,
+          order: 2,
         },
+        // 현재 기간 평균 점수(점선)
+        ...(avgLine ? [{
+          type: "line",
+          label: "평균",
+          data: avgLine,
+          borderColor: "rgba(17,24,39,0.35)",
+          backgroundColor: "rgba(17,24,39,0.35)",
+          borderWidth: 2,
+          borderDash: [6, 6],
+          pointRadius: 0,
+          tension: 0,
+          fill: false,
+          order: 1,
+        }] : []),
       ],
     },
     options: {
