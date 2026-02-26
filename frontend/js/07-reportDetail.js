@@ -71,7 +71,7 @@ async function loadAnalysisResult() {
         const result = await apiCall(endpoint, {
             method: 'GET',
             auth: true,
-            headers: { "ngrok-skip-browser-warning": "69420" } // ngrok 경고 페이지 우회
+            headers: { "ngrok-skip-browser-warning": "true" } // ngrok 경고 페이지 우회
         });
 
         console.log('✅ 서버 응답 전체:', result);
@@ -234,20 +234,27 @@ function stepSeq(dir) {
     updateSeqSlider();
 }
 
-function updateSeqSlider() {
+async function updateSeqSlider() {
     // 내 스윙 이미지 업데이트
     const userImg = document.getElementById('phase2-user-seq-img');
     const userPath = seqFiles[SEQ_KEYS[currentSeqIdx]];
     if (userImg && userPath) {
         const fullUrl = `${API_BASE_URL}${fixPath(userPath)}`;
-        userImg.src = fullUrl;
+        try {
+            const response = await fetch(fullUrl, {
+                headers: { 'ngrok-skip-browser-warning': '69420' }
+            });
+            const blob = await response.blob();
+            userImg.src = URL.createObjectURL(blob);
+        } catch (e) {
+            console.error('슬라이더 이미지 로드 실패', e);
+        }
     }
 
-    // 전문가 스윙 이미지 업데이트
+    // 전문가 이미지는 로컬 assets이라 그대로 둬도 됨
     const expertImg = document.getElementById('phase2-expert-seq-img');
     if (expertImg) expertImg.src = EXPERT_SEQ[currentSeqIdx];
 
-    // 라벨 업데이트
     const label = document.getElementById('current-step-label');
     if (label) label.textContent = `${SEQ_LABELS[currentSeqIdx]} (${currentSeqIdx + 1}/6)`;
 }
