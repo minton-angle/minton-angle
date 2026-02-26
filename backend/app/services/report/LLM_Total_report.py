@@ -14,14 +14,39 @@ from functools import lru_cache
 logger_llm = logging.getLogger("app.llm")
 
 # ------------------------------------------------------------------
-# Groq Settings
+# LLM Provider Settings (Groq / Hugging Face)
 # ------------------------------------------------------------------
+# env 파일에서 LLM_PROVIDER 값을 읽어서 사용할 LLM API를 결정함:
+# - LLM_PROVIDER=groq (디폴트값, Groq OpenAI-compatible endpoints)
+# - LLM_PROVIDER=hf  (Hugging Face OpenAI-compatible endpoints, e.g. Inference Endpoints/TGI)
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").strip().lower()
+
+# Groq (OpenAI-compatible)
 GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
-DEFAULT_MAX_TOKENS = int(os.getenv("GROQ_MAX_TOKENS", "800"))
-DEFAULT_TEMPERATURE = float(os.getenv("GROQ_TEMPERATURE", "0.8"))
+# Hugging Face (OpenAI-compatible)
+# Examples:
+# - HF_BASE_URL=https://<your-endpoint>/v1
+# - HF_API_KEY=hf_...  (or provider-specific token)
+# - HF_MODEL=<model name> (some endpoints ignore this; keep for compatibility)
+HF_BASE_URL = os.getenv("HF_BASE_URL", "").strip()
+HF_API_KEY = os.getenv("HF_API_KEY") or os.getenv("HF_TOKEN")
+HF_MODEL = os.getenv("HF_MODEL", "").strip()
+
+# Shared generation params
+DEFAULT_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", os.getenv("GROQ_MAX_TOKENS", "1600")))
+DEFAULT_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", os.getenv("GROQ_TEMPERATURE", "0.8")))
+
+
+# Some providers do not support response_format=json_object. Keep it optional.
+# - LLM_JSON_MODE=1 to request JSON mode when supported (Groq supports it).
+LLM_JSON_MODE = os.getenv("LLM_JSON_MODE", "1").strip() not in ("0", "false", "False")
+
+# Debug: dump raw LLM output on JSON parse error
+LLM_DUMP_RAW_ON_ERROR = os.getenv("LLM_DUMP_RAW_ON_ERROR", "0").strip() not in ("0", "false", "False")
+LLM_DUMP_RAW_DIR = os.getenv("LLM_DUMP_RAW_DIR", "./snapshots/llm_raw").strip() or "./snapshots/llm_raw"
 
 
 # ------------------------------------------------------------------
@@ -509,7 +534,6 @@ def _system_prompt(lang: str) -> str:
    - flat: delta == 0
 4) 문구에는 반드시 "이전 기간 대비" 표현이 포함되어야 합니다.
 5) 출력은 반드시 JSON 오브젝트 1개이며, 아래 스키마를 정확히 지키십시오.
-   - summary: string
    - growth: { direction: improved|worsened|flat, delta_average_score: number, message: string }
    - sections: {
        ready: { title, change_one, analysis },
@@ -519,8 +543,6 @@ def _system_prompt(lang: str) -> str:
        followswing: { title, change_one, analysis }
      }
    - today_checklist: string[]
-6) change_one에는 아래 3개 값을 반드시 포함하십시오(점수 표기, 소수점 2자리):
-   - current_mean, prev_mean, delta
 6-1) analysis는 해당 Stage의 "기간 비교 기반 분석 리포트"를 작성하는 단일 필드입니다.
      - 정확히 3문장 구조를 유지하십시오.
      - 첫 문장: 이전 기간 대비 세부 동작 흐름(최소 2개 세부 항목)을 객관적으로 요약하십시오.
@@ -587,14 +609,17 @@ def _user_prompt(
 
     return (
         "다음 입력(meta.score_stats, meta.trend)을 사용해 '기간 비교 기반' 점수 리포트를 생성하세요.\n"
-        "중요: angles/단일 세션 값은 사용 금지이며 입력에도 제공되지 않습니다.\n"
-        "작성 규칙:\n"
-        "1) ready/rotation/backswing/impact/followswing 분석 내용은 서로 달라야 합니다.\n"
-        "2) 각 섹션의 change_one에는 current_mean, prev_mean, delta(모두 점수, 소수점 2자리) 3개를 반드시 포함하세요.\n"
-        "3) analysis는 analysis는 단일 문자열이며, 관찰 + 영향 + 해결 제안을 자연스럽게 통합하여 작성하세요. 단, 불필요한 반복은 피하십시오.\n"
-        "4) today_checklist는 정확히 3개 항목의 배열로 작성하세요.\n"
-        "5) 숫자는 meta.score_stats 값만 사용하세요. (세부 항목은 sub_stats를 사용할 수 있습니다)\n"
-        "6) Total 점수와 무관하게 worst_sub_current_mean이 90 미만인 섹션은 worst_sub(가장 낮은 세부 항목)을 반드시 1회 이상 언급하여 보강 관점을 포함하세요.\n\n"
+        "중요: angles/단일 세션 값은 사용 금지이며 입력에도 제공되지 않습니다.\n\n"
+        "[필수 규칙] (반드시 지키세요)\n"
+        "1) 출력은 JSON 오브젝트 1개만 반환합니다.\n"
+        "2) 각 섹션의 analysis는 반드시 '이전 기간 대비' 문구를 포함합니다.\n"
+        "3) 각 섹션의 analysis는 정확히 3문장입니다. 각 문장은 반드시 마침표(.)로 끝나야 합니다.\n"
+        "   - 1문장: 이전 기간 대비 동작 흐름(최소 2개 관찰 포인트) 요약.\n"
+        "   - 2문장: 그 변화가 경기력/안정성에 주는 영향.\n"
+        "   - 3문장: 개선 또는 유지 관점의 제안(지시형 금지).\n"
+        "4) analysis에는 숫자/점수/퍼센트/소수점을 쓰지 않습니다(숫자 금지).\n"
+        "5) today_checklist는 정확히 3개 항목 배열입니다.\n"
+        "7) Total 점수와 무관하게 worst_sub_current_mean이 90 미만인 섹션은, analysis에 worst_sub 문자열을 그대로 1회 이상 포함합니다.\n\n"
         f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
 
@@ -647,7 +672,7 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
     ]:
         node = report_obj["sections"].setdefault(
             key,
-            {"title": title, "change_one": "-", "analysis": "-"},
+            {"title": title, "analysis": "-"},
         )
         node.setdefault("analysis", "-")
 
@@ -676,31 +701,124 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------------
-# Groq API Call
+# LLM API Call (OpenAI-compatible)
 # ------------------------------------------------------------------
-def _call_groq_chat(messages, model: str = GROQ_MODEL) -> str:
+def _chat_completions_url(base_url: str) -> str:
+    """Build a chat-completions URL from a base URL.
+
+    Accepts base_url like:
+    - https://api.groq.com/openai/v1
+    - https://<hf-endpoint>/v1
+    - https://<custom-host>
+
+    Returns: <base_url>/chat/completions (with /v1 preserved if provided)
+    """
+    b = (base_url or "").rstrip("/")
+    if not b:
+        return ""
+    # If caller provided .../v1 already, we still append /chat/completions
+    return f"{b}/chat/completions"
+
+
+def _call_llm_chat(messages, model: str) -> str:
+    """Call the configured provider (Groq or Hugging Face) via OpenAI-compatible chat completions."""
+
+    provider = (LLM_PROVIDER or "groq").strip().lower()
+
+    # Log which provider/model is actually being used
+    try:
+        effective_model = (
+            model
+            or (HF_MODEL if provider == "hf" else GROQ_MODEL)
+            or "model"
+        )
+        logger_llm.info(
+            "LLM call provider=%s base_url=%s model=%s temperature=%.2f max_tokens=%d",
+            provider,
+            HF_BASE_URL if provider == "hf" else GROQ_BASE_URL,
+            effective_model,
+            DEFAULT_TEMPERATURE,
+            DEFAULT_MAX_TOKENS,
+        )
+    except Exception:
+        pass
+
+    if provider == "hf":
+        if not HF_BASE_URL:
+            raise RuntimeError("HF_BASE_URL is not set (e.g. https://<your-hf-endpoint>/v1)")
+        if not HF_API_KEY:
+            raise RuntimeError("HF_API_KEY (or HF_TOKEN) is not set")
+
+        url = _chat_completions_url(HF_BASE_URL)
+        headers = {
+            "Authorization": f"Bearer {HF_API_KEY}",
+            "Content-Type": "application/json",
+        }
+
+        # Some HF OpenAI-compatible endpoints ignore `model` (fixed endpoint model), but it is required by schema.
+        chosen_model = model or HF_MODEL or "model"
+
+        body = {
+            "model": chosen_model,
+            "messages": messages,
+            "temperature": DEFAULT_TEMPERATURE,
+            "max_tokens": DEFAULT_MAX_TOKENS,
+        }
+
+        timeout = httpx.Timeout(60.0)
+        t0 = time.perf_counter()
+
+        with httpx.Client(timeout=timeout) as client:
+            r = client.post(url, headers=headers, json=body)
+
+        logger_llm.info(
+            "HF status=%s time_ms=%.1f",
+            r.status_code,
+            (time.perf_counter() - t0) * 1000.0,
+        )
+
+        if r.status_code >= 400:
+            raise RuntimeError(f"HF API error {r.status_code}: {r.text}")
+
+        data = r.json()
+        return data["choices"][0]["message"]["content"]
+
+    # default: groq
     if not GROQ_API_KEY:
         raise RuntimeError("GROQ_API_KEY is not set")
 
-    url = f"{GROQ_BASE_URL}/chat/completions"
+    url = _chat_completions_url(GROQ_BASE_URL)
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
     }
 
     body = {
-        "model": model,
+        "model": model or GROQ_MODEL,
         "messages": messages,
         "temperature": DEFAULT_TEMPERATURE,
         "max_tokens": DEFAULT_MAX_TOKENS,
-        "response_format": {"type": "json_object"},
     }
+
+    # Groq supports JSON mode; keep optional.
+    if LLM_JSON_MODE:
+        body["response_format"] = {"type": "json_object"}
 
     timeout = httpx.Timeout(40.0)
     t0 = time.perf_counter()
 
     with httpx.Client(timeout=timeout) as client:
         r = client.post(url, headers=headers, json=body)
+
+        # If provider rejects response_format, retry once without it.
+        if r.status_code == 400 and LLM_JSON_MODE and "response_format" in body:
+            try:
+                txt = r.text or ""
+            except Exception:
+                txt = ""
+            if "response_format" in txt or "json_object" in txt or "response format" in txt.lower():
+                body.pop("response_format", None)
+                r = client.post(url, headers=headers, json=body)
 
     logger_llm.info(
         "Groq status=%s time_ms=%.1f",
@@ -715,6 +833,93 @@ def _call_groq_chat(messages, model: str = GROQ_MODEL) -> str:
     return data["choices"][0]["message"]["content"]
 
 
+def _strip_markdown_code_fences(s: str) -> str:
+    """Remove surrounding Markdown code fences if present (```json ... ```)."""
+    s = (s or "").strip()
+    if not s:
+        return s
+
+    # Handle inline fenced blocks like: ```json { ... }``` or ``` { ... }```
+    if s.startswith("```") and s.endswith("```"):
+        inner = s[3:-3].strip()
+        # Drop optional language tag at the beginning (e.g. json)
+        if inner.lower().startswith("json"):
+            inner = inner[4:].strip()
+        return inner
+
+    # Handle multi-line fences:
+    # ```json\n{...}\n```
+    # ```\n{...}\n```
+    if s.startswith("```"):
+        parts = s.splitlines()
+        if parts:
+            first = parts[0].strip()
+            # If the first line contains JSON right after ```json, keep the remainder.
+            # Example: ```json {"a":1}
+            if first.startswith("```") and len(first) > 3:
+                rest = first[3:].strip()
+                # Remove optional language tag
+                if rest.lower().startswith("json"):
+                    rest = rest[4:].strip()
+                if rest:
+                    parts = [rest] + parts[1:]
+                else:
+                    parts = parts[1:]
+            else:
+                # Plain ``` on first line
+                parts = parts[1:]
+
+        s = "\n".join(parts).strip()
+        if s.endswith("```"):
+            s = s[:-3].strip()
+        return s
+
+    return s
+
+
+def _extract_first_json_object(s: str) -> str:
+    """Best-effort extraction of the first top-level JSON object from text."""
+    s = (s or "").strip()
+    if not s:
+        return s
+
+    # Fast path
+    if s.startswith("{") and s.endswith("}"):
+        return s
+
+    start = s.find("{")
+    if start < 0:
+        return s
+
+    # Bracket matching to find the end of the first object
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(s)):
+        ch = s[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+
+        if ch == '"':
+            in_str = True
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return s[start : i + 1].strip()
+
+    # If we couldn't match, return from first '{' onward
+    return s[start:].strip()
+
+
 # ------------------------------------------------------------------
 # Public API
 # ------------------------------------------------------------------
@@ -722,7 +927,7 @@ def generate_report(
     angles: Dict[str, float],
     meta: Optional[Dict[str, Any]] = None,
     lang: str = "ko",
-    model: str = GROQ_MODEL,
+    model: str = "",
 ) -> Dict[str, Any]:
 
     # Enrich meta with RAG retrieved coaching snippets (optional)
@@ -755,17 +960,44 @@ def generate_report(
         {"role": "user", "content": _user_prompt(angles, meta, lang)},
     ]
 
-    raw = _call_groq_chat(messages, model)
+    raw = _call_llm_chat(messages, model)
     logger_llm.info("LLM raw(head)=%s", raw)
 
+    raw_clean = _strip_markdown_code_fences(raw)
+    raw_clean = _extract_first_json_object(raw_clean)
+
     try:
-        report_obj = json.loads(raw)
+        report_obj = json.loads(raw_clean)
         report_obj = _normalize_report(report_obj)
-    except Exception:
-        raise RuntimeError(f"Invalid JSON from LLM: {raw}")
+    except Exception as e:
+        # Debug aid: dump the full raw output to a file when parsing fails.
+        if LLM_DUMP_RAW_ON_ERROR:
+            try:
+                os.makedirs(LLM_DUMP_RAW_DIR, exist_ok=True)
+                ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+                safe_model = (model or (HF_MODEL if LLM_PROVIDER == "hf" else GROQ_MODEL) or "model").replace("/", "__")
+                out_path = os.path.join(LLM_DUMP_RAW_DIR, f"raw_{safe_model}_{ts}.txt")
+                with open(out_path, "w", encoding="utf-8") as f:
+                    f.write(raw)
+                logger_llm.error("LLM raw dump saved: %s", out_path)
+            except Exception as dump_err:
+                logger_llm.error("LLM raw dump failed err=%s", str(dump_err))
+
+        # Keep exception small but informative
+        raise RuntimeError(f"Invalid JSON from LLM: {raw[:500]}") from e
 
     report_obj.setdefault("created_at", datetime.utcnow().isoformat() + "Z")
-    report_obj.setdefault("model", model)
+    report_obj.setdefault("model", model or (HF_MODEL if LLM_PROVIDER == "hf" else GROQ_MODEL))
+
+    # Final confirmation log (after normalization)
+    try:
+        logger_llm.info(
+            "LLM report finalized provider=%s model=%s",
+            LLM_PROVIDER,
+            report_obj.get("model"),
+        )
+    except Exception:
+        pass
 
     logger_llm.info("LLM report=%s", json.dumps(report_obj, ensure_ascii=False))
     return report_obj
