@@ -74,12 +74,12 @@ class SwingService:
 
     def get_quick_feedback(self, total_score):
             """상체 회전 및 자세 교정 중심 피드백"""
-            if total_score >= 80:
+            if total_score >= 70:
                 # [잘함] 가슴 열기 + 높은 타점
                 return "완벽해요! 상체 회전과 타점 모두 전문가 수준입니다."
-            elif total_score >= 55:
+            elif total_score >= 40:
                 # [보통] 상체는 열리나 팔 각도가 아쉬움
-                return "좋아요! 스윙 시 어깨를 조금만 더 부드럽게 써보세요."
+                return "보통이에요! 스윙 시 어깨를 조금만 더 부드럽게 써보세요."
             else:
                 # [나쁨] 상체를 아예 안 열고 정면만 보는 경우
                 return "상체가 굳어있어요! 어깨를 뒤로 충분히 열어주세요."
