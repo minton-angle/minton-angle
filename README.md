@@ -37,11 +37,14 @@
 
 
 #### 그립기능 Demo
-![minton_angle_grip_demo_video](https://github.com/user-attachments/assets/942c0915-d9cb-4793-8a85-fa40df831ed9)
+https://github.com/user-attachments/assets/54cad1db-26db-4247-91c0-6cfb970cb529
+
 
 
 
 #### 기본 스윙 자세 교정 & LLM 종합 AI 피드백 리포트 (Comprehensive Report)
+https://github.com/user-attachments/assets/006812f1-eef1-4103-9124-704c617b74f5
+
 
 
 
