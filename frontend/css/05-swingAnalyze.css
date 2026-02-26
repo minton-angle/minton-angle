@@ -85,7 +85,7 @@ html, body {
 .camera-section {
     position: relative;
     width: 100%; 
-    flex: 1; /* 남는 모든 공간을 카메라가 차지 */
+    flex: 5; /* 남는 모든 공간을 카메라가 차지 */
     background-color: #000;
     margin: 0;    
     border-radius: 0; 
@@ -130,7 +130,7 @@ html, body {
 
 /* 6. 음성 안내 텍스트 - 여백 최적화 */
 .feedback-bubble {
-    padding: 12px 0; /* margin 대신 padding으로 간격 유지 */
+    padding: 8px 0; /* margin 대신 padding으로 간격 유지 */
     text-align: center;
     font-size: 14px;
     font-weight: 700;
@@ -142,7 +142,7 @@ html, body {
 /* 🌟 7. 하단 결과 카드 - 컴팩트 디자인 */
 .result-card {
     margin: 0 20px 20px 10px; /* 위쪽 마진 제거 */
-    padding: 8cqh 10px; /* 내부 여백 축소 */
+    padding: 8px 10px; /* 내부 여백 축소 */
     border-radius: 24px;
     border: 1px solid #E0EDE7;
     box-shadow: 0 4px 20px rgba(0,0,0,0.03);
