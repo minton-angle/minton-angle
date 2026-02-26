@@ -220,13 +220,22 @@ function displayMediaComparison(files) {
     setVideo('phase3-user-video', files.followswing || files.follow_video);
 }
 
-function setVideo(id, path) {
+async function setVideo(id, path) {
     const el = document.getElementById(id);
     if (el && path) {
         const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
         const finalUrl = `${baseUrl}${fixPath(path)}`;
-        el.src = finalUrl;
-        el.load(); // 영상 새로 로드
+        try {
+            const response = await fetch(finalUrl, {
+                headers: { 'ngrok-skip-browser-warning': '69420' }
+            });
+            const blob = await response.blob();
+            el.src = URL.createObjectURL(blob);
+            el.load();
+            console.log(`✅ ${id} 영상 로드 성공`);
+        } catch (e) {
+            console.error(`❌ 영상 로드 실패: ${id}`, e);
+        }
     }
 }
 
