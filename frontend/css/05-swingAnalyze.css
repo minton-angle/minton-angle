@@ -141,8 +141,8 @@ html, body {
 
 /* 🌟 7. 하단 결과 카드 - 컴팩트 디자인 */
 .result-card {
-    margin: 0 20px 20px 20px; /* 위쪽 마진 제거 */
-    padding: 16px 20px; /* 내부 여백 축소 */
+    margin: 0 20px 20px 10px; /* 위쪽 마진 제거 */
+    padding: 8cqh 10px; /* 내부 여백 축소 */
     border-radius: 24px;
     border: 1px solid #E0EDE7;
     box-shadow: 0 4px 20px rgba(0,0,0,0.03);
@@ -154,7 +154,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .swing-row:last-child { margin-bottom: 0; }
@@ -176,7 +176,7 @@ html, body {
 .status-item {
     flex: 1;
     text-align: center;
-    padding: 6px 0; /* 버튼 높이 슬림화 */
+    padding: 4px 0; /* 버튼 높이 슬림화 */
     font-size: 12px;
     font-weight: 700;
     border-radius: 50px;
