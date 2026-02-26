@@ -73,11 +73,17 @@ class SwingService:
         return int(result['ready']), int(result['backswing']), int(result['impact'])
 
     def get_quick_feedback(self, total_score):
-        """총점에 따른 실시간 피드백 문구"""
-        if total_score >= 90: return "완벽해요! 🎉"
-        elif total_score >= 80: return "좋아요! 👍"
-        elif total_score >= 70: return "괜찮아요! 💪"
-        else: return "조금 더 연습해봐요! 📈"
+            """자세 연습에 최적화된 실시간 피드백 문구"""
+            if total_score >= 85:
+                return "최고의 자세예요! 지금 이 감각을 몸에 익히세요."
+            elif total_score >= 75:
+                return "좋습니다! 스윙 궤적이 전문가와 거의 일치해요."
+            elif total_score >= 60:
+                return "안정적이에요. 어깨 회전을 조금 더 크게 가져가 보세요."
+            elif total_score >= 45:
+                return "자세가 살짝 굳어있어요. 팔을 더 부드럽게 쭉 펴볼까요?"
+            else:
+                return "천천히 해봐요. 머리 위 높은 곳에서 원을 그린다는 느낌으로 연습해보세요."
 
     # ========================================
     # 실시간 분석 통합 메서드 (1~3회차 공통)
@@ -93,7 +99,7 @@ class SwingService:
         self._validate_request(request)
         
         # 1. Keypoints 추출
-        # ✅ 수정 - 프론트에서 받은 keypoints 직접 사용
+        # 수정 - 프론트에서 받은 keypoints 직접 사용
         keypoints_list = []
         if request.keypoints:
             for frame_id, kp in enumerate(request.keypoints):
