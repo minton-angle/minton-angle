@@ -1,0 +1,449 @@
+/* ========================================
+   0. 전체 폰트 및 공통 설정
+   ======================================== */
+   * {
+    font-family: 'Pretendard', sans-serif !important;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* 캘린더 내부 텍스트 강제 적용 */
+.fc, .fc-toolbar-title, .fc-col-header-cell-cushion, .fc-daygrid-day-number {
+    font-family: 'Pretendard', sans-serif !important;
+}
+
+/* ========================================
+   1. 배경 및 레이아웃 (뿌연 현상 제거)
+   ======================================== */
+.history-bg {
+    background-image: url('../assets/images/background2.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    width: 100%;
+    height: 100%;
+}
+
+/* common.css의 회색 틴트 제거 */
+.history-bg .scroll-container {
+    background-color: transparent !important;
+    overflow: hidden !important; /* 전체 페이지 스크롤 방지 */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.bottom-content-area {
+    flex: 1; /* 캘린더가 쓰고 남은 모든 공간을 얘가 다 가져갑니다 */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* 세로 중앙 정렬 */
+    align-items: center;
+    width: 100%;
+}
+
+.header {
+    width: 100%;
+    padding: 2dvh 20px 0;
+    background-color: transparent !important;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.logo-box-left {
+    background-image: url('../assets/images/logo2.png');
+    width: 20dvw;
+    height: 8dvh;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left center;
+}
+
+/* ========================================
+   2. 제목 섹션
+   ======================================== */
+.glass-title-unit {
+    background: rgba(255, 255, 255, 0.5); /* 투명도 조정으로 배경 선명하게 */
+    backdrop-filter: blur(3px); /* 블러 수치 낮춤 */
+    -webkit-backdrop-filter: blur(3px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50px;
+    padding: 10px 0;
+    margin: 1dvh auto 2dvh auto;
+    width: calc(100% - 40px);
+    text-align: center;
+}
+
+.section-title {
+    color: #014E0B;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+/* ========================================
+   3. ⭐ 핵심: 고정형 캘린더 카드 (스크롤 NO)
+   ======================================== */
+.calendar-card {
+    background: rgba(255, 255, 255, 0.6) !important;
+    backdrop-filter: blur(12px);
+    border-radius: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 12px;
+    /*box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);*/
+    width: calc(100% - 40px); /* 너비 일정하게 유지 */
+    margin: 0 auto;
+    
+    /* 민지님이 요청하신 dvh 고정 높이 */
+    height: 48dvh !important; 
+    max-height: 450px;
+    
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important; /* 스크롤 절대 방지 */
+    border: none !important;
+
+    overflow: hidden !important;
+}
+
+.fc-scroller {
+    overflow: hidden !important;
+}
+
+/* ========================================
+   4. ⭐ 그리드리스(경계선 제거) 및 압축 설정
+   ======================================== */
+.fc {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* 모든 경계선 제거 */
+.fc-theme-standard td, 
+.fc-theme-standard th, 
+.fc-scrollgrid, 
+.fc-scrollgrid-sync-table,
+.fc-day-other,
+.fc-day-disabled {
+    border: none !important;
+    background-color: transparent;
+}
+
+.fc-scrollgrid,
+.fc-scrollgrid-section-body table,
+.fc-scrollgrid-section-body > td {
+    height: 100% !important;
+}
+
+/* 날짜 칸 높이가 주 수에 따라 유연하게 변하도록 설정 */
+.fc-daygrid-day-frame {
+    height: 10px !important;
+    min-height: 0 !important; /* 압축 제한 해제 */
+}
+
+.fc-daygrid-body, .fc-scrollgrid-sync-table {
+    height: 100% !important; /* 상자 높이를 100% 채움 */
+    width: 100% !important;
+}
+
+.fc-day-other, .fc-day-disabled {
+    background-color: transparent !important;
+}
+
+/* 요일 헤더 */
+.fc-col-header-cell { padding: 0 }
+.fc-col-header-cell-cushion {
+    font-size: 11px !important;
+    color: #888 !important;
+    padding: 2px 0;
+}
+
+.fc-view-harness,
+.fc-view-harness > div {
+    height: 100% !important;
+    flex-grow: 1 !important;
+}
+
+/* 상단 툴바 (제목, 화살표) */
+.fc-toolbar {
+    margin-bottom: 4px !important;
+    padding: 0 5px !important;
+}
+
+.fc-toolbar-title {
+    font-size: 1.1rem !important;
+    font-weight: 800 !important;
+    color: #333;
+}
+
+.fc .fc-button-primary {
+    background-color: transparent !important;
+    border: none;
+    color: #333;
+    box-shadow: none;
+    padding: 0 2px;
+}
+
+/* 날짜 숫자 */
+.fc-daygrid-day-number {
+    color: #333 !important;
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 13px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin: 2px auto 0 !important;
+    text-decoration: none !important;
+}
+
+.fc-daygrid-day {
+    height: 1px;
+}
+
+/* 리포트 점(dots) 위치 최적화 */
+.report-dots {
+    display: flex;
+    gap: 1px;
+    justify-content: center;
+    margin-top: -3px;
+    height: 8px;
+}
+
+/* 캘린더 하단 시간 표시 */
+.calendar-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.time-value {
+    background: rgba(255, 255, 255, 0.3);
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+/* 오늘 날짜 칸 전체 배경 강조 */
+.fc-day-today {
+    background-color: rgba(107, 203, 119, 0.5) !important;
+}
+
+/* ========================================
+   5. 토글 및 네비게이션
+   ======================================== */
+.toggle-wrapper {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(3px);
+    border-radius: 40px;
+    width: 65%;
+    height: 55px;
+    margin: 2dvh auto 0;
+    display: flex;
+    flex: 0 0 auto;
+    padding: 4px;
+    position: relative;
+}
+
+.toggle-slider {
+    position: absolute;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: #6BCB77;
+    border-radius: 35px;
+    transition: transform 0.3s ease;
+}
+
+.toggle-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    font-weight: 700;
+    font-size: 13px;
+    z-index: 2;
+    color: #444;
+    padding-top: 3px;
+}
+
+.sub-txt {
+    font-size: 10px;
+    line-height: 1.3;
+    color: #636363; 
+    display: block; /* 상단 메인 텍스트와 분리 */
+    margin-bottom: 1px;
+    font-weight: 400; /* 너무 두껍지 않게 */
+}
+
+/* ⭐ 만약 반응형(화면 비율)에 맞추고 싶다면 dvw 단위를 써보세요 */
+/* font-size: 2.8dvw; */
+
+.guide-text {
+    text-align: center;
+    color: white;
+    font-size: 12px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    line-height: 1.4;
+    font-weight: 500;
+    margin: 10px 0;
+    flex: 0 0 auto;
+}
+
+.navbar-section {
+    position: absolute;
+    bottom: 24px;
+    left: 10dvw;
+    right: 10dvw;
+    height: 55px;
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 40px;
+    display: flex;
+    padding: 0 10px;
+    z-index: 1000;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-btn {
+    width: 25px;
+    height: 25px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    border: none;
+    background-color: transparent;
+}
+
+.nav-home { background-image: url('../assets/images/home.png'); }
+.nav-play { background-image: url('../assets/images/play.png'); }
+.nav-history { background-image: url('../assets/images/calendar.png'); }
+.nav-myPage { background-image: url('../assets/images/myPage.png'); }
+
+.calendar-footer {
+    flex-shrink: 0 !important;  /* ⭐ 중요: 캘린더에 밀려나지 않고 자리를 지킴 */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.calendar-footer-label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 600;
+}
+/* ========================================
+   6. 리포트 모달 (팝업창) 스타일
+   ======================================== */
+.report-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    display: none; /* JS에서 .show 클래스로 제어 */
+    align-items: center;
+    justify-content: center;
+}
+
+.report-modal.show {
+    display: flex;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6); /* 배경 어둡게 */
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    position: relative;
+    width: 85%;
+    max-width: 320px;
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    animation: modalSlideUp 0.3s ease-out;
+}
+
+@keyframes modalSlideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.modal-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #333;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #999;
+    cursor: pointer;
+}
+
+/* 리포트 카드 스타일 */
+.report-card {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid #eee;
+}
+
+.card-icon { font-size: 24px; }
+
+.card-content h4 {
+    font-size: 14px;
+    margin-bottom: 4px;
+    color: #222;
+}
+
+.card-time, .card-score {
+    font-size: 12px;
+    color: #666;
+}
+
+.card-button {
+    margin-left: auto;
+    background: #6BCB77;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
