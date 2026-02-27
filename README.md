@@ -49,7 +49,7 @@
 <img src="https://img.shields.io/badge/PostgreSQL-316192?style=flat-square&logo=postgresql&logoColor=white">
 
 ### 🧠 AI & Computer Vision
-<img src="https://img.shields.io/badge/YOLO11n-00FFFF?style=flat-square&logo=yolo&logoColor=black"> <img src="https://img.shields.io/badge/MediaPipe-005571?style=flat-square"> <img src="https://img.shields.io/badge/TrackNetV3-FF4B4B?style=flat-square"> <img src="https://img.shields.io/badge/Llama_3.1-0466C8?style=flat-square&logo=meta&logoColor=white">
+<img src="https://img.shields.io/badge/YOLO11n-00FFFF?style=flat-square&logo=yolo&logoColor=black"> <img src="https://img.shields.io/badge/MediaPipe-005571?style=flat-square"> <img src="https://img.shields.io/badge/TrackNetV3-FF4B4B?style=flat-square"> <img src="https://img.shields.io/badge/Llama_3.1-0466C8?style=flat-square&logo=meta&logoColor=white"> <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-yellow?style=for-the-badge">
 
 ---
 
