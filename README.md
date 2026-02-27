@@ -5,7 +5,6 @@
 
 🔗 **서비스 링크:** [minton-angle.vercel.app](https://minton-angle.vercel.app)
 
-<br><br>
 ---
 
 ## 🎯 1. 프로젝트 개요 (Overview)
