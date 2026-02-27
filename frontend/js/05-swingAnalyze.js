@@ -308,7 +308,7 @@ function updateUIWithResult(swingNum, result) {
     let status = 'bad';
     if (avgScore >= 70) {         // 🌟 80 -> 70으로 수정 (잘함)
         status = 'good';
-    } else if (avgScore >= 40) {  // 🌟 60 -> 40으로 수정 (보통)
+    } else if (avgScore >= 45) {  // 🌟 60 -> 40으로 수정 (보통)
         status = 'normal';
     }
     
