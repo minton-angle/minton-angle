@@ -36,20 +36,6 @@
 
 
 
-#### 그립기능 Demo
-https://github.com/user-attachments/assets/54cad1db-26db-4247-91c0-6cfb970cb529
-
-
-
-
-#### 기본 스윙 자세 교정 & LLM 종합 AI 피드백 리포트 (Comprehensive Report)
-https://github.com/user-attachments/assets/006812f1-eef1-4103-9124-704c617b74f5
-
-
-
-
-
-
 ---
 
 ## 🛠 3. 기술 스택 (Tech Stack)
@@ -131,4 +117,48 @@ https://github.com/user-attachments/assets/006812f1-eef1-4103-9124-704c617b74f5
 | **이원호** | 백엔드, LLM 종합 리포트 |
 | **권주은** | 백엔드, 자세교정 알고리즘 |
 | **한태호** | 셔틀콕 궤적 알고리즘, 그립 알고리즘 |
+
+
+
+## ✨ 8. demo 영상
+
+
+
+### 8.1 그립 교정
+https://github.com/user-attachments/assets/f5c024e4-2fc8-47ab-afb7-af6814f3000f
+
+
+
+
+### 8.2 실시간 레슨 모드
+https://github.com/user-attachments/assets/4cff02e8-eaef-44f2-b259-48c86d5697b2
+
+
+
+
+### 8.3 초보자 영상 (65점) vs  전문가 영상 (90점)
+https://github.com/user-attachments/assets/9db0689b-f4e6-48d2-8a38-bf3ac7d8a736
+
+
+
+
+### 8.4 리포트 캘린더,성장 리포트
+https://github.com/user-attachments/assets/f78e6aa3-2811-4aa9-ae94-401de94775ac
+
+
+
+
+### 8.5 마이페이지-탈퇴
+https://github.com/user-attachments/assets/74bed9c2-a241-4f32-b0a7-c5dc92c738f6
+
+
+
+
+
+
+
+
+
+
+
 
