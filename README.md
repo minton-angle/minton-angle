@@ -131,13 +131,14 @@ https://github.com/user-attachments/assets/f5c024e4-2fc8-47ab-afb7-af6814f3000f
 
 
 ### 8.2 실시간 레슨 모드
-https://github.com/user-attachments/assets/4cff02e8-eaef-44f2-b259-48c86d5697b2
+https://github.com/user-attachments/assets/9aae412e-16f1-484b-815e-41b4d04210fe
 
 
 
 
 ### 8.3 초보자 영상 (65점) vs  전문가 영상 (90점)
-https://github.com/user-attachments/assets/9db0689b-f4e6-48d2-8a38-bf3ac7d8a736
+https://github.com/user-attachments/assets/f73b143d-3ac7-4096-91c4-07d7e8f035d6
+
 
 
 
