@@ -121,38 +121,25 @@
 
 
 
-
-## 📌 8. 폴더 구조
-
+## ✨ 8. demo 영상
 
 
 
-
-
-
-
-
-
-
-## ✨ 9. demo 영상
-
-
-
-### 9.1 그립 교정
+### 8.1 그립 교정
 
 <p align="center">
   <video src=https://github.com/user-attachments/assets/f5c024e4-2fc8-47ab-afb7-af6814f3000f autoplay loop muted playsinline width="80%"></video>
 </p>
 
 
-### 9.2 실시간 레슨 모드
+### 8.2 실시간 레슨 모드
 
 <p align="center">
   <video src=https://github.com/user-attachments/assets/9aae412e-16f1-484b-815e-41b4d04210fe autoplay loop muted playsinline width="80%"></video>
 </p>
 
 
-### 9.3 초보자 영상 (65점) vs  전문가 영상 (90점)
+### 8.3 초보자 영상 (65점) vs  전문가 영상 (90점)
 
 <p align="center">
   <video src=https://github.com/user-attachments/assets/f73b143d-3ac7-4096-91c4-07d7e8f035d6 autoplay loop muted playsinline width="80%"></video>
@@ -160,14 +147,14 @@
 
 
 
-### 9.4 리포트 캘린더,성장 리포트
+### 8.4 리포트 캘린더,성장 리포트
 
 <p align="center">
   <video src=https://github.com/user-attachments/assets/f78e6aa3-2811-4aa9-ae94-401de94775ac autoplay loop muted playsinline width="80%"></video>
 </p
 
 
-### 9.5 마이페이지-탈퇴
+### 8.5 마이페이지-탈퇴
 
 <p align="center">
   <video src=https://github.com/user-attachments/assets/74bed9c2-a241-4f32-b0a7-c5dc92c738f6 autoplay loop muted playsinline width="80%"></video>
