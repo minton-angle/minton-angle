@@ -166,6 +166,9 @@ async function runSwingRoutine() {
         console.log('🚀 백엔드로 전송 중...');
         const analysisResult = await sendFramesToBackend(currentSwing, capturedFrames);
         console.log('✅ 분석 결과 수신:', analysisResult);
+
+        const feedbackMsg = analysisResult.quick_feedback || "분석이 완료되었습니다.";
+        speak(feedbackMsg); // 이 코드가 백엔드의 "완벽해요!", "보통이에요!"를 읽어줍니다.
         
         // ⭐ common.js 함수 사용!
         swingResults[currentSwing] = analysisResult;
