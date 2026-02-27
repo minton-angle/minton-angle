@@ -52,7 +52,7 @@
 
 ## 🏗 4. 시스템 아키텍처 및 API 설계
 ### 시스템 아키텍처
-<img width="903" height="714" alt="image" src="https://github.com/user-attachments/assets/4c542aca-2884-4975-868c-5849639c1e6b" />
+<img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/4c542aca-2884-4975-868c-5849639c1e6b" />
 
 ### 🗄 Database (ERD 요약)
 * `USER`: 사용자 계정 및 인증 정보 관리
