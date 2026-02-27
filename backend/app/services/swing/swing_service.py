@@ -77,7 +77,7 @@ class SwingService:
             if total_score >= 70:
                 # [잘함] 가슴 열기 + 높은 타점
                 return "완벽해요! 전문가 스윙과 유사합니다!"
-            elif total_score >= 40:
+            elif total_score >= 45:
                 # [보통] 상체는 열리나 팔 각도가 아쉬움
                 return "보통이에요! 백스윙이 부족합니다."
             else:
