@@ -5,6 +5,7 @@
 
 🔗 **서비스 링크:** [minton-angle.vercel.app](https://minton-angle.vercel.app)
 
+<br><br>
 ---
 
 ## 🎯 1. 프로젝트 개요 (Overview)
@@ -41,14 +42,14 @@
 ## 🛠 3. 기술 스택 (Tech Stack)
 
 ### 💻 Frontend & Backend
-* **Frontend:** HTML5, CSS3, JavaScript (Vercel)
-* **Backend:** FastAPI, Python (AWS Cloud, Docker)
-* **Database:** PostgreSQL
+<img src="https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white"> <img src="https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white"> <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black"> <img src="https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white">
+<br>
+<img src="https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white"> <img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white"> <img src="https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white"> <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white">
+<br>
+<img src="https://img.shields.io/badge/PostgreSQL-316192?style=flat-square&logo=postgresql&logoColor=white">
 
 ### 🧠 AI & Computer Vision
-* **Vision Models:** YOLO11n, MediaPipe Pose, TrackNetV3
-* **LLM:** Llama-3.1-8b-instant (RAG Pipeline 적용)
-* **Embeddings:** `intfloat/multilingual-e5-base`
+<img src="https://img.shields.io/badge/YOLO11n-00FFFF?style=flat-square&logo=yolo&logoColor=black"> <img src="https://img.shields.io/badge/MediaPipe-005571?style=flat-square"> <img src="https://img.shields.io/badge/TrackNetV3-FF4B4B?style=flat-square"> <img src="https://img.shields.io/badge/Llama_3.1-0466C8?style=flat-square&logo=meta&logoColor=white">
 
 ---
 
