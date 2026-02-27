@@ -47,7 +47,7 @@
 | **Backend** | ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) |
 | **Infra** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) |
 | **AI/Vision** | ![YOLO11](https://img.shields.io/badge/YOLO11n-00FFFF?style=flat-square&logo=ultralytics&logoColor=black) ![MediaPipe](https://img.shields.io/badge/MediaPipe-0082FC?style=flat-square&logo=google&logoColor=white) ![TrackNet](https://img.shields.io/badge/TrackNetV3-FF4B4B?style=flat-square&logo=pytorch&logoColor=white) |
-| **LLM/RAG** | ![Llama3.1](https://img.shields.io/badge/Llama_3.1-0466C8?style=flat-square&logo=meta&logoColor=white) [![E5](https://img.shields.io/badge/E5_Embedding-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/intfloat/multilingual-e5-base) |
+| **LLM/RAG** | ![Qwen2.5](https://img.shields.io/badge/Qwen2.5--7B--Instruct-8A2BE2?style=flat-square&logo=alibabacloud&logoColor=white) [![E5](https://img.shields.io/badge/E5_Embedding-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/intfloat/multilingual-e5-base) |
 
 ---
 
@@ -87,7 +87,7 @@
   * **Impact & Follow:** 팔 뻗음 각도, 손목 높이 비율, 팔로우스루 시 손목/팔꿈치 x좌표 교차 검증
 
 ### 5.3. 맞춤형 LLM 코칭 (RAG Architecture)
-실제 배드민턴 코칭 매뉴얼 자료를 벡터화하여 DB에 구축했습니다. 분석된 약점 데이터(점수 및 변동성)를 프롬프트와 함께 Llama 3 모델에 전달하여, "왜 틀렸는지"와 "어떻게 고쳐야 하는지"를 구체적으로 알려주는 전문적인 텍스트 리포트를 생성합니다.
+실제 배드민턴 코칭 매뉴얼 자료를 벡터화하여 DB에 구축했습니다. 분석된 약점 데이터(점수 및 변동성)를 프롬프트와 함께 Qwen2.5-7B-Instruct 모델에 전달하여, 동작별 "왜 틀렸는지"와 "어떻게 고쳐야 하는지"를 구체적으로 알려주는 전문적인 텍스트 리포트를 생성합니다.
 
 ---
 
