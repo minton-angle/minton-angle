@@ -1,21 +1,53 @@
 # 🏸 민턴 각? (Minton-Angle)
 
-> **배드민턴 입문자를 위한 실시간 AI 코칭 앱**
-> "'오늘 배드민턴 각?' 이라는 친근한 제안과, 입문자에게 꼭 필요한 '정석의 각도'를 알려주겠다는 두 가지 의미를 담았습니다."
+ ### 배드민턴 입문자를 위한 실시간 AI 코칭 앱
+ > "'오늘 배드민턴 각?' 이라는 친근한 제안과, 입문자에게 꼭 필요한 '정석의 각도'를 알려주겠다는 두 가지 의미를 담았습니다."
 
-🔗 **서비스 링크:** [minton-angle.vercel.app](https://minton-angle.vercel.app)
+🗓️ **진행 기간 :** 2026.01.27 ~ 2026.02.27 
+ <br/>
+  ### 🏆 **멋쟁이사자처럼 AI 컴퓨터 비전(CV) 3기 최종 프로젝트 우수상 (2등)**
+  **9개 팀 중 종합 2위 달성**
+  <br/>
+
+ <img width="2032" height="1142" alt="image" src="https://github.com/user-attachments/assets/26cf035d-13d2-4578-9f49-e9f0bf6a7f95" />
+
+
+  ## 🛠 Tech Stack
+
+| Category | Technologies |
+| :--- | :--- |
+| **Frontend** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white) ![JS](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black) ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white) |
+| **Backend** | ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) |
+| **Infra** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) |
+| **AI/Vision** | ![YOLO11](https://img.shields.io/badge/YOLO11n-00FFFF?style=flat-square&logo=ultralytics&logoColor=black) ![MediaPipe](https://img.shields.io/badge/MediaPipe-0082FC?style=flat-square&logo=google&logoColor=white) ![TrackNet](https://img.shields.io/badge/TrackNetV3-FF4B4B?style=flat-square&logo=pytorch&logoColor=white) |
+| **LLM/RAG** | ![Qwen2.5](https://img.shields.io/badge/Qwen2.5--7B--Instruct-8A2BE2?style=flat-square&logo=alibabacloud&logoColor=white) [![E5](https://img.shields.io/badge/E5_Embedding-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/intfloat/multilingual-e5-base) |
+
+  ## 👨‍💻 팀원 소개 및 역할 (Team)
+
+| ![노은서](https://github.com/RohEunSeo.png) | ![김민지](https://github.com/mjmjkkk.png) | ![이원호](https://github.com/hohohoho1223.png) | ![권주은](https://github.com/jueun27.png) | ![한태호](https://github.com/hantaeho123.png) |
+| :---: | :---: | :---: | :---: | :---: |
+| [노은서](https://github.com/RohEunSeo) | [김민지](https://github.com/mjmjkkk) | [이원호](https://github.com/hohohoho1223) | [권주은](https://github.com/jueun27) | [한태호](https://github.com/hantaeho123) |
+| **팀장 / PM,프론트엔드,배포** | **프론트엔드**<br>스윙 알고리즘 | **백엔드**<br>LLM 종합 리포트 | **백엔드**<br>자세교정 알고리즘 | **셔틀콕 궤적**<br>그립 알고리즘 |
+
+## 🌐 링크 (Links)
+
+🔗 **서비스 링크:** [minton-angle.vercel.app](https://minton-angle.vercel.app) <br>
+📄 **발표 자료 :** [민턴각_배드민턴자세교정서비스_실전프로젝트03](https://github.com/user-attachments/files/25681981/03.pdf) <br>
+📽️ **데모 영상 :** [민턴각_데모 영상](https://www.youtube.com/watch?v=6Lcwspuvrx4)
 
 ---
 
-## 🎯 1. 프로젝트 개요 (Overview)
-배드민턴은 남녀노소 즐기는 압도적인 인기 스포츠이지만, 입문자들이 겪는 진입 장벽이 존재합니다. 
-레슨을 받기에는 시간과 장소가 한정적이고 비용이 부담되며, 기존 서비스들은 "스윙을 열심히 연습해보세요"와 같은 추상적인 피드백을 제공하여 자기주도 학습에 한계가 있었습니다.
+# 🎯 1. 프로젝트 개요 (Overview)
+<img width="2613" height="1461" alt="image" src="https://github.com/user-attachments/assets/eea241a9-9a65-4d62-aac2-6a2d955c1ef5" />
 
-**민턴 각?**은 이러한 문제를 해결하기 위해 컴퓨터 비전(CV)과 LLM을 결합하여, **스마트폰 하나로 언제 어디서나 전문가 수준의 1:1 맞춤형 AI 코칭**을 받을 수 있는 서비스를 제공합니다.
+- 배드민턴은 남녀노소 즐기는 압도적인 인기 스포츠이지만, 입문자들이 겪는 진입 장벽이 존재합니다.
+- 레슨을 받기에는 시간과 장소가 한정적이고 비용이 부담되며, 기존 서비스들은 "스윙을 열심히 연습해보세요"와 같은 추상적인 피드백을 제공하여 자기주도 학습에 한계가 있었습니다.
+
+**민턴 각?** 은 이러한 문제를 해결하기 위해 컴퓨터 비전(CV)과 LLM을 결합하여, **스마트폰 하나로 언제 어디서나 전문가 수준의 1:1 맞춤형 AI 코칭**을 받을 수 있는 서비스를 제공합니다.
 
 ---
 
-## ✨ 2. 주요 기능 (Key Features)
+# ✨ 2. 주요 기능 (Key Features)
 
 ### 🏸 그립 교정 (Grip Correction)
 * 부상 방지와 실력 향상의 기초인 '올바른 포핸드 그립' 여부를 실시간으로 판별합니다.
@@ -38,19 +70,7 @@
 
 ---
 
-### 🛠 Tech Stack
-
-| Category | Technologies |
-| :--- | :--- |
-| **Frontend** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white) ![JS](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black) ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white) |
-| **Backend** | ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) |
-| **Infra** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) |
-| **AI/Vision** | ![YOLO11](https://img.shields.io/badge/YOLO11n-00FFFF?style=flat-square&logo=ultralytics&logoColor=black) ![MediaPipe](https://img.shields.io/badge/MediaPipe-0082FC?style=flat-square&logo=google&logoColor=white) ![TrackNet](https://img.shields.io/badge/TrackNetV3-FF4B4B?style=flat-square&logo=pytorch&logoColor=white) |
-| **LLM/RAG** | ![Qwen2.5](https://img.shields.io/badge/Qwen2.5--7B--Instruct-8A2BE2?style=flat-square&logo=alibabacloud&logoColor=white) [![E5](https://img.shields.io/badge/E5_Embedding-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/intfloat/multilingual-e5-base) |
-
----
-
-## 🏗 4. 시스템 아키텍처 및 API 설계
+# 🏗 3. 시스템 아키텍처 및 API 설계
 ### 시스템 아키텍처
 <img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/4c542aca-2884-4975-868c-5849639c1e6b" />
 
@@ -71,7 +91,7 @@
 
 ---
 
-## 🧠 5. 핵심 AI 알고리즘 (Core AI Algorithms)
+# 🧠 4. 핵심 AI 알고리즘 (Core AI Algorithms)
 
 ### 5.1. 그립 분류 알고리즘 (YOLO11n)
 * **접근 방식의 전환:** 초기 MediaPipe 기반 3D 각도 측정 방식을 시도했으나, 손가락 겹침 및 촬영 구도 제약으로 인식 한계가 발생했습니다. 이를 해결하기 위해 단순 각도 계산 방식을 버리고 **YOLO 기반의 객체 분류(Classification) 모델로 재정의**했습니다.
@@ -92,36 +112,20 @@
 
 ---
 
-## 🚀 6. R&D 및 트러블슈팅 (Troubleshooting)
+# 🚀 5. R&D 및 트러블슈팅 (Troubleshooting)
+
+<img width="2596" height="1455" alt="image" src="https://github.com/user-attachments/assets/071570d9-6fbf-4816-980b-23337e9726cd" />
+<img width="2607" height="1458" alt="image" src="https://github.com/user-attachments/assets/92de1e9c-278a-49a8-a54d-bafbe7923057" />
 
 ### 🔴 셔틀콕 궤적 기반 스윙 분석의 구조적 한계 (R&D)
 * **시도:** TrackNetV3와 YOLO를 이용해 셔틀콕의 타점과 낙하점을 포착하고 이상적인 스윙 궤적을 시각화하고자 했습니다.
 * **결론:** 일반 체육관의 하얀 벽으로 인한 보호색 현상(객체 소실), 조명 노이즈, 정적 객체 오탐지 등 현존하는 비전 AI가 겪는 통제되지 않은 환경에서의 명백한 기술적 한계를 확인했습니다. 무리한 도입 대신, 좀 더 보완 후 기능 추가를 할 예정입니다.
-
-### 🟢 브라우저 캐시 오염에 따른 동기화 문제 해결
-* **문제:** 프론트엔드/백엔드 코드 연동 과정에서 예상치 못한 브라우저 캐시 및 `localStorage` 오염으로 인해 새로운 분석 세션(`post_id`)을 정상적으로 받아오지 못하는 이슈가 발생했습니다. 
-* **해결:** 에러 발생 시 및 세션 만료 시 `localStorage.clear()` 로직을 명시적으로 추가하여 캐시를 안전하게 정리함으로써 문제를 완벽하게 해결했습니다.
-
-### 🟢 MediaPipe 기반 그립 분석의 한계
-* **문제:** 촬영 구도에 따라 MediaPipe의 성능 편차가 심해 일관된 진단을 제공하기 어려움
-* **해결:** → 문제를 그립 분류로 재정의: 단순 각도 계산 방식 X, Yolo11n 모델 파인튜닝 후 객체 분류로 해결했습니다.
-
+  
 ---
 
-## 👨‍💻 7. 팀원 소개 및 역할 (Team)
-
-| 이름 | 역할 분담 |
-| :--- | :--- |
-| **노은서** | 팀장/PM |
-| **김민지** | 프론트엔드, 스윙 알고리즘 |
-| **이원호** | 백엔드, LLM 종합 리포트 |
-| **권주은** | 백엔드, 자세교정 알고리즘 |
-| **한태호** | 셔틀콕 궤적 알고리즘, 그립 알고리즘 |
 
 
-
-
-## ✨ 8. 데모 영상 (Demo & Features)
+# ✨ 6. 데모 영상 (Demo & Features)
 
 앱의 핵심 기능과 실제 동작 화면입니다.
 
@@ -162,8 +166,6 @@
     <td align="center"><b>사용자 설정 및 탈퇴</b><br>개인 정보 수정 및 안전한 계정 관리 기능을 제공합니다.</td>
   </tr>
 </table>
-
-
 
 
 
