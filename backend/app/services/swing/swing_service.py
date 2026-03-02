@@ -73,11 +73,16 @@ class SwingService:
         return int(result['ready']), int(result['backswing']), int(result['impact'])
 
     def get_quick_feedback(self, total_score):
-        """총점에 따른 실시간 피드백 문구"""
-        if total_score >= 90: return "완벽해요! 🎉"
-        elif total_score >= 80: return "좋아요! 👍"
-        elif total_score >= 70: return "괜찮아요! 💪"
-        else: return "조금 더 연습해봐요! 📈"
+            """상체 회전 및 자세 교정 중심 피드백"""
+            if total_score >= 70:
+                # [잘함] 가슴 열기 + 높은 타점
+                return "완벽해요! 전문가 스윙과 유사합니다!"
+            elif total_score >= 45:
+                # [보통] 상체는 열리나 팔 각도가 아쉬움
+                return "보통이에요! 백스윙이 부족합니다."
+            else:
+                # [나쁨] 상체를 아예 안 열고 정면만 보는 경우
+                return "나쁨입니다.상체를 열어주세요"
 
     # ========================================
     # 실시간 분석 통합 메서드 (1~3회차 공통)
@@ -93,7 +98,7 @@ class SwingService:
         self._validate_request(request)
         
         # 1. Keypoints 추출
-        # ✅ 수정 - 프론트에서 받은 keypoints 직접 사용
+        # 수정 - 프론트에서 받은 keypoints 직접 사용
         keypoints_list = []
         if request.keypoints:
             for frame_id, kp in enumerate(request.keypoints):
@@ -199,82 +204,79 @@ class SwingService:
         )
 
     async def _process_swing_2_or_3(
-        self,
-        request,
-        db,
-        post_id,
-        kf1,
-        kf2,
-        kf3,
-        eval_result,
-        quick_feedback,
-        swing_dir
-    ):
-        """2~3회차 처리: 각 스윙을 개별 ANALYSIS로 저장"""
-        post = db.query(Post).filter(Post.idx == post_id).first()
-        if not post:
-            raise ValueError("기존 분석 기록을 찾을 수 없습니다.")
-        
-        analysis = Analysis(
-            idx=str(uuid.uuid4()),
-            post_idx=post_id,
-            swing_num=request.swing_num,
-            kf1=kf1,
-            kf2=kf2,
-            kf3=kf3,
-            score_json={
-                "details": eval_result['details'],
-                "total_score": eval_result['total_score']
-            }
-        )
-        db.add(analysis)
-        
-        self._register_swing_files(db, post_id, swing_dir, swing_num=request.swing_num)
-        
-        # 3회차 완료 시
-        if request.swing_num == 3:
-            all_analyses = db.query(Analysis).filter(Analysis.post_idx == post_id).all()
-            avg_score = round(sum(
-                a.score_json.get('total_score', 0) for a in all_analyses
-            ) / len(all_analyses), 1)
-            post.total_score = avg_score
-            post.status = "DONE"
-            db.commit()
+            self,
+            request,
+            db,
+            post_id,
+            kf1,
+            kf2,
+            kf3,
+            eval_result,
+            quick_feedback,
+            swing_dir
+        ):
+            """2~3회차 처리: 평균 없이 개별 점수만 저장 및 반환"""
+            post = db.query(Post).filter(Post.idx == post_id).first()
+            if not post:
+                raise ValueError("기존 분석 기록을 찾을 수 없습니다.")
             
-            # 3회차 파일 경로 조회
-            files = db.query(File).filter(
-                File.post_idx == post_id,
-                File.swing_num == 3
-            ).all()
-            
-            file_paths = self._build_file_paths(files)
-            
-            return AnalysisCompleteResponse(
-                swing_num=3,
-                post_id=post_id,
-                save_to_db=True,
-                total_score=avg_score,
-                stage_scores=self._calc_stage_scores(eval_result['details']),
-                quick_feedback=quick_feedback,
-                scores={
-                    "details": eval_result['details'],
-                    "total_score": eval_result['total_score']
-                },
-                keyframes={"kf1": kf1, "kf2": kf2, "kf3": kf3},
-                files=file_paths
-            )
-        
-        db.commit()
-        return QuickFeedbackResponse(
-            swing_num=request.swing_num,
-            post_id=post_id,
-            quick_feedback=quick_feedback,
-            save_to_db=True,
-            total_score=eval_result['total_score'],
-            stage_scores=self._calc_stage_scores(eval_result['details'])
-        )
+            # 현재 스윙 점수 변수화
+            current_score = eval_result['total_score']
 
-    # ========================================
+            # 1. ANALYSIS 테이블에 개별 스윙 점수 저장
+            analysis = Analysis(
+                idx=str(uuid.uuid4()),
+                post_idx=post_id,
+                swing_num=request.swing_num,
+                kf1=kf1,
+                kf2=kf2,
+                kf3=kf3,
+                score_json={
+                    "details": eval_result['details'],
+                    "total_score": current_score # 🌟 해당 회차의 순수 점수
+                }
+            )
+            db.add(analysis)
+            
+            self._register_swing_files(db, post_id, swing_dir, swing_num=request.swing_num)
+            
+            # 2. 3회차 완료 시 post의 대표 점수를 '마지막 스윙 점수' 혹은 '0'으로 설정
+            # (평균을 안 쓰기로 했으므로, 마지막 스윙 점수로 업데이트하거나 유지합니다)
+            if request.swing_num == 3:
+                post.total_score = current_score # 마지막 스윙 점수를 대표 점수로
+                post.status = "DONE"
+                db.commit()
+                
+                files = db.query(File).filter(File.post_idx == post_id, File.swing_num == 3).all()
+                file_paths = self._build_file_paths(files)
+                
+                return AnalysisCompleteResponse(
+                    swing_num=3,
+                    post_id=post_id,
+                    save_to_db=True,
+                    total_score=current_score, # 🌟 평균이 아닌 3회차 점수
+                    stage_scores=self._calc_stage_scores(eval_result['details']),
+                    quick_feedback=quick_feedback,
+                    scores={
+                        "details": eval_result['details'],
+                        "total_score": current_score
+                    },
+                    keyframes={"kf1": kf1, "kf2": kf2, "kf3": kf3},
+                    files=file_paths
+                )
+            
+            db.commit()
+
+            # 🌟 실시간 피드백 응답에도 해당 회차의 순수 점수만 보냄
+            return QuickFeedbackResponse(
+                swing_num=request.swing_num,
+                post_id=post_id,
+                quick_feedback=quick_feedback,
+                save_to_db=True,
+                total_score=current_score, # 🌟 꼬임 방지! 순수 현재 점수
+                stage_scores=self._calc_stage_scores(eval_result['details'])
+            )
+        # ========================================
     # 유틸리티
     # ========================================
 
