@@ -11,7 +11,26 @@ import httpx
 
 from functools import lru_cache
 
+
 logger_llm = logging.getLogger("app.llm")
+
+# ------------------------------------------------------------------
+# LLM usage (token counts)
+# ------------------------------------------------------------------
+# OpenAI-compatible responses may include `usage` like:
+# {"prompt_tokens": ..., "completion_tokens": ..., "total_tokens": ...}
+# We keep the last call's usage in-memory so `generate_report()` can attach it.
+_LAST_LLM_USAGE: Dict[str, Any] = {}
+
+def _set_last_llm_usage(u: Any) -> None:
+    global _LAST_LLM_USAGE
+    if isinstance(u, dict):
+        _LAST_LLM_USAGE = u
+    else:
+        _LAST_LLM_USAGE = {}
+
+def _get_last_llm_usage() -> Dict[str, Any]:
+    return _LAST_LLM_USAGE if isinstance(_LAST_LLM_USAGE, dict) else {}
 
 # ------------------------------------------------------------------
 # LLM Provider Settings (Groq / Hugging Face)
@@ -536,11 +555,11 @@ def _system_prompt(lang: str) -> str:
 5) 출력은 반드시 JSON 오브젝트 1개이며, 아래 스키마를 정확히 지키십시오.
    - growth: { direction: improved|worsened|flat, delta_average_score: number, message: string }
    - sections: {
-       ready: { title, change_one, analysis },
-       rotation: { title, change_one, analysis },
-       backswing: { title, change_one, analysis },
-       impact: { title, change_one, analysis },
-       followswing: { title, change_one, analysis }
+       ready: { title, analysis },
+       rotation: { title, analysis },
+       backswing: { title, analysis },
+       impact: { title, analysis },
+       followswing: { title, analysis }
      }
 6-1) analysis는 해당 Stage의 "최근 N회 기준 비교 기반 분석 리포트"를 작성하는 단일 필드입니다.
      - 정확히 3문장 구조를 유지하십시오.
@@ -629,7 +648,6 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(report_obj, dict):
         return {}
 
-    # removed summary default
     report_obj.setdefault(
         "growth",
         {"direction": "flat", "delta_average_score": 0.0, "message": "-"}
@@ -678,7 +696,6 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
             "kf3": {"title": "팔로스루 동작", "problem_one": "-", "fix_two": []},
         }
 
-    # (today_checklist 기본값 제거)
     return report_obj
 
 
@@ -761,8 +778,13 @@ def _call_llm_chat(messages, model: str) -> str:
 
         if r.status_code >= 400:
             raise RuntimeError(f"HF API error {r.status_code}: {r.text}")
-
         data = r.json()
+        _set_last_llm_usage(data.get("usage"))
+        try:
+            if data.get("usage"):
+                logger_llm.info("HF usage=%s", json.dumps(data.get("usage"), ensure_ascii=False))
+        except Exception:
+            pass
         return data["choices"][0]["message"]["content"]
 
     # default: groq
@@ -810,8 +832,13 @@ def _call_llm_chat(messages, model: str) -> str:
 
     if r.status_code >= 400:
         raise RuntimeError(f"Groq API error {r.status_code}: {r.text}")
-
     data = r.json()
+    _set_last_llm_usage(data.get("usage"))
+    try:
+        if data.get("usage"):
+            logger_llm.info("Groq usage=%s", json.dumps(data.get("usage"), ensure_ascii=False))
+    except Exception:
+        pass
     return data["choices"][0]["message"]["content"]
 
 
@@ -910,6 +937,8 @@ def generate_report(
     meta: Optional[Dict[str, Any]] = None,
     lang: str = "ko",
     model: str = "",
+    system_prompt_override: Optional[str] = None,
+    user_prompt_override: Optional[str] = None,
 ) -> Dict[str, Any]:
 
     # Enrich meta with RAG retrieved coaching snippets (optional)
@@ -937,12 +966,18 @@ def generate_report(
     except Exception:
         pass
 
+    # 오버라이드 허용: 디버깅/실험용으로 system/user prompt를 완전히 교체할 수 있도록 허용
+    system_prompt = system_prompt_override if system_prompt_override is not None else _system_prompt(lang)
+    user_prompt = user_prompt_override if user_prompt_override is not None else _user_prompt(angles, meta, lang)
+
     messages = [
-        {"role": "system", "content": _system_prompt(lang)},
-        {"role": "user", "content": _user_prompt(angles, meta, lang)},
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
     ]
 
     raw = _call_llm_chat(messages, model)
+    # Attach token usage (if provider returns it)
+    usage = _get_last_llm_usage()
     logger_llm.info("LLM raw(head)=%s", raw)
 
     raw_clean = _strip_markdown_code_fences(raw)
@@ -951,6 +986,8 @@ def generate_report(
     try:
         report_obj = json.loads(raw_clean)
         report_obj = _normalize_report(report_obj)
+        if usage:
+            report_obj["usage"] = usage
     except Exception as e:
         # Debug aid: dump the full raw output to a file when parsing fails.
         if LLM_DUMP_RAW_ON_ERROR:
@@ -970,6 +1007,7 @@ def generate_report(
 
     report_obj.setdefault("created_at", datetime.utcnow().isoformat() + "Z")
     report_obj.setdefault("model", model or (HF_MODEL if LLM_PROVIDER == "hf" else GROQ_MODEL))
+    report_obj.setdefault("provider", LLM_PROVIDER)
 
     # Final confirmation log (after normalization)
     try:
