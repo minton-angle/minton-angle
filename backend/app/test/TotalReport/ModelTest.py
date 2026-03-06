@@ -303,6 +303,8 @@ def save_ok_report(
         "run": run_idx,
         "ok": ok,
         "issues": issues,
+        "rag_on": bool((meta or {}).get("retrieved_coaching") or []),
+        "retrieved_coaching_n": int(len((meta or {}).get("retrieved_coaching") or [])),
         "report": report,
     }
 
@@ -441,6 +443,21 @@ def run_benchmark(meta: Dict[str, Any], models: List[str], repeat: int, lang: st
                 path = save_ok_report(save_dir, model, i + 1, report, meta, ok, issues)
                 print(f"[SAVE] {model} run={i+1} ok={ok} -> {path}")
 
+                # token usage (if provided by provider)
+                usage = report.get("usage") if isinstance(report, dict) else {}
+                if not isinstance(usage, dict):
+                    usage = {}
+                prompt_tokens = int(usage.get("prompt_tokens") or 0)
+                completion_tokens = int(usage.get("completion_tokens") or 0)
+                total_tokens = usage.get("total_tokens")
+                # tokens/sec = 모델이 1초에 생성한 토큰 수 
+                latency_s = dt_ms / 1000.0 if dt_ms else 0.0
+                tokens_per_second = (completion_tokens / latency_s) if latency_s > 0 else 0.0
+                try:
+                    total_tokens = int(total_tokens) if total_tokens is not None else (prompt_tokens + completion_tokens)
+                except Exception:
+                    total_tokens = prompt_tokens + completion_tokens
+
                 run_score = _score_from_issues(issues, has_exception=False)
                 all_runs.append(
                     {
@@ -450,6 +467,12 @@ def run_benchmark(meta: Dict[str, Any], models: List[str], repeat: int, lang: st
                         "score": run_score,
                         "latency_ms": dt_ms,
                         "n_issues": len(issues),
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "total_tokens": total_tokens,
+                        "tokens_per_second": tokens_per_second,
+                        "rag_on": bool((meta or {}).get("retrieved_coaching") or []),
+                        "retrieved_coaching_n": int(len((meta or {}).get("retrieved_coaching") or [])),
                         "exception": "",
                     }
                 )
@@ -472,6 +495,12 @@ def run_benchmark(meta: Dict[str, Any], models: List[str], repeat: int, lang: st
                         "score": 0,
                         "latency_ms": float("nan"),
                         "n_issues": 0,
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "total_tokens": 0,
+                        "tokens_per_second": 0.0,
+                        "rag_on": bool((meta or {}).get("retrieved_coaching") or []),
+                        "retrieved_coaching_n": int(len((meta or {}).get("retrieved_coaching") or [])),
                         "exception": msg_one,
                     }
                 )
@@ -518,9 +547,30 @@ def run_benchmark(meta: Dict[str, Any], models: List[str], repeat: int, lang: st
             scores = [int(r["score"]) for r in runs if isinstance(r.get("score"), int)]
             ok_cnt = sum(1 for r in runs if r.get("ok") is True)
 
+            rns = [int(r.get("retrieved_coaching_n") or 0) for r in runs]
+            rag_on_cnt = sum(1 for r in runs if r.get("rag_on") is True)
+            avg_retrieved_coaching_n = statistics.mean(rns) if rns else float("nan")
+
+            # token usage aggregates
+            pts = [int(r.get("prompt_tokens") or 0) for r in runs if isinstance(r.get("prompt_tokens"), int) and int(r.get("prompt_tokens") or 0) > 0]
+            cts = [int(r.get("completion_tokens") or 0) for r in runs if isinstance(r.get("completion_tokens"), int) and int(r.get("completion_tokens") or 0) > 0]
+            tts = [int(r.get("total_tokens") or 0) for r in runs if isinstance(r.get("total_tokens"), int) and int(r.get("total_tokens") or 0) > 0]
+            # 초당 토큰수 정의: 모델이 답변을 내뱉는 속도(출력 토큰 처리량)
+            tps = [
+                float(r.get("tokens_per_second") or 0.0)
+                for r in runs
+                if isinstance(r.get("tokens_per_second"), (int, float)) and float(r.get("tokens_per_second") or 0.0) > 0
+            ]
+
             avg_latency = statistics.mean(lat) if lat else float("nan")
             p95_latency = sorted(lat)[max(0, int(len(lat) * 0.95) - 1)] if lat else float("nan")
             avg_score = statistics.mean(scores) if scores else float("nan")
+            avg_prompt_tokens = statistics.mean(pts) if pts else float("nan")
+            avg_completion_tokens = statistics.mean(cts) if cts else float("nan")
+            avg_total_tokens = statistics.mean(tts) if tts else float("nan")
+            # 초당 토큰수 및 p95 토큰수 계산 (output throughput)
+            avg_tokens_per_second = statistics.mean(tps) if tps else float("nan")
+            p95_tokens_per_second = sorted(tps)[max(0, int(len(tps) * 0.95) - 1)] if tps else float("nan")
 
             rows.append(
                 {
@@ -528,16 +578,38 @@ def run_benchmark(meta: Dict[str, Any], models: List[str], repeat: int, lang: st
                     "model": model,
                     "repeat": repeat,
                     "ok_rate": f"{ok_cnt}/{repeat}",
+                    "rag_on_rate": f"{rag_on_cnt}/{repeat}",
+                    "avg_retrieved_coaching_n": f"{avg_retrieved_coaching_n:.2f}" if not math.isnan(float(avg_retrieved_coaching_n)) else "",
                     "avg_score": f"{avg_score:.2f}" if not math.isnan(float(avg_score)) else "",
                     "avg_latency_ms": f"{avg_latency:.1f}" if not math.isnan(float(avg_latency)) else "",
                     "p95_latency_ms": f"{p95_latency:.1f}" if not math.isnan(float(p95_latency)) else "",
+                    "avg_tokens_per_second": f"{avg_tokens_per_second:.2f}" if not math.isnan(float(avg_tokens_per_second)) else "",
+                    "p95_tokens_per_second": f"{p95_tokens_per_second:.2f}" if not math.isnan(float(p95_tokens_per_second)) else "",
+                    "avg_prompt_tokens": f"{avg_prompt_tokens:.1f}" if not math.isnan(float(avg_prompt_tokens)) else "",
+                    "avg_completion_tokens": f"{avg_completion_tokens:.1f}" if not math.isnan(float(avg_completion_tokens)) else "",
+                    "avg_total_tokens": f"{avg_total_tokens:.1f}" if not math.isnan(float(avg_total_tokens)) else "",
                 }
             )
 
         with open(csv_out, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(
                 f,
-                fieldnames=["mode", "model", "repeat", "ok_rate", "avg_score", "avg_latency_ms", "p95_latency_ms"]
+                fieldnames=[
+                    "mode",
+                    "model",
+                    "repeat",
+                    "ok_rate",
+                    "rag_on_rate",
+                    "avg_retrieved_coaching_n",
+                    "avg_score",
+                    "avg_latency_ms",
+                    "p95_latency_ms",
+                    "avg_tokens_per_second",
+                    "p95_tokens_per_second",
+                    "avg_prompt_tokens",
+                    "avg_completion_tokens",
+                    "avg_total_tokens",
+                ]
             )
             w.writeheader()
             w.writerows(rows)
