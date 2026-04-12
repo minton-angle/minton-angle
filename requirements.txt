@@ -22,7 +22,7 @@ python-jose[cryptography]
 # AI & Computer Vision 
 # ========================================
 opencv-python
-mediapipe==0.10.11
+mediapipe==0.10.9
 ultralytics
 torch
 torchvision
