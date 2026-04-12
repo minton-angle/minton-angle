@@ -1,28 +1,50 @@
-# Web Framework
-fastapi
-uvicorn[standard]
+# ========================================
+# Web Framework & Server
+# ========================================
+fastapi==0.110.0
+uvicorn[standard]==0.27.0
 python-multipart
 
-# AI & Computer Vision
-numpy==1.26.4
-opencv-python==4.9.0.80
-mediapipe==0.10.9
-ultralytics
+# ========================================
+# Database (SQLAlchemy 2.0 대응)
+# ========================================
+sqlalchemy==2.0.30
+psycopg2-binary==2.9.9
 
-# Data Analysis
+# ========================================
+# Authentication & Security (버전 고정 필수!)
+# ========================================
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+python-jose[cryptography]
+
+# ========================================
+# AI & Computer Vision 
+# ========================================
+opencv-python
+mediapipe==0.10.11
+ultralytics
+torch
+torchvision
+numpy<2.0.0
+
+# ========================================
+# Data Analysis & Processing
+# ========================================
 pandas
 matplotlib
-fastdtw
 scipy
+fastdtw
 
-# Utilitiesc
+# ========================================
+# Utilities
+# ========================================
 httpx>=0.27.0
 python-dotenv
-
-# Authentication
-passlib[bcrypt]
-python-jose[cryptography]
+pydantic-settings
+python-multipart
 
 # Vector Database and Embeddings
 chromadb
 sentence-transformers
+psycopg2-binary==2.9.9
