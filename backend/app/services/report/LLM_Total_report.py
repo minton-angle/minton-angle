@@ -71,16 +71,14 @@ LLM_DUMP_RAW_DIR = os.getenv("LLM_DUMP_RAW_DIR", "./snapshots/llm_raw").strip() 
 # ------------------------------------------------------------------
 # RAG (Chroma) Settings
 # ------------------------------------------------------------------
-COACH_KB_PATH = os.getenv("COACH_KB_PATH", "")  # json or jsonl
 CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_coach_kb")
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_kb")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
 COACH_RAG_TOPK = int(os.getenv("COACH_RAG_TOPK", "6"))
 COACH_RAG_MAX_CHARS = int(os.getenv("COACH_RAG_MAX_CHARS", "450"))
 
-# LangChain 기반 RAG 사용 여부
-# 현재 단계에서는 기존 JSON/JSONL KB를 유지하고, 적재/검색 계층만 LangChain으로 교체한다.
-LANGCHAIN_RAG_ENABLED = os.getenv("LANGCHAIN_RAG_ENABLED", "1").strip() not in ("0", "false", "False")
+# 리포트 생성 시점에는 임베딩 적재를 수행하지 않는다.
+# backend/scripts/ingest_rag.py를 먼저 실행해 Chroma를 준비한 뒤, 여기서는 검색만 수행한다.
 
 
 def _safe_str(x: Any) -> str:
@@ -91,84 +89,11 @@ def _safe_str(x: Any) -> str:
     return s
 
 
-def _doc_text(d: Dict[str, Any]) -> str:
-
-    stage = _safe_str(d.get("stage"))
-    metric = _safe_str(d.get("metric"))
-    band = _safe_str(d.get("score_band"))
-    title = _safe_str(d.get("title"))
-    content = _safe_str(d.get("content"))
-    summary = _safe_str(d.get("summary"))
-
-    def _join_list(v: Any) -> str:
-        if isinstance(v, list):
-            return " / ".join([_safe_str(x) for x in v if _safe_str(x)])
-        return _safe_str(v)
-
-    cause = _join_list(d.get("cause"))
-    impact = _join_list(d.get("impact"))
-    fix = _join_list(d.get("fix"))
-    checklist = _join_list(d.get("checklist"))
-    drills = _join_list(d.get("drills"))
-
-    # Keep it compact but informative.
-    extra = " ".join(
-        [
-            f"요약:{summary}" if summary else "",
-            f"원인:{cause}" if cause else "",
-            f"영향:{impact}" if impact else "",
-            f"교정:{fix}" if fix else "",
-            f"체크:{checklist}" if checklist else "",
-            f"개선방안:{drills}" if drills else "",
-        ]
-    ).strip()
-
-    base = f"[{stage}] [{metric}] [{band}] {title} {content}".strip()
-    return f"{base} {extra}".strip()
 
 
-def _read_kb(path: str) -> list[Dict[str, Any]]:
-    path = _safe_str(path).strip()
-    if not path:
-        return []
-
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            raw = f.read().strip()
-    except Exception as e:
-        logger_llm.warning("RAG KB read failed path=%s err=%s", path, str(e))
-        return []
-
-    if not raw:
-        return []
-
-    # jsonl
-    if "\n" in raw and not raw.lstrip().startswith("["):
-        docs: list[Dict[str, Any]] = []
-        for line in raw.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                docs.append(json.loads(line))
-            except Exception:
-                continue
-        return docs
-
-    # json
-    try:
-        obj = json.loads(raw)
-        if isinstance(obj, list):
-            return [x for x in obj if isinstance(x, dict)]
-        if isinstance(obj, dict) and isinstance(obj.get("documents"), list):
-            return [x for x in obj.get("documents") if isinstance(x, dict)]
-        return []
-    except Exception as e:
-        logger_llm.warning("RAG KB parse failed path=%s err=%s", path, str(e))
-        return []
 
 
-# LangChain-compatible embedding wrapper for multilingual-e5 models
+# 검색 전용 LangChain-compatible embedding wrapper
 class _E5LangChainEmbeddings:
     """LangChain-compatible embedding wrapper for multilingual-e5 models.
 
@@ -193,33 +118,27 @@ class _E5LangChainEmbeddings:
 
 @lru_cache(maxsize=1)
 def _get_chroma():
-    """Lazy-load LangChain Chroma vectorstore + embedding model.
+    """Lazy-load LangChain Chroma vectorstore for retrieval only.
 
-    기존 JSON/JSONL KB 데이터는 유지하되,
-    Chroma 적재/검색 인터페이스를 LangChain VectorStore로 통일한다.
+    임베딩 적재는 backend/scripts/ingest_rag.py에서 수행한다.
+    이 함수는 이미 생성된 Chroma collection에 연결하고 검색용 embedding wrapper만 준비한다.
 
     Returns:
-        (vectorstore, embeddings) or (None, None)
+        vectorstore or None
     """
-    if not LANGCHAIN_RAG_ENABLED:
-        logger_llm.warning("LANGCHAIN_RAG_ENABLED=0 is not supported in the current RAG pipeline")
-        return None, None
-
     try:
         try:
             from langchain_chroma import Chroma
         except Exception:
             from langchain_community.vectorstores import Chroma
-        from langchain_core.documents import Document
     except Exception as e:
         logger_llm.warning(
             "LangChain RAG deps missing. install langchain langchain-community langchain-chroma chromadb sentence-transformers. err=%s",
             str(e),
         )
-        return None, None
+        return None
 
     try:
-        os.makedirs(CHROMA_DIR, exist_ok=True)
         embeddings = _E5LangChainEmbeddings(EMBED_MODEL)
         vectorstore = Chroma(
             collection_name=CHROMA_COLLECTION,
@@ -228,66 +147,23 @@ def _get_chroma():
         )
     except Exception as e:
         logger_llm.warning("LangChain RAG init failed err=%s", str(e))
-        return None, None
+        return None
 
     try:
         existing = vectorstore._collection.count() if hasattr(vectorstore, "_collection") else 0
     except Exception:
         existing = 0
 
-    if existing and existing > 0:
-        logger_llm.info("LangChain RAG KB collection already exists count=%d dir=%s", existing, CHROMA_DIR)
-        return vectorstore, embeddings
+    if not existing:
+        logger_llm.warning(
+            "LangChain RAG collection is empty. Run `python backend/scripts/ingest_rag.py --reset` before generating reports. dir=%s collection=%s",
+            CHROMA_DIR,
+            CHROMA_COLLECTION,
+        )
+    else:
+        logger_llm.info("LangChain RAG collection loaded count=%d dir=%s", existing, CHROMA_DIR)
 
-    docs = _read_kb(COACH_KB_PATH)
-    if not docs:
-        logger_llm.info("LangChain RAG KB empty; skip ingest")
-        return vectorstore, embeddings
-
-    documents: list[Document] = []
-
-    for i, d in enumerate(docs):
-        if not isinstance(d, dict):
-            continue
-
-        did = _safe_str(d.get("id") or f"kb_{i}").strip() or f"kb_{i}"
-
-        def _join_list(v: Any) -> str:
-            if isinstance(v, list):
-                return " / ".join([_safe_str(x) for x in v if _safe_str(x)])
-            return _safe_str(v)
-
-        metadata = {
-            "id": did,
-            "stage": _safe_str(d.get("stage")),
-            "metric": _safe_str(d.get("metric")),
-            "score_band": _safe_str(d.get("score_band")),
-            "title": _safe_str(d.get("title")),
-            "summary": _safe_str(d.get("summary")),
-            "cause": _join_list(d.get("cause")),
-            "impact": _join_list(d.get("impact")),
-            "fix": _join_list(d.get("fix")),
-            "checklist": _join_list(d.get("checklist")),
-            "drills": _join_list(d.get("drills")),
-            "tags": _safe_str(d.get("tags")),
-            "doc_type": "json_kb",
-        }
-
-        documents.append(Document(page_content=_doc_text(d), metadata=metadata))
-
-    if not documents:
-        logger_llm.info("LangChain RAG KB documents empty after normalization")
-        return vectorstore, embeddings
-
-    try:
-        batch_size = 64
-        for start in range(0, len(documents), batch_size):
-            vectorstore.add_documents(documents[start : start + batch_size])
-        logger_llm.info("LangChain RAG KB ingested count=%d dir=%s", len(documents), CHROMA_DIR)
-    except Exception as e:
-        logger_llm.warning("LangChain RAG KB ingest failed err=%s", str(e))
-
-    return vectorstore, embeddings
+    return vectorstore
 
 
 def _score_band_from_mean(x: Any) -> str:
@@ -408,7 +284,7 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
 
 def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.score_stats의 sub_stats와 worst_sub/risk_level 기반으로 RAG 검색 쿼리 생성 및 Chroma에서 관련 문서 검색
     """Retrieve coaching snippets from Chroma and return compact list for prompt injection."""
-    vectorstore, _embeddings = _get_chroma()
+    vectorstore = _get_chroma()
     if vectorstore is None:
         return []
 
