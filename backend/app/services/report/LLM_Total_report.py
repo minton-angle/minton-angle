@@ -72,7 +72,7 @@ LLM_DUMP_RAW_DIR = os.getenv("LLM_DUMP_RAW_DIR", "./snapshots/llm_raw").strip() 
 # RAG (Chroma) Settings
 # ------------------------------------------------------------------
 CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_coach_pdf")
-CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_kb")
+CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_pdf_chunks")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
 COACH_RAG_TOPK = int(os.getenv("COACH_RAG_TOPK", "6"))
 COACH_RAG_MAX_CHARS = int(os.getenv("COACH_RAG_MAX_CHARS", "450"))
@@ -177,6 +177,61 @@ def _score_band_from_mean(x: Any) -> str:
         return "80-90"
     return ">=90"
 
+# 개발자용 pose metric 이름을 PDF 코칭 문서에서 쓰일 가능성이 높은 자연어 표현으로 변환한다.
+# PDF는 `Elbow_Lift`, `Wrist_Height_Ratio` 같은 내부 metric 명칭을 알지 못하므로,
+# 검색 쿼리는 사람이 이해하는 배드민턴 자세 표현으로 만들어야 한다.
+METRIC_QUERY_MAP: Dict[str, str] = {
+    # Ready
+    "Arm_Angle": "racket arm elbow angle in badminton ready position",
+    "Left_Wrist_Height": "non racket arm lift and balance in badminton ready position",
+    "Stance_Width": "badminton ready stance foot width and balance",
+    "Wrist_Height_Ratio": "racket wrist height compared to shoulder level in badminton ready position",
+
+    # Rotation
+    "Hip_Level": "hip rotation and body turn during badminton overhead stroke",
+    "Shoulder_Ratio": "shoulder rotation and trunk turn during badminton overhead stroke",
+
+    # Backswing
+    "Wrist_X_Depth": "racket hand position behind shoulder during badminton backswing preparation",
+    "Elbow_Lift": "elbow lift and elbow position during badminton backswing preparation",
+    "L_Shape_Angle": "L shape arm angle shoulder elbow wrist during badminton backswing preparation",
+
+    # Impact
+    "Arm_Extension_Angle": "arm extension and straight elbow at badminton impact contact point",
+    "Impact_Wrist_Height_Ratio": "wrist height above elbow at badminton impact contact point",
+
+    # FollowSwing
+    "Performance": "badminton follow through racket arm finish wrist elbow swing completion",
+}
+
+STAGE_QUERY_MAP: Dict[str, str] = {
+    "ready": "ready position preparation stance racket up",
+    "rotation": "body rotation hip shoulder turn power transfer",
+    "backswing": "backswing racket preparation elbow wrist arm position",
+    "impact": "impact contact point arm extension wrist racket head",
+    "followswing": "follow through swing finish arm relaxation injury prevention",
+}
+
+
+def _metric_query_text(stage: str, metric: str) -> str:
+    stage = _safe_str(stage)
+    metric = _safe_str(metric)
+
+    # Impact에도 Wrist_Height_Ratio가 있으므로 Ready와 구분하기 위해 stage-aware key를 먼저 확인한다.
+    stage_metric_key = f"{stage.capitalize()}_{metric}"
+    if stage == "impact" and metric == "Wrist_Height_Ratio":
+        stage_metric_key = "Impact_Wrist_Height_Ratio"
+
+    mapped_metric = METRIC_QUERY_MAP.get(stage_metric_key) or METRIC_QUERY_MAP.get(metric)
+    mapped_stage = STAGE_QUERY_MAP.get(stage, stage)
+
+    if mapped_metric:
+        return f"badminton {mapped_stage} {mapped_metric}"
+
+    # fallback: 내부 metric명을 그대로 쓰되 underscore를 공백으로 바꿔 검색 가능성을 높인다.
+    readable_metric = metric.replace("_", " ")
+    return f"badminton {mapped_stage} {readable_metric}"
+
 # 쿼리 빌더: meta.score_stats의 sub_stats(세부 점수)와 worst_sub/risk_level을 기반으로 RAG 검색 쿼리 생성
 def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
 
@@ -246,14 +301,15 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
             continue
 
         # 자연어 기반 query 생성 (PDF semantic search용)
-        base_query = f"badminton {stage} {metric}"
+        # 내부 metric 이름이 아니라 PDF 코칭 문서에 존재할 법한 자세 표현으로 검색한다.
+        base_query = _metric_query_text(stage, metric)
 
         if band == "<80":
-            detail = "problem cause and fix"
+            detail = "common mistake cause correction coaching drill beginner"
         elif band == "80-90":
-            detail = "improvement technique and tips"
+            detail = "improvement coaching tips practice drill technique"
         else:
-            detail = "advanced technique optimization"
+            detail = "advanced technique optimization consistency coaching"
 
         text = f"{base_query} {detail}".strip()
 
@@ -279,8 +335,11 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
     fs = score_stats.get("5_FollowSwing_SuccessRate", {}) or {}
     risk_level = _safe_str(fs.get("risk_level"))
     if risk_level in ("improve", "risk"):
-        text = f"followswing injury_prevention risk_level={risk_level}".strip()
-        queries.append({"q": text, "where": {"stage": "followswing", "score_band": risk_level}})
+        text = (
+            "badminton follow through swing finish racket arm relaxation "
+            "shoulder elbow load injury prevention coaching correction"
+        ).strip()
+        queries.append({"q": text, "where": None})
 
     # 중복 제거(텍스트 기준)
     seen = set()
@@ -344,7 +403,25 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
                 continue
             seen_ids.add(sid)
 
-            doc = _safe_str(getattr(doc_obj, "page_content", ""))
+            raw_doc = _safe_str(getattr(doc_obj, "page_content", ""))
+            doc = raw_doc
+
+            source_file = _safe_str(md.get("source_file"))
+            page = _safe_str(md.get("page"))
+            chunk = _safe_str(md.get("chunk"))
+            preview = raw_doc.replace("\n", " ").strip()
+            if len(preview) > 220:
+                preview = preview[:220].rstrip() + "…"
+
+            logger_llm.info(
+                "RAG hit query=%s source=%s page=%s chunk=%s distance=%s preview=%s",
+                text,
+                source_file,
+                page,
+                chunk,
+                distance,
+                preview,
+            )
 
             # prompt 폭발 방지: 문서 길이 제한
             if COACH_RAG_MAX_CHARS > 0 and len(doc) > COACH_RAG_MAX_CHARS:
@@ -382,10 +459,13 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
                     "stage": _safe_str(md.get("stage")),
                     "metric": _safe_str(md.get("metric")),
                     "score_band": _safe_str(md.get("score_band")),
-                    "title": inj_title,
+                    "title": inj_title or source_file,
                     "content": inj_content,
                     "distance": distance,
                     "doc_type": _safe_str(md.get("doc_type")),
+                    "source_file": source_file,
+                    "page": page,
+                    "chunk": chunk,
                 }
             )
         # 각 쿼리 처리 후 누적 결과 로그(쿼리별)
