@@ -48,3 +48,10 @@ python-multipart
 chromadb
 sentence-transformers
 psycopg2-binary==2.9.9
+
+# ========================================
+# LangChain RAG
+# ========================================
+langchain
+langchain-community
+langchain-chroma
