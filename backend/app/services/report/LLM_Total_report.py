@@ -71,7 +71,7 @@ LLM_DUMP_RAW_DIR = os.getenv("LLM_DUMP_RAW_DIR", "./snapshots/llm_raw").strip() 
 # ------------------------------------------------------------------
 # RAG (Chroma) Settings
 # ------------------------------------------------------------------
-CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_coach_kb")
+CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_coach_pdf")
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_kb")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
 COACH_RAG_TOPK = int(os.getenv("COACH_RAG_TOPK", "6"))
@@ -245,11 +245,23 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
         if not stage or not metric or not band:
             continue
 
-        text = f"{stage} metric={metric} band={band} direction={direction}".strip()
+        # 자연어 기반 query 생성 (PDF semantic search용)
+        base_query = f"badminton {stage} {metric}"
+
+        if band == "<80":
+            detail = "problem cause and fix"
+        elif band == "80-90":
+            detail = "improvement technique and tips"
+        else:
+            detail = "advanced technique optimization"
+
+        text = f"{base_query} {detail}".strip()
+
         queries.append(
             {
                 "q": text,
-                "where": {"stage": stage, "metric": metric, "score_band": band},
+                # PDF RAG에서는 metadata filter 사용하지 않음 (semantic search 중심)
+                "where": None,
             }
         )
 
@@ -308,28 +320,17 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
             break
 
         text = _safe_str(q.get("q"))
-        where = q.get("where") if isinstance(q.get("where"), dict) else None
 
         try:
             retrieved_pairs = vectorstore.similarity_search_with_score(
                 text,
                 k=min(per_q, COACH_RAG_TOPK),
-                filter=where,
             )
-        except TypeError:
-            # Some LangChain/Chroma versions use `where` instead of `filter`.
-            try:
-                retrieved_pairs = vectorstore.similarity_search_with_score(
-                    text,
-                    k=min(per_q, COACH_RAG_TOPK),
-                    where=where,
-                )
-            except Exception as e:
-                logger_llm.warning("LangChain RAG query failed q=%s where=%s err=%s", text, where, str(e))
-                continue
         except Exception as e:
-            logger_llm.warning("LangChain RAG query failed q=%s where=%s err=%s", text, where, str(e))
+            logger_llm.warning("LangChain RAG query failed q=%s err=%s", text, str(e))
             continue
+
+        logger_llm.info(f"RAG query='{text}' results={len(retrieved_pairs)}")
 
         for doc_obj, distance in retrieved_pairs:
             if len(results) >= COACH_RAG_TOPK:
