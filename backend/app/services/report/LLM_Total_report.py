@@ -78,6 +78,10 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
 COACH_RAG_TOPK = int(os.getenv("COACH_RAG_TOPK", "6"))
 COACH_RAG_MAX_CHARS = int(os.getenv("COACH_RAG_MAX_CHARS", "450"))
 
+# LangChain 기반 RAG 사용 여부
+# 현재 단계에서는 기존 JSON/JSONL KB를 유지하고, 적재/검색 계층만 LangChain으로 교체한다.
+LANGCHAIN_RAG_ENABLED = os.getenv("LANGCHAIN_RAG_ENABLED", "1").strip() not in ("0", "false", "False")
+
 
 def _safe_str(x: Any) -> str:
     try:
@@ -164,89 +168,126 @@ def _read_kb(path: str) -> list[Dict[str, Any]]:
         return []
 
 
+# LangChain-compatible embedding wrapper for multilingual-e5 models
+class _E5LangChainEmbeddings:
+    """LangChain-compatible embedding wrapper for multilingual-e5 models.
+
+    E5 계열은 문서에는 `passage:`, 쿼리에는 `query:` prefix를 붙이는 사용법이 권장된다.
+    LangChain VectorStore가 호출하는 `embed_documents`, `embed_query` 인터페이스에 맞춰 래핑한다.
+    """
+
+    def __init__(self, model_name: str):
+        from sentence_transformers import SentenceTransformer
+
+        self.model_name = model_name
+        self.model = SentenceTransformer(model_name)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        passages = [f"passage: {_safe_str(t)}" for t in texts]
+        return self.model.encode(passages, normalize_embeddings=True).tolist()
+
+    def embed_query(self, text: str) -> list[float]:
+        query = f"query: {_safe_str(text)}"
+        return self.model.encode([query], normalize_embeddings=True).tolist()[0]
+
+
 @lru_cache(maxsize=1)
 def _get_chroma():
-    """Lazy-load Chroma + embedding model. Returns (collection, embedder) or (None, None)."""
-    # Optional deps: keep backend running even if RAG deps are not installed yet.
-    try:
-        import chromadb
-        from sentence_transformers import SentenceTransformer
-    except Exception as e:
-        logger_llm.warning("RAG deps missing (install chromadb sentence-transformers). err=%s", str(e))
+    """Lazy-load LangChain Chroma vectorstore + embedding model.
+
+    기존 JSON/JSONL KB 데이터는 유지하되,
+    Chroma 적재/검색 인터페이스를 LangChain VectorStore로 통일한다.
+
+    Returns:
+        (vectorstore, embeddings) or (None, None)
+    """
+    if not LANGCHAIN_RAG_ENABLED:
+        logger_llm.warning("LANGCHAIN_RAG_ENABLED=0 is not supported in the current RAG pipeline")
         return None, None
 
     try:
-        # ✅ CHROMA_DIR 없으면 자동 생성
         try:
-            os.makedirs(CHROMA_DIR, exist_ok=True)
-        except Exception as e:
-            logger_llm.warning(
-                "RAG chroma dir mkdir failed dir=%s err=%s",
-                CHROMA_DIR,
-                str(e),
-            )
-        # NOTE: Newer Chroma versions deprecate `chroma_db_impl` Settings.
-        # Use PersistentClient for on-disk persistence.
-        client = chromadb.PersistentClient(path=CHROMA_DIR)
-        col = client.get_or_create_collection(name=CHROMA_COLLECTION)
-        embedder = SentenceTransformer(EMBED_MODEL)
+            from langchain_chroma import Chroma
+        except Exception:
+            from langchain_community.vectorstores import Chroma
+        from langchain_core.documents import Document
     except Exception as e:
-        logger_llm.warning("RAG init failed err=%s", str(e))
+        logger_llm.warning(
+            "LangChain RAG deps missing. install langchain langchain-community langchain-chroma chromadb sentence-transformers. err=%s",
+            str(e),
+        )
         return None, None
 
-    # KB가 이미 들어있다면 그대로 사용
     try:
-        existing = col.count() if hasattr(col, "count") else 0
+        os.makedirs(CHROMA_DIR, exist_ok=True)
+        embeddings = _E5LangChainEmbeddings(EMBED_MODEL)
+        vectorstore = Chroma(
+            collection_name=CHROMA_COLLECTION,
+            embedding_function=embeddings,
+            persist_directory=CHROMA_DIR,
+        )
+    except Exception as e:
+        logger_llm.warning("LangChain RAG init failed err=%s", str(e))
+        return None, None
+
+    try:
+        existing = vectorstore._collection.count() if hasattr(vectorstore, "_collection") else 0
     except Exception:
         existing = 0
 
     if existing and existing > 0:
-        return col, embedder
+        logger_llm.info("LangChain RAG KB collection already exists count=%d dir=%s", existing, CHROMA_DIR)
+        return vectorstore, embeddings
 
-    # KB 로드 후 1회 적재
     docs = _read_kb(COACH_KB_PATH)
     if not docs:
-        logger_llm.info("RAG KB empty; skip ingest")
-        return col, embedder
+        logger_llm.info("LangChain RAG KB empty; skip ingest")
+        return vectorstore, embeddings
 
-    ids: list[str] = []
-    documents: list[str] = []
-    metadatas: list[Dict[str, Any]] = []
+    documents: list[Document] = []
+
     for i, d in enumerate(docs):
         if not isinstance(d, dict):
             continue
+
         did = _safe_str(d.get("id") or f"kb_{i}").strip() or f"kb_{i}"
-        ids.append(did)
-        documents.append(_doc_text(d))
+
         def _join_list(v: Any) -> str:
             if isinstance(v, list):
                 return " / ".join([_safe_str(x) for x in v if _safe_str(x)])
             return _safe_str(v)
 
-        metadatas.append(
-            {
-                "stage": _safe_str(d.get("stage")),
-                "metric": _safe_str(d.get("metric")),
-                "score_band": _safe_str(d.get("score_band")),
-                "title": _safe_str(d.get("title")),
-                "summary": _safe_str(d.get("summary")),
-                "cause": _join_list(d.get("cause")),
-                "impact": _join_list(d.get("impact")),
-                "fix": _join_list(d.get("fix")),
-                "checklist": _join_list(d.get("checklist")),
-                "drills": _join_list(d.get("drills")),
-                "tags": _safe_str(d.get("tags")),
-            }
-        )
+        metadata = {
+            "id": did,
+            "stage": _safe_str(d.get("stage")),
+            "metric": _safe_str(d.get("metric")),
+            "score_band": _safe_str(d.get("score_band")),
+            "title": _safe_str(d.get("title")),
+            "summary": _safe_str(d.get("summary")),
+            "cause": _join_list(d.get("cause")),
+            "impact": _join_list(d.get("impact")),
+            "fix": _join_list(d.get("fix")),
+            "checklist": _join_list(d.get("checklist")),
+            "drills": _join_list(d.get("drills")),
+            "tags": _safe_str(d.get("tags")),
+            "doc_type": "json_kb",
+        }
+
+        documents.append(Document(page_content=_doc_text(d), metadata=metadata))
+
+    if not documents:
+        logger_llm.info("LangChain RAG KB documents empty after normalization")
+        return vectorstore, embeddings
 
     try:
-        embs = embedder.encode(documents, normalize_embeddings=True).tolist()
-        col.add(ids=ids, documents=documents, metadatas=metadatas, embeddings=embs)
-        logger_llm.info("RAG KB ingested count=%d dir=%s", len(ids), CHROMA_DIR)
+        batch_size = 64
+        for start in range(0, len(documents), batch_size):
+            vectorstore.add_documents(documents[start : start + batch_size])
+        logger_llm.info("LangChain RAG KB ingested count=%d dir=%s", len(documents), CHROMA_DIR)
     except Exception as e:
-        logger_llm.warning("RAG KB ingest failed err=%s", str(e))
+        logger_llm.warning("LangChain RAG KB ingest failed err=%s", str(e))
 
-    return col, embedder
+    return vectorstore, embeddings
 
 
 def _score_band_from_mean(x: Any) -> str:
@@ -365,29 +406,14 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
     return out
 
 
-def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
+def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.score_stats의 sub_stats와 worst_sub/risk_level 기반으로 RAG 검색 쿼리 생성 및 Chroma에서 관련 문서 검색
     """Retrieve coaching snippets from Chroma and return compact list for prompt injection."""
-    col, embedder = _get_chroma()
-    if col is None or embedder is None:
+    vectorstore, _embeddings = _get_chroma()
+    if vectorstore is None:
         return []
 
     queries = _build_rag_queries(meta or {})
 
-    # Chroma의 where 필터는 dict 형태로 {field: value} 또는 {"$and": [{field: value}, ...]} 여야 합니다.
-    def _normalize_where(where: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-
-        if not isinstance(where, dict) or not where:
-            return None
-
-        items = [(str(k), where[k]) for k in where.keys() if k is not None]
-        if not items:
-            return None
-
-        if len(items) == 1:
-            k, v = items[0]
-            return {k: {"$eq": v}}
-
-        return {"$and": [{k: {"$eq": v}} for k, v in items]}
 
     # RAG 쿼리 로그: 검색 의도 파악 및 디버깅용
     logger_llm.info("RAG queries=%s", json.dumps(queries, ensure_ascii=False))
@@ -406,50 +432,49 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
             break
 
         text = _safe_str(q.get("q"))
-        where_raw = q.get("where") if isinstance(q.get("where"), dict) else {}
-        where = _normalize_where(where_raw)
+        where = q.get("where") if isinstance(q.get("where"), dict) else None
 
         try:
-            qemb = embedder.encode([text], normalize_embeddings=True).tolist()
-            # 쿼리가 들어오면 검색 시도 로그
-            res = col.query(
-                query_embeddings=qemb,
-                n_results=min(per_q, COACH_RAG_TOPK),
-                where=where,
-                include=["documents", "metadatas", "distances"],
+            retrieved_pairs = vectorstore.similarity_search_with_score(
+                text,
+                k=min(per_q, COACH_RAG_TOPK),
+                filter=where,
             )
         except TypeError:
-            # older chroma versions may not support include param
-            res = col.query(
-                query_embeddings=qemb,
-                n_results=min(per_q, COACH_RAG_TOPK),
-                where=where,
-            )
+            # Some LangChain/Chroma versions use `where` instead of `filter`.
+            try:
+                retrieved_pairs = vectorstore.similarity_search_with_score(
+                    text,
+                    k=min(per_q, COACH_RAG_TOPK),
+                    where=where,
+                )
+            except Exception as e:
+                logger_llm.warning("LangChain RAG query failed q=%s where=%s err=%s", text, where, str(e))
+                continue
         except Exception as e:
-            logger_llm.warning("RAG query failed q=%s err=%s", text, str(e))
+            logger_llm.warning("LangChain RAG query failed q=%s where=%s err=%s", text, where, str(e))
             continue
 
-        ids = (res.get("ids") or [[]])[0] if isinstance(res, dict) else []
-        docs = (res.get("documents") or [[]])[0] if isinstance(res, dict) else []
-        metas = (res.get("metadatas") or [[]])[0] if isinstance(res, dict) else []
-
-        for i, did in enumerate(ids):
+        for doc_obj, distance in retrieved_pairs:
             if len(results) >= COACH_RAG_TOPK:
                 break
-            sid = _safe_str(did)
-            if not sid or sid in seen_ids:
+
+            md = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
+            sid = _safe_str(md.get("id"))
+            if not sid:
+                sid = f"{_safe_str(md.get('stage'))}:{_safe_str(md.get('metric'))}:{_safe_str(md.get('score_band'))}:{len(results)}"
+            if sid in seen_ids:
                 continue
             seen_ids.add(sid)
 
-            doc = _safe_str(docs[i] if i < len(docs) else "")
-            md = metas[i] if i < len(metas) and isinstance(metas[i], dict) else {}
+            doc = _safe_str(getattr(doc_obj, "page_content", ""))
 
             # prompt 폭발 방지: 문서 길이 제한
             if COACH_RAG_MAX_CHARS > 0 and len(doc) > COACH_RAG_MAX_CHARS:
                 doc = doc[:COACH_RAG_MAX_CHARS].rstrip() + "…"
 
-            # Prefer structured metadata for prompt injection (more "coach-like"),
-            # while keeping the embedded `doc` as a fallback.
+            # LangChain Document metadata를 우선 사용해 prompt 주입용 코칭 스니펫을 구성한다.
+            # page_content는 구조화 메타데이터가 비어 있을 때 fallback으로 사용한다.
             inj_title = _safe_str(md.get("title"))
             inj_summary = _safe_str(md.get("summary"))
             inj_cause = _safe_str(md.get("cause"))
@@ -482,6 +507,8 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
                     "score_band": _safe_str(md.get("score_band")),
                     "title": inj_title,
                     "content": inj_content,
+                    "distance": distance,
+                    "doc_type": _safe_str(md.get("doc_type")),
                 }
             )
         # 각 쿼리 처리 후 누적 결과 로그(쿼리별)
