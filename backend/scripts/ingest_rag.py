@@ -1,24 +1,30 @@
-
-
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+
+from dotenv import load_dotenv
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("scripts.ingest_rag")
 
 
-COACH_KB_PATH = os.getenv("COACH_KB_PATH", "")
-CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_coach_kb")
-CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_kb")
+# backend/scripts/ingest_rag.py -> backend/
+BASE_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BASE_DIR / ".env")
+
+
+PDF_DIR = os.getenv("PDF_DIR", os.getenv("COACH_PDF_DIR", "app/data/pdfs"))
+CHROMA_DIR = os.getenv("CHROMA_DIR", "app/chroma_coach_pdf")
+CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_pdf_chunks")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
+PDF_CHUNK_SIZE = int(os.getenv("PDF_CHUNK_SIZE", "800"))
+PDF_CHUNK_OVERLAP = int(os.getenv("PDF_CHUNK_OVERLAP", "120"))
 
 
 def _safe_str(x: Any) -> str:
@@ -28,82 +34,43 @@ def _safe_str(x: Any) -> str:
         return ""
 
 
-def _join_list(v: Any) -> str:
-    if isinstance(v, list):
-        return " / ".join([_safe_str(x) for x in v if _safe_str(x)])
-    return _safe_str(v)
+def _resolve_backend_path(path: str) -> Path:
+    """Resolve relative paths from backend/.env against the backend directory."""
+    p = Path(_safe_str(path).strip())
+    if p.is_absolute():
+        return p
+    return BASE_DIR / p
 
 
-def _doc_text(d: Dict[str, Any]) -> str:
-    stage = _safe_str(d.get("stage"))
-    metric = _safe_str(d.get("metric"))
-    band = _safe_str(d.get("score_band"))
-    title = _safe_str(d.get("title"))
-    content = _safe_str(d.get("content"))
-    summary = _safe_str(d.get("summary"))
-    cause = _join_list(d.get("cause"))
-    impact = _join_list(d.get("impact"))
-    fix = _join_list(d.get("fix"))
-    checklist = _join_list(d.get("checklist"))
-    drills = _join_list(d.get("drills"))
-
-    extra = " ".join(
-        [
-            f"요약:{summary}" if summary else "",
-            f"원인:{cause}" if cause else "",
-            f"영향:{impact}" if impact else "",
-            f"교정:{fix}" if fix else "",
-            f"체크:{checklist}" if checklist else "",
-            f"개선방안:{drills}" if drills else "",
-        ]
-    ).strip()
-
-    base = f"[{stage}] [{metric}] [{band}] {title} {content}".strip()
-    return f"{base} {extra}".strip()
+def _detect_lang(text: str) -> str:
+    """Small heuristic for metadata only. Retrieval uses multilingual embeddings."""
+    t = _safe_str(text)
+    if not t:
+        return "unknown"
+    ko_count = sum(1 for ch in t if "가" <= ch <= "힣")
+    en_count = sum(1 for ch in t if "a" <= ch.lower() <= "z")
+    if ko_count > en_count:
+        return "ko"
+    if en_count > 0:
+        return "en"
+    return "unknown"
 
 
-def _read_kb(path: str) -> list[Dict[str, Any]]:
-    path = _safe_str(path).strip()
-    if not path:
-        raise ValueError("COACH_KB_PATH is empty. Pass --kb-path or set COACH_KB_PATH.")
-
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            raw = f.read().strip()
-    except Exception as e:
-        raise RuntimeError(f"RAG KB read failed path={path} err={e}") from e
-
-    if not raw:
-        return []
-
-    if "\n" in raw and not raw.lstrip().startswith("["):
-        docs: list[Dict[str, Any]] = []
-        for line in raw.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                item = json.loads(line)
-            except Exception:
-                continue
-            if isinstance(item, dict):
-                docs.append(item)
-        return docs
-
-    try:
-        obj = json.loads(raw)
-    except Exception as e:
-        raise RuntimeError(f"RAG KB parse failed path={path} err={e}") from e
-
-    if isinstance(obj, list):
-        return [x for x in obj if isinstance(x, dict)]
-    if isinstance(obj, dict) and isinstance(obj.get("documents"), list):
-        return [x for x in obj.get("documents") if isinstance(x, dict)]
-    return []
+def _clean_text(text: str) -> str:
+    text = _safe_str(text)
+    if not text:
+        return ""
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    lines = [line.strip() for line in text.split("\n")]
+    lines = [line for line in lines if line]
+    return "\n".join(lines).strip()
 
 
 class E5LangChainEmbeddings:
-    """LangChain-compatible embedding wrapper for multilingual-e5 models."""
+    """LangChain-compatible embedding wrapper for multilingual-e5 models.
+
+    E5 계열은 문서에는 `passage:`, 쿼리에는 `query:` prefix를 붙이는 방식이 권장된다.
+    """
 
     def __init__(self, model_name: str):
         from sentence_transformers import SentenceTransformer
@@ -120,39 +87,71 @@ class E5LangChainEmbeddings:
         return self.model.encode([query], normalize_embeddings=True).tolist()[0]
 
 
-def _to_documents(docs: list[Dict[str, Any]]):
-    from langchain_core.documents import Document
+def _load_and_split_pdfs(pdf_dir: Path, chunk_size: int, chunk_overlap: int):
+    from langchain_community.document_loaders import PyPDFLoader
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-    documents: list[Document] = []
-    for i, d in enumerate(docs):
-        if not isinstance(d, dict):
+    if not pdf_dir.exists() or not pdf_dir.is_dir():
+        raise FileNotFoundError(f"PDF directory does not exist: {pdf_dir}")
+
+    pdf_paths = sorted(pdf_dir.rglob("*.pdf"))
+    if not pdf_paths:
+        logger.warning("No PDF files found. pdf_dir=%s", pdf_dir)
+        return []
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=max(chunk_size, 200),
+        chunk_overlap=max(min(chunk_overlap, chunk_size // 2), 0),
+        separators=["\n\n", "\n", "다. ", "요. ", ". ", " ", ""],
+    )
+
+    all_splits = []
+    for pdf_path in pdf_paths:
+        logger.info("Loading PDF: %s", pdf_path)
+        try:
+            loader = PyPDFLoader(str(pdf_path))
+            docs = loader.load()
+        except Exception as e:
+            logger.warning("PDF load failed path=%s err=%s", pdf_path, e)
             continue
 
-        did = _safe_str(d.get("id") or f"kb_{i}").strip() or f"kb_{i}"
-        metadata = {
-            "id": did,
-            "stage": _safe_str(d.get("stage")),
-            "metric": _safe_str(d.get("metric")),
-            "score_band": _safe_str(d.get("score_band")),
-            "title": _safe_str(d.get("title")),
-            "summary": _safe_str(d.get("summary")),
-            "cause": _join_list(d.get("cause")),
-            "impact": _join_list(d.get("impact")),
-            "fix": _join_list(d.get("fix")),
-            "checklist": _join_list(d.get("checklist")),
-            "drills": _join_list(d.get("drills")),
-            "tags": _safe_str(d.get("tags")),
-            "doc_type": "json_kb",
-        }
-        documents.append(Document(page_content=_doc_text(d), metadata=metadata))
-    return documents
+        rel_source = str(pdf_path.relative_to(pdf_dir))
+        for doc in docs:
+            doc.page_content = _clean_text(doc.page_content)
+            doc.metadata = doc.metadata or {}
+            doc.metadata["source_file"] = rel_source
+            doc.metadata["doc_type"] = "pdf"
+            doc.metadata["sport"] = "badminton"
+            if "page" in doc.metadata:
+                try:
+                    doc.metadata["page"] = int(doc.metadata.get("page", 0)) + 1
+                except Exception:
+                    pass
+
+        splits = splitter.split_documents(docs)
+        for chunk_idx, split in enumerate(splits):
+            split.page_content = _clean_text(split.page_content)
+            if not split.page_content:
+                continue
+            split.metadata = split.metadata or {}
+            split.metadata["source_file"] = rel_source
+            split.metadata["doc_type"] = "pdf"
+            split.metadata["sport"] = "badminton"
+            split.metadata["chunk"] = chunk_idx + 1
+            split.metadata["language"] = _detect_lang(split.page_content)
+            all_splits.append(split)
+
+    logger.info("PDF chunks prepared count=%d pdf_dir=%s", len(all_splits), pdf_dir)
+    return all_splits
 
 
-def ingest_json_kb(
-    kb_path: str,
+def ingest_pdf_rag(
+    pdf_dir: str,
     chroma_dir: str,
     collection_name: str,
     embed_model: str,
+    chunk_size: int = PDF_CHUNK_SIZE,
+    chunk_overlap: int = PDF_CHUNK_OVERLAP,
     reset: bool = False,
     batch_size: int = 64,
 ) -> int:
@@ -163,20 +162,25 @@ def ingest_json_kb(
             from langchain_community.vectorstores import Chroma
     except Exception as e:
         raise RuntimeError(
-            "LangChain RAG deps missing. install langchain langchain-community langchain-chroma chromadb sentence-transformers."
+            "LangChain RAG deps missing. install langchain langchain-community langchain-chroma chromadb sentence-transformers pypdf."
         ) from e
 
-    chroma_path = Path(chroma_dir)
+    pdf_path = _resolve_backend_path(pdf_dir)
+    chroma_path = _resolve_backend_path(chroma_dir)
+
     if reset and chroma_path.exists():
         logger.info("Removing existing Chroma directory: %s", chroma_path)
         shutil.rmtree(chroma_path)
 
     chroma_path.mkdir(parents=True, exist_ok=True)
 
-    raw_docs = _read_kb(kb_path)
-    documents = _to_documents(raw_docs)
+    documents = _load_and_split_pdfs(
+        pdf_dir=pdf_path,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+    )
     if not documents:
-        logger.warning("No documents to ingest. kb_path=%s", kb_path)
+        logger.warning("No PDF chunks to ingest. pdf_dir=%s", pdf_path)
         return 0
 
     embeddings = E5LangChainEmbeddings(embed_model)
@@ -190,30 +194,37 @@ def ingest_json_kb(
         vectorstore.add_documents(documents[start : start + batch_size])
 
     logger.info(
-        "RAG KB ingested count=%d chroma_dir=%s collection=%s model=%s",
+        "PDF RAG ingested count=%d pdf_dir=%s chroma_dir=%s collection=%s model=%s chunk_size=%d overlap=%d",
         len(documents),
+        pdf_path,
         chroma_path,
         collection_name,
         embed_model,
+        chunk_size,
+        chunk_overlap,
     )
     return len(documents)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest JSON/JSONL coaching KB into Chroma for RAG.")
-    parser.add_argument("--kb-path", default=COACH_KB_PATH, help="JSON/JSONL KB file path")
+    parser = argparse.ArgumentParser(description="Ingest PDF files into Chroma for badminton RAG.")
+    parser.add_argument("--pdf-dir", default=PDF_DIR, help="PDF directory path. Relative paths are resolved from backend/.")
     parser.add_argument("--chroma-dir", default=CHROMA_DIR, help="Chroma persistence directory")
     parser.add_argument("--collection", default=CHROMA_COLLECTION, help="Chroma collection name")
     parser.add_argument("--embed-model", default=EMBED_MODEL, help="SentenceTransformer embedding model")
+    parser.add_argument("--chunk-size", type=int, default=PDF_CHUNK_SIZE, help="PDF text chunk size")
+    parser.add_argument("--chunk-overlap", type=int, default=PDF_CHUNK_OVERLAP, help="PDF text chunk overlap")
     parser.add_argument("--batch-size", type=int, default=64, help="VectorStore add batch size")
     parser.add_argument("--reset", action="store_true", help="Delete existing Chroma directory before ingest")
     args = parser.parse_args()
 
-    ingest_json_kb(
-        kb_path=args.kb_path,
+    ingest_pdf_rag(
+        pdf_dir=args.pdf_dir,
         chroma_dir=args.chroma_dir,
         collection_name=args.collection,
         embed_model=args.embed_model,
+        chunk_size=args.chunk_size,
+        chunk_overlap=args.chunk_overlap,
         reset=args.reset,
         batch_size=args.batch_size,
     )
