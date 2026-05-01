@@ -71,7 +71,7 @@ LLM_DUMP_RAW_DIR = os.getenv("LLM_DUMP_RAW_DIR", "./snapshots/llm_raw").strip() 
 # ------------------------------------------------------------------
 # RAG (Chroma) Settings
 # ------------------------------------------------------------------
-CHROMA_DIR = os.getenv("CHROMA_DIR", "./chroma_coach_pdf")
+CHROMA_DIR = os.getenv("CHROMA_DIR", "app/chroma_coach_pdf")
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_pdf_chunks")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
 COACH_RAG_TOPK = int(os.getenv("COACH_RAG_TOPK", "6"))
