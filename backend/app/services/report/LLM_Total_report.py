@@ -182,34 +182,34 @@ def _score_band_from_mean(x: Any) -> str:
 # 검색 쿼리는 사람이 이해하는 배드민턴 자세 표현으로 만들어야 한다.
 METRIC_QUERY_MAP: Dict[str, str] = {
     # Ready
-    "Arm_Angle": "racket arm elbow angle in badminton ready position",
-    "Left_Wrist_Height": "non racket arm lift and balance in badminton ready position",
-    "Stance_Width": "badminton ready stance foot width and balance",
-    "Wrist_Height_Ratio": "racket wrist height compared to shoulder level in badminton ready position",
+    "Arm_Angle": "배드민턴 준비 자세 라켓 잡은 팔 팔꿈치 각도 라켓을 몸 앞쪽에 잡는 방법 ready position racket arm elbow angle",
+    "Left_Wrist_Height": "배드민턴 준비 자세 보조 팔 손목 높이 균형 라켓 준비 non racket arm wrist height balance",
+    "Stance_Width": "배드민턴 준비 자세 양발 간격 스탠스 균형 발 위치 ready stance foot width balance",
+    "Wrist_Height_Ratio": "배드민턴 준비 자세 라켓 손목 높이 어깨 높이 라켓을 몸 앞쪽에 잡기 wrist height shoulder level ready position",
 
     # Rotation
-    "Hip_Level": "hip rotation and body turn during badminton overhead stroke",
-    "Shoulder_Ratio": "shoulder rotation and trunk turn during badminton overhead stroke",
+    "Hip_Level": "배드민턴 스윙 몸통 회전 골반 회전 체중 이동 하체 상체 연결 hip rotation body turn power transfer",
+    "Shoulder_Ratio": "배드민턴 스윙 어깨 회전 몸통 회전 라켓 준비 shoulder rotation trunk turn overhead stroke",
 
     # Backswing
-    "Wrist_X_Depth": "racket hand position behind shoulder during badminton backswing preparation",
-    "Elbow_Lift": "elbow lift and elbow position during badminton backswing preparation",
-    "L_Shape_Angle": "L shape arm angle shoulder elbow wrist during badminton backswing preparation",
+    "Wrist_X_Depth": "배드민턴 백스윙 라켓 손 위치 어깨 뒤로 준비 손목 위치 racket hand behind shoulder backswing preparation",
+    "Elbow_Lift": "배드민턴 백스윙 팔꿈치 들기 팔꿈치 위치 손목보다 팔꿈치 높게 racket preparation elbow lift backswing",
+    "L_Shape_Angle": "배드민턴 백스윙 L자 모양 팔 각도 어깨 팔꿈치 손목 라켓 준비 L shape arm angle backswing",
 
     # Impact
-    "Arm_Extension_Angle": "arm extension and straight elbow at badminton impact contact point",
-    "Impact_Wrist_Height_Ratio": "wrist height above elbow at badminton impact contact point",
+    "Arm_Extension_Angle": "배드민턴 임팩트 팔 펴기 팔꿈치 신전 타점 라켓 맞는 순간 arm extension straight elbow contact point",
+    "Impact_Wrist_Height_Ratio": "배드민턴 임팩트 손목 높이 팔꿈치보다 손목 높게 타점 wrist height above elbow contact point",
 
     # FollowSwing
-    "Performance": "badminton follow through racket arm finish wrist elbow swing completion",
+    "Performance": "배드민턴 팔로스윙 스윙 마무리 라켓 팔 마무리 손목 팔꿈치 위치 follow through swing finish",
 }
 
 STAGE_QUERY_MAP: Dict[str, str] = {
-    "ready": "ready position preparation stance racket up",
-    "rotation": "body rotation hip shoulder turn power transfer",
-    "backswing": "backswing racket preparation elbow wrist arm position",
-    "impact": "impact contact point arm extension wrist racket head",
-    "followswing": "follow through swing finish arm relaxation injury prevention",
+    "ready": "준비 동작 준비 자세 라켓 준비 스탠스 ready position",
+    "rotation": "스윙 회전 몸통 회전 골반 어깨 회전 rotation body turn",
+    "backswing": "백스윙 라켓 준비 팔꿈치 손목 팔 위치 backswing racket preparation",
+    "impact": "임팩트 타점 팔 펴기 손목 라켓 헤드 impact contact point",
+    "followswing": "팔로스윙 스윙 마무리 팔 이완 부상 예방 follow through",
 }
 
 
@@ -383,7 +383,7 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
         try:
             retrieved_pairs = vectorstore.similarity_search_with_score(
                 text,
-                k=min(per_q, COACH_RAG_TOPK),
+                k=max(min(per_q * 4, 12), per_q),
             )
         except Exception as e:
             logger_llm.warning("LangChain RAG query failed q=%s err=%s", text, str(e))
