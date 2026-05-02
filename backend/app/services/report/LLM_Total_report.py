@@ -233,6 +233,37 @@ def _metric_query_text(stage: str, metric: str) -> str:
     return f"badminton {mapped_stage} {readable_metric}"
 
 # 쿼리 빌더: meta.score_stats의 sub_stats(세부 점수)와 worst_sub/risk_level을 기반으로 RAG 검색 쿼리 생성
+def _rewrite_query_with_llm(stage: str, metric: str) -> str:
+    prompt = f"""
+You are generating a semantic search query for retrieving badminton coaching knowledge.
+
+Rules:
+- Output ONLY one short query
+- Max 12 words
+- No explanation
+- No punctuation except spaces
+- Use natural coaching language
+- Must match wording found in coaching manuals
+
+Input:
+stage: {stage}
+metric: {metric}
+
+Output:
+"""
+
+    messages = [
+        {"role": "system", "content": "You generate short search queries."},
+        {"role": "user", "content": prompt},
+    ]
+
+    try:
+        q = _call_llm_chat(messages, model="")
+        return q.strip().replace("\n", " ")
+    except Exception as e:
+        logger_llm.warning("LLM query rewrite failed stage=%s metric=%s err=%s", stage, metric, str(e))
+        return ""
+
 def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
 
     score_stats = (meta or {}).get("score_stats", {}) or {}
@@ -304,14 +335,14 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
         # 내부 metric 이름이 아니라 PDF 코칭 문서에 존재할 법한 자세 표현으로 검색한다.
         base_query = _metric_query_text(stage, metric)
 
-        if band == "<80":
-            detail = "common mistake cause correction coaching drill beginner"
-        elif band == "80-90":
-            detail = "improvement coaching tips practice drill technique"
-        else:
-            detail = "advanced technique optimization consistency coaching"
+        # LLM-based query rewriting (짧고 자연스러운 검색 쿼리 생성)
+        llm_query = _rewrite_query_with_llm(stage, metric)
 
-        text = f"{base_query} {detail}".strip()
+        if llm_query:
+            text = llm_query
+        else:
+            # fallback (기존 rule 기반)
+            text = base_query
 
         queries.append(
             {
