@@ -44,6 +44,9 @@ python-dotenv
 pydantic-settings
 python-multipart
 pypdf
+pdf2image
+pytesseract
+pillow
 
 # Vector Database and Embeddings
 chromadb
