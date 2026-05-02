@@ -441,22 +441,24 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
             page = _safe_str(md.get("page"))
             chunk = _safe_str(md.get("chunk"))
             preview = raw_doc.replace("\n", " ").strip()
-            if len(preview) > 220:
-                preview = preview[:220].rstrip() + "…"
+            # if len(preview) > 220:
+            #     preview = preview[:220].rstrip() + "…"
+
+            # prompt 폭발 방지: 문서 길이 제한
+            if COACH_RAG_MAX_CHARS > 0 and len(doc) > COACH_RAG_MAX_CHARS:
+                doc = doc[:COACH_RAG_MAX_CHARS].rstrip() + "…"
 
             logger_llm.info(
-                "RAG hit query=%s source=%s page=%s chunk=%s distance=%s preview=%s",
+                "RAG hit query=%s source=%s page=%s chunk=%s distance=%s raw_len=%d injected_len=%d preview=%s",
                 text,
                 source_file,
                 page,
                 chunk,
                 distance,
+                len(raw_doc),
+                len(doc),
                 preview,
             )
-
-            # prompt 폭발 방지: 문서 길이 제한
-            if COACH_RAG_MAX_CHARS > 0 and len(doc) > COACH_RAG_MAX_CHARS:
-                doc = doc[:COACH_RAG_MAX_CHARS].rstrip() + "…"
 
             # LangChain Document metadata를 우선 사용해 prompt 주입용 코칭 스니펫을 구성한다.
             # page_content는 구조화 메타데이터가 비어 있을 때 fallback으로 사용한다.
