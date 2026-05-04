@@ -408,25 +408,31 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
     per_q = 2
 
     for q in queries:
-        if len(results) >= COACH_RAG_TOPK:
-            break
-
         text = _safe_str(q.get("q"))
+        query_stage = _safe_str(q.get("stage"))
+        query_metric = _safe_str(q.get("metric"))
+        query_sub_key = _safe_str(q.get("sub_key"))
 
         try:
             retrieved_pairs = vectorstore.similarity_search_with_score(
                 text,
-                k=max(min(per_q * 4, 12), per_q),
+                k=per_q,
             )
         except Exception as e:
             logger_llm.warning("LangChain RAG query failed q=%s err=%s", text, str(e))
             continue
 
-        logger_llm.info(f"RAG query='{text}' results={len(retrieved_pairs)}")
+        logger_llm.info(
+            "RAG query='%s' stage=%s metric=%s sub_key=%s results=%d",
+            text,
+            query_stage,
+            query_metric,
+            query_sub_key,
+            len(retrieved_pairs),
+        )
 
         for doc_obj, distance in retrieved_pairs:
-            if len(results) >= COACH_RAG_TOPK:
-                break
+            inject_allowed = len(results) < COACH_RAG_TOPK
 
             md = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
             sid = _safe_str(md.get("id"))
@@ -451,14 +457,15 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
                 doc = doc[:COACH_RAG_MAX_CHARS].rstrip() + "…"
 
             logger_llm.info(
-                "RAG hit query=%s source=%s page=%s chunk=%s distance=%s raw_len=%d injected_len=%d preview=%s",
-                text,
+                "RAG hit stage=%s metric=%s source=%s page=%s chunk=%s distance=%s injected=%s raw_len=%d preview=%s",
+                query_stage,
+                query_metric,
                 source_file,
                 page,
                 chunk,
                 distance,
+                inject_allowed, # 검색 결과가 주입 되는지 여부 (COACH_RAG_TOPK 기준)
                 len(raw_doc),
-                len(doc),
                 preview,
             )
 
@@ -488,21 +495,22 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
 
             inj_content = "\n".join(parts).strip() or doc
 
-            results.append(
-                {
-                    "id": sid,
-                    "stage": _safe_str(md.get("stage")),
-                    "metric": _safe_str(md.get("metric")),
-                    "score_band": _safe_str(md.get("score_band")),
-                    "title": inj_title or source_file,
-                    "content": inj_content,
-                    "distance": distance,
-                    "doc_type": _safe_str(md.get("doc_type")),
-                    "source_file": source_file,
-                    "page": page,
-                    "chunk": chunk,
-                }
-            )
+            if inject_allowed:
+                results.append(
+                    {
+                        "id": sid,
+                        "stage": _safe_str(md.get("stage")),
+                        "metric": _safe_str(md.get("metric")),
+                        "score_band": _safe_str(md.get("score_band")),
+                        "title": inj_title or source_file,
+                        "content": inj_content,
+                        "distance": distance,
+                        "doc_type": _safe_str(md.get("doc_type")),
+                        "source_file": source_file,
+                        "page": page,
+                        "chunk": chunk,
+                    }
+                )
         # 각 쿼리 처리 후 누적 결과 로그(쿼리별)
         logger_llm.info(
             "RAG retrieved 누적 개수 count=%d ids=%s",
