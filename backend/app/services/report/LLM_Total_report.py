@@ -344,13 +344,15 @@ def _build_rag_queries(meta: Dict[str, Any]) -> list[Dict[str, Any]]:
             # fallback (기존 rule 기반)
             text = base_query
 
-        queries.append(
-            {
-                "q": text,
-                # PDF RAG에서는 metadata filter 사용하지 않음 (semantic search 중심)
-                "where": None,
-            }
-        )
+        queries.append({
+            "q": text,
+            # PDF RAG에서는 metadata filter 사용하지 않음 (semantic search 중심)
+            "stage": stage,
+            "metric": metric,
+            "score_band": band,
+            "sub_key": _safe_str(c.get("sub_key")),
+            "where": None,
+        })
 
     # Debug: 전체 sub<90 항목이 모두 쿼리로 변환되었는지 확인
     try:
