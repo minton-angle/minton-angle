@@ -74,8 +74,14 @@ LLM_DUMP_RAW_DIR = os.getenv("LLM_DUMP_RAW_DIR", "./snapshots/llm_raw").strip() 
 CHROMA_DIR = os.getenv("CHROMA_DIR", "app/chroma_coach_pdf")
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_pdf_chunks")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
-COACH_RAG_TOPK = int(os.getenv("COACH_RAG_TOPK", "6"))
-COACH_RAG_MAX_CHARS = int(os.getenv("COACH_RAG_MAX_CHARS", "450"))
+COACH_RAG_TOPK = int(os.getenv("COACH_RAG_TOPK", "22"))
+COACH_RAG_MAX_CHARS = int(os.getenv("COACH_RAG_MAX_CHARS", "0"))
+COACH_RAG_CANDIDATE_K = int(os.getenv("COACH_RAG_CANDIDATE_K", "8"))
+COACH_RAG_PER_QUERY_TOPK = int(os.getenv("COACH_RAG_PER_QUERY_TOPK", "2"))
+CROSS_ENCODER_MODEL = os.getenv(
+    "CROSS_ENCODER_MODEL",
+    "cross-encoder/ms-marco-MiniLM-L-6-v2",
+)
 
 # 리포트 생성 시점에는 임베딩 적재를 수행하지 않는다.
 # backend/scripts/ingest_rag.py를 먼저 실행해 Chroma를 준비한 뒤, 여기서는 검색만 수행한다.
@@ -165,6 +171,52 @@ def _get_chroma():
 
     return vectorstore
 
+@lru_cache(maxsize=1)
+def _get_cross_encoder():
+    try:
+        from sentence_transformers import CrossEncoder
+    except Exception as e:
+        logger_llm.warning("CrossEncoder deps missing err=%s", str(e))
+        return None
+
+    try:
+        model = CrossEncoder(CROSS_ENCODER_MODEL)
+        logger_llm.info("CrossEncoder loaded model=%s", CROSS_ENCODER_MODEL)
+        return model
+    except Exception as e:
+        logger_llm.warning(
+            "CrossEncoder load failed model=%s err=%s",
+            CROSS_ENCODER_MODEL,
+            str(e),
+        )
+        return None
+
+
+def _rerank_with_cross_encoder(query: str, retrieved_pairs: list):
+    if not retrieved_pairs:
+        return []
+
+    reranker = _get_cross_encoder()
+    if reranker is None:
+        return [(doc_obj, distance, 0.0) for doc_obj, distance in retrieved_pairs]
+
+    pairs = [
+        (query, _safe_str(getattr(doc_obj, "page_content", "")))
+        for doc_obj, _ in retrieved_pairs
+    ]
+
+    try:
+        scores = reranker.predict(pairs)
+    except Exception as e:
+        logger_llm.warning("CrossEncoder rerank failed query=%s err=%s", query, str(e))
+        return [(doc_obj, distance, 0.0) for doc_obj, distance in retrieved_pairs]
+
+    reranked = []
+    for (doc_obj, distance), score in zip(retrieved_pairs, scores):
+        reranked.append((doc_obj, distance, float(score)))
+
+    reranked.sort(key=lambda x: x[2], reverse=True)
+    return reranked
 
 def _score_band_from_mean(x: Any) -> str:
     try:
@@ -405,7 +457,8 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
     seen_ids: set[str] = set()
 
     # 각 쿼리당 2개씩만, 전체 COACH_RAG_TOPK까지
-    per_q = 2
+    candidate_k = max(COACH_RAG_CANDIDATE_K, COACH_RAG_PER_QUERY_TOPK)
+    per_q = COACH_RAG_PER_QUERY_TOPK 
 
     for q in queries:
         text = _safe_str(q.get("q"))
@@ -416,22 +469,41 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
         try:
             retrieved_pairs = vectorstore.similarity_search_with_score(
                 text,
-                k=per_q,
-            )
+                k=candidate_k,
+            )   
         except Exception as e:
             logger_llm.warning("LangChain RAG query failed q=%s err=%s", text, str(e))
             continue
 
+        reranked_pairs = _rerank_with_cross_encoder(text, retrieved_pairs)
+        for rank, (doc_obj, distance, rerank_score) in enumerate(reranked_pairs, start=1):
+            md = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
+            raw_doc = _safe_str(getattr(doc_obj, "page_content", ""))
+            preview = raw_doc.replace("\n", " ").strip()[:300]
+            logger_llm.info(
+                "RAG candidate rank=%d stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s preview=%s",
+                rank,
+                query_stage,
+                query_metric,
+                _safe_str(md.get("source_file")),
+                _safe_str(md.get("page")),
+                _safe_str(md.get("chunk")),
+                distance,
+                rerank_score,
+                preview,
+            )
+        selected_pairs = reranked_pairs[:per_q]
+
         logger_llm.info(
-            "RAG query='%s' stage=%s metric=%s sub_key=%s results=%d",
+            "RAG rerank query='%s' stage=%s metric=%s candidates=%d selected=%d",
             text,
             query_stage,
             query_metric,
-            query_sub_key,
             len(retrieved_pairs),
+            len(selected_pairs),
         )
 
-        for doc_obj, distance in retrieved_pairs:
+        for doc_obj, distance, rerank_score in selected_pairs:
             inject_allowed = len(results) < COACH_RAG_TOPK
 
             md = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
@@ -455,15 +527,15 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
             # prompt 폭발 방지: 문서 길이 제한
             if COACH_RAG_MAX_CHARS > 0 and len(doc) > COACH_RAG_MAX_CHARS:
                 doc = doc[:COACH_RAG_MAX_CHARS].rstrip() + "…"
-
             logger_llm.info(
-                "RAG hit stage=%s metric=%s source=%s page=%s chunk=%s distance=%s injected=%s raw_len=%d preview=%s",
+                "RAG hit stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s injected=%s raw_len=%d preview=%s",
                 query_stage,
                 query_metric,
                 source_file,
                 page,
                 chunk,
                 distance,
+                rerank_score,
                 inject_allowed, # 검색 결과가 주입 되는지 여부 (COACH_RAG_TOPK 기준)
                 len(raw_doc),
                 preview,
@@ -503,6 +575,7 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
                         "metric": _safe_str(md.get("metric")),
                         "score_band": _safe_str(md.get("score_band")),
                         "title": inj_title or source_file,
+                        "rerank_score": rerank_score,
                         "content": inj_content,
                         "distance": distance,
                         "doc_type": _safe_str(md.get("doc_type")),
