@@ -722,18 +722,10 @@ def _user_prompt(
     }
 
     return (
-        "다음 입력(meta.score_stats, meta.trend)을 사용해 '최근 N회 기준 비교 기반' 점수 리포트를 생성하세요.\n"
-        "중요: angles/단일 세션 값은 사용 금지이며 입력에도 제공되지 않습니다.\n\n"
-        "[필수 규칙] (반드시 지키세요)\n"
-        "1) 출력은 JSON 오브젝트 1개만 반환합니다.\n"
-        "2) 각 섹션의 analysis는 반드시 '이전 횟수 대비' 문구를 포함합니다.\n"
-        "3) 각 섹션의 analysis는 정확히 3문장입니다. 각 문장은 반드시 마침표(.)로 끝나야 합니다.\n"
-        "   - 1문장: 이전 횟수 대비 동작 흐름(최소 2개 관찰 포인트) 요약.\n"
-        "   - 2문장: 그 변화가 경기력/안정성에 주는 영향.\n"
-        "   - 3문장: 개선 또는 유지 관점의 제안(지시형 금지).\n"
-        "4) analysis에는 숫자/점수/퍼센트/소수점을 쓰지 않습니다(숫자 금지).\n"
-        "7) Total 점수와 무관하게 worst_sub_current_mean이 90 미만인 섹션은, analysis에 worst_sub 문자열을 그대로 1회 이상 포함합니다.\n\n"
-        f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
+    "다음 INPUT_JSON의 meta.score_stats, meta.trend, meta.retrieved_coaching을 사용해 "
+    "'최근 N회 기준 비교 기반' 점수 리포트를 생성하세요.\n"
+    "angles/단일 세션 값은 사용 금지입니다.\n\n"
+    f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
     )
 
 
