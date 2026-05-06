@@ -286,23 +286,20 @@ def _metric_query_text(stage: str, metric: str) -> str:
 
 # 쿼리 빌더: meta.score_stats의 sub_stats(세부 점수)와 worst_sub/risk_level을 기반으로 RAG 검색 쿼리 생성
 def _rewrite_query_with_llm(stage: str, metric: str) -> str:
+    base_query = _metric_query_text(stage, metric)
+
     prompt = f"""
-You are generating a semantic search query for retrieving badminton coaching knowledge.
+    You are generating a semantic search query for retrieving BADMINTON COACHING knowledge.
 
-Rules:
-- Output ONLY one short query
-- Max 12 words
-- No explanation
-- No punctuation except spaces
-- Use natural coaching language
-- Must match wording found in coaching manuals
+    Strict rules:
+    - No explanation
+    - No punctuation except spaces
+    - MUST include the word "badminton"
+    - MUST describe a player movement or coaching situation
 
-Input:
-stage: {stage}
-metric: {metric}
-
-Output:
-"""
+    Context:
+    {base_query}
+    """
 
     messages = [
         {"role": "system", "content": "You generate short search queries."},
