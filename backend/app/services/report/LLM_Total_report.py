@@ -94,11 +94,6 @@ def _safe_str(x: Any) -> str:
         s = ""
     return s
 
-
-
-
-
-
 # 검색 전용 LangChain-compatible embedding wrapper
 class _E5LangChainEmbeddings:
     """LangChain-compatible embedding wrapper for multilingual-e5 models.
@@ -506,7 +501,14 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
             md = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
             sid = _safe_str(md.get("id"))
             if not sid:
-                sid = f"{_safe_str(md.get('stage'))}:{_safe_str(md.get('metric'))}:{_safe_str(md.get('score_band'))}:{len(results)}"
+                sid = (
+                    f"{query_stage}:"
+                    f"{query_metric}:"
+                    f"{_safe_str(q.get('score_band'))}:"
+                    f"{source_file}:"
+                    f"{page}:"
+                    f"{chunk}"
+                )
             if sid in seen_ids:
                 continue
             seen_ids.add(sid)
