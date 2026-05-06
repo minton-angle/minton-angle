@@ -499,6 +499,9 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
             inject_allowed = len(results) < COACH_RAG_TOPK
 
             md = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
+            source_file = _safe_str(md.get("source_file"))
+            page = _safe_str(md.get("page"))
+            chunk = _safe_str(md.get("chunk"))
             sid = _safe_str(md.get("id"))
             if not sid:
                 sid = (
@@ -515,10 +518,6 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
 
             raw_doc = _safe_str(getattr(doc_obj, "page_content", ""))
             doc = raw_doc
-
-            source_file = _safe_str(md.get("source_file"))
-            page = _safe_str(md.get("page"))
-            chunk = _safe_str(md.get("chunk"))
             preview = raw_doc.replace("\n", " ").strip()
             # if len(preview) > 220:
             #     preview = preview[:220].rstrip() + "…"
@@ -583,12 +582,6 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
                         "chunk": chunk,
                     }
                 )
-        # 각 쿼리 처리 후 누적 결과 로그(쿼리별)
-        logger_llm.info(
-            "RAG retrieved 누적 개수 count=%d ids=%s",
-            len(results),
-            [r.get("id") for r in results],
-        )
 
     # 최종 누적 결과 로그
     logger_llm.info(
