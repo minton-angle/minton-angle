@@ -648,28 +648,33 @@ def _system_prompt(lang: str) -> str:
 5) 출력은 반드시 JSON 오브젝트 1개이며, 아래 스키마를 정확히 지키십시오.
    - growth: { direction: improved|worsened|flat, delta_average_score: number, message: string }
    - sections: {
-       ready: { title, analysis },
-       rotation: { title, analysis },
-       backswing: { title, analysis },
-       impact: { title, analysis },
-       followswing: { title, analysis }
+        ready: { title, analysis, fix },
+        rotation: { title, analysis, fix },
+        backswing: { title, analysis, fix },
+        impact: { title, analysis, fix },
+        followswing: { title, analysis, fix }
      }
-6-1) analysis는 해당 Stage의 "최근 N회 기준 비교 기반 분석 리포트"를 작성하는 단일 필드입니다.
-     - 정확히 3문장 구조를 유지하십시오.
+6-1) analysis는 해당 Stage의 "최근 N회 기준 비교 기반 동작 분석"만 작성하는 필드입니다.
+     - 정확히 2문장 구조를 유지하십시오.
      - 첫 문장: 이전 횟수 대비 세부 동작 흐름(최소 2개 세부 항목)을 객관적으로 요약하십시오.
      - 두 번째 문장: 해당 변화가 경기력 또는 동작 안정성에 어떤 영향을 주는지 설명하십시오.
-     - 세 번째 문장: 개선 또는 유지 관점에서의 제안을 작성하십시오.
      - 점수/델타/평균 수치 직접 언급 금지(숫자 금지).
-     - 지시형 문장(해라/하세요) 금지, 보고서형 제안 문장으로 작성하십시오.
-     - retrieved_coaching가 있는 경우, 핵심 의미만 요약 반영하십시오. (드릴 세부 묘사 금지)
      - worst_sub_current_mean이 90 미만인 경우,
        해당 worst_sub를 1회 이상 언급하여 '세부 보완 필요' 관점으로 포함하십시오.
+6-2) fix는 해당 Stage의 "구체적 교정 방법"만 작성하는 필드입니다.
+     - retrieved_coaching을 근거로 사용자가 바로 적용할 수 있는 구체적 교정 동작을 작성하십시오.
+     - fix에는 구체적인 교정 방법, 연습 방법, 드릴 지시를 작성하시오.
+     - 반드시 신체 부위와 움직임 방향을 포함하십시오.
+        - 예: 라켓을 몸 앞쪽에 두고, 손목이 어깨선 아래로 떨어지지 않도록 준비 자세를 유지하는 방식으로 보완할 수 있습니다.
+     - 명령형이 아닌 설명형 제안 문장으로 작성하십시오.
+
 9) 각 섹션은 current_mean(점수)에 따라 피드백 목적이 달라야 합니다.
    - current_mean >= 90: "유지/강점 확인" 중심으로 작성합니다.
      단, worst_sub_current_mean이 90 미만인 경우에는 '문제 지적'이 아니라
      '보강/흔들림 방지' 관점으로 worst_sub를 1회 이상 언급할 수 있습니다.
    - 80 <= current_mean < 90: "안정화/흔들림 방지" 중심으로 작성
    - current_mean < 80: "개선 필요" 중심으로 작성
+   - 모든 경우에 fix는 분석 요약이 아니라 실제 교정 방향이어야 합니다.
 """.strip()
 
 
@@ -701,11 +706,11 @@ def _user_prompt(
             "message": "string",
         },
         "sections": {
-            "ready": {"title": "준비", "analysis": "string"},
-            "rotation": {"title": "회전", "analysis": "string"},
-            "backswing": {"title": "백스윙", "analysis": "string"},
-            "impact": {"title": "임팩트", "analysis": "string"},
-            "followswing": {"title": "팔로스윙", "analysis": "string"},
+            "ready": {"title": "준비", "analysis": "string", "fix": "string"},
+            "rotation": {"title": "회전", "analysis": "string", "fix": "string"},
+            "backswing": {"title": "백스윙", "analysis": "string", "fix": "string"},
+            "impact": {"title": "임팩트", "analysis": "string", "fix": "string"},
+            "followswing": {"title": "팔로스윙", "analysis": "string", "fix": "string"},
         },
     }
 
@@ -769,9 +774,10 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
     ]:
         node = report_obj["sections"].setdefault(
             key,
-            {"title": title, "analysis": "-"},
+            {"title": title, "analysis": "-", "fix": "-"},
         )
         node.setdefault("analysis", "-")
+        node.setdefault("fix", "-")
 
     # Backward-compat: map score sections -> legacy actions(kf1/kf2/kf3) if actions missing
     if not report_obj.get("actions"):
