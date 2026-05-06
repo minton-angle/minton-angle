@@ -492,7 +492,7 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
         selected_pairs = reranked_pairs[:per_q]
 
         logger_llm.info(
-            "RAG rerank query='%s' stage=%s metric=%s candidates=%d selected=%d",
+            "[재정렬 결과 요약]RAG rerank query='%s' stage=%s metric=%s candidates=%d selected=%d",
             text,
             query_stage,
             query_metric,
@@ -525,7 +525,7 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
             if COACH_RAG_MAX_CHARS > 0 and len(doc) > COACH_RAG_MAX_CHARS:
                 doc = doc[:COACH_RAG_MAX_CHARS].rstrip() + "…"
             logger_llm.info(
-                "RAG hit stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s injected=%s raw_len=%d preview=%s",
+                "[최종 입력 문서]RAG hit stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s injected=%s raw_len=%d preview=%s",
                 query_stage,
                 query_metric,
                 source_file,
@@ -612,7 +612,7 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
 def _system_prompt(lang: str) -> str:
     # NOTE: lang is kept for future extensibility; current prompt is Korean-first.
     return """
-당신은 배드민턴 동작 분석 AI 코치입니다.
+당신은 배드민턴 동작 개선 AI 코치입니다.
 
 [절대 규칙]
 0) `meta.retrieved_coaching`가 제공되면, 각 섹션의 analysis는 retrieved_coaching의 stage/metric과 직접 연결되는
