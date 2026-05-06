@@ -569,8 +569,9 @@ def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.sco
                 results.append(
                     {
                         "id": sid,
-                        "stage": _safe_str(md.get("stage")),
-                        "metric": _safe_str(md.get("metric")),
+                        "stage": query_stage,
+                        "metric": query_metric,
+                        "metric_query": _metric_query_text(query_stage, query_metric),
                         "score_band": _safe_str(md.get("score_band")),
                         "title": inj_title or source_file,
                         "rerank_score": rerank_score,
