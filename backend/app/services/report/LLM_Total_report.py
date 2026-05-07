@@ -11,6 +11,11 @@ import httpx
 
 from functools import lru_cache
 
+try:
+    from app.services.report.tools.recommended_youtube_tool import recommended_youtube_tool
+except Exception:
+    recommended_youtube_tool = None
+
 
 logger_llm = logging.getLogger("app.llm")
 
@@ -1074,41 +1079,15 @@ def generate_report(
     raw_clean = _strip_markdown_code_fences(raw)
     raw_clean = _extract_first_json_object(raw_clean)
 
+    report_obj = json.loads(raw_clean)
+    report_obj = _normalize_report(report_obj)
     try:
-        report_obj = json.loads(raw_clean)
-        report_obj = _normalize_report(report_obj)
-        if usage:
-            report_obj["usage"] = usage
+        if recommended_youtube_tool is not None:
+            report_obj["recommended_youtube"] = recommended_youtube_tool(meta or {})
+        else:
+            report_obj.setdefault("recommended_youtube", [])
     except Exception as e:
-        # Debug aid: dump the full raw output to a file when parsing fails.
-        if LLM_DUMP_RAW_ON_ERROR:
-            try:
-                os.makedirs(LLM_DUMP_RAW_DIR, exist_ok=True)
-                ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-                safe_model = (model or (HF_MODEL if LLM_PROVIDER == "hf" else GROQ_MODEL) or "model").replace("/", "__")
-                out_path = os.path.join(LLM_DUMP_RAW_DIR, f"raw_{safe_model}_{ts}.txt")
-                with open(out_path, "w", encoding="utf-8") as f:
-                    f.write(raw)
-                logger_llm.error("LLM raw dump saved: %s", out_path)
-            except Exception as dump_err:
-                logger_llm.error("LLM raw dump failed err=%s", str(dump_err))
-
-        # Keep exception small but informative
-        raise RuntimeError(f"Invalid JSON from LLM: {raw[:500]}") from e
-
-    report_obj.setdefault("created_at", datetime.utcnow().isoformat() + "Z")
-    report_obj.setdefault("model", model or (HF_MODEL if LLM_PROVIDER == "hf" else GROQ_MODEL))
-    report_obj.setdefault("provider", LLM_PROVIDER)
-
-    # Final confirmation log (after normalization)
-    try:
-        logger_llm.info(
-            "LLM report finalized provider=%s model=%s",
-            LLM_PROVIDER,
-            report_obj.get("model"),
-        )
-    except Exception:
-        pass
-
-    logger_llm.info("LLM report=%s", json.dumps(report_obj, ensure_ascii=False))
+        logger_llm.warning("recommended_youtube_tool failed err=%s", str(e))
+        report_obj.setdefault("recommended_youtube", [])
+ 
     return report_obj
