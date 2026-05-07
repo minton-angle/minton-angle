@@ -500,7 +500,7 @@ function renderYoutubeLinksByKfKeys(kfKeysOrReport) {
     !Array.isArray(kfKeysOrReport) && typeof kfKeysOrReport === "object") ? kfKeysOrReport
     : (window.__LLM_REPORT__ || {});
 
-  const list = flattenRecommendedYoutube(reportObj).slice(0, 3);
+  const list = flattenRecommendedYoutube(reportObj);
 
   if (!list.length) {
     wrap.innerHTML = `<div class="ytEmpty">추천 영상이 없습니다.</div>`;
@@ -534,7 +534,7 @@ function renderYoutubeTableFromReport(reportObj) {
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  const top = flattenRecommendedYoutube(reportObj).slice(0, 6);
+  const top = flattenRecommendedYoutube(reportObj);
   if (!top.length) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td colspan="4">-</td>`;
