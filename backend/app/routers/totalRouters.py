@@ -149,7 +149,7 @@ def posture_report(payload: PostureReportRequest):
     logger_api.info("POST /api/report/posture start lang=%s meta=%s", payload.lang, (payload.meta or {}))
 
     try:
-        report = generate_report(
+        report = generate_report( # 실질적으로 LLM/RAG 파이프라인이 시작되는 위치
             angles=payload.angles,
             meta=payload.meta,
             lang=payload.lang,
