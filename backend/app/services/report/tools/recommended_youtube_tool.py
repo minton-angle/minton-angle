@@ -11,7 +11,7 @@ logger = logging.getLogger("app.llm.youtube_tool")
 
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "").strip()
 TAVILY_SEARCH_URL = os.getenv("TAVILY_SEARCH_URL", "https://api.tavily.com/search").strip()
-YOUTUBE_MAX_RESULTS_PER_METRIC = int(os.getenv("YOUTUBE_MAX_RESULTS_PER_METRIC", "2"))
+YOUTUBE_MAX_RESULTS_PER_METRIC = int(os.getenv("YOUTUBE_MAX_RESULTS_PER_METRIC", "1")) # metric당 1개씩
 YOUTUBE_SEARCH_DEPTH = os.getenv("YOUTUBE_SEARCH_DEPTH", "basic").strip() or "basic"
 
 
@@ -229,7 +229,23 @@ def recommended_youtube_tool(
         stage = _safe_str(item.get("stage"))
         metric = _safe_str(item.get("metric"))
         query = build_youtube_query(stage, metric)
+        logger.info(
+            "[YouTube Search] stage=%s metric=%s score=%s query=%s",
+            stage,
+            metric,
+            item.get("score"),
+            query,
+        )
+
         videos = _tavily_search_youtube(query=query, max_results=per_metric)
+
+        logger.info(
+            "[YouTube Result] stage=%s metric=%s result_count=%d urls=%s",
+            stage,
+            metric,
+            len(videos),
+            [v.get("url") for v in videos],
+        )
 
         recommendations.append(
             {
