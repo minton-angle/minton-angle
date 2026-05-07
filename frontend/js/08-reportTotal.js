@@ -255,11 +255,8 @@ function renderActionCards(currentSessions, prevSessions){
     }
   }
 
-  // 추천 영상: 평균 점수 worst + 편차 worst 기반 자동 큐레이션 (stage keys)
-  const worstKey = stageKeyFromActionIndex(worst.n);
-  const volKey = stageKeyFromActionIndex(volatile.n);
-  const keys = [worstKey, volKey].filter(Boolean);
-  renderYoutubeLinksByKfKeys(keys);
+  // 추천 영상은 Backend Agent의 recommended_youtube 결과를 렌더링한다.
+  renderYoutubeLinksByKfKeys(window.__LLM_REPORT__ || {});
 
   // FollowSwing 성공/실패율 도넛(현재 기간)
   renderFollowSwingDonutCurrent(currentSessions);
@@ -458,118 +455,73 @@ function wireActionCarousel(){
 }
 
 
-// ====== Curated YouTube 추천 (검색이 아니라, 특정 영상 ID 기반) ======
-function youtubeWatchUrl(videoId) {
-  const id = String(videoId || "").trim();
-  if (!id) return null;
-  return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
-}
+// ====== Backend Agent 기반 YouTube 추천 렌더링 ======
+// Backend가 recommended_youtube 배열을 내려주면 프론트는 렌더링만 담당한다.
+function flattenRecommendedYoutube(reportObj) {
+  const groups = Array.isArray(reportObj?.recommended_youtube)
+    ? reportObj.recommended_youtube
+    : [];
 
-function youtubeThumbUrl(videoId) {
-  const id = String(videoId || "").trim();
-  if (!id) return null;
-  return `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
-}
-
-// 제품에서 큐레이션한 목록만 사용 (채널/영상 ID 고정)
-const CURATED_YT = {
-  // legacy KF buckets
-  action1: [
-    { videoId: "toQ7tOx7Tvs", title: "The 4 Grips In Badminton (올바른 그립 전환)", channel: "Badminton Insight" },
-    { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (준비/타이밍)", channel: "Badminton Insight" },
-  ],
-  action2: [
-    { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (파워와 타이밍)", channel: "Badminton Insight" },
-  ],
-  action3: [
-    { videoId: "zCq36gnqGdI", title: "How To Use Your Wrist In Badminton (손목이 아니라 손가락)", channel: "Badminton Insight" },
-  ],
-
-  // stage buckets (A안)
-  ready: [
-    { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (준비/타이밍)", channel: "Badminton Insight" },
-    { videoId: "toQ7tOx7Tvs", title: "The 4 Grips In Badminton (그립/준비)", channel: "Badminton Insight" },
-  ],
-  rotation: [
-    { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (회전/타이밍)", channel: "Badminton Insight" },
-  ],
-  backswing: [
-    { videoId: "xRv1JLg4NMM", title: "Forehand Overhead Clear Tutorial (백스윙 연결)", channel: "Badminton Insight" },
-  ],
-  impact: [
-    { videoId: "H7kpZ9inc10", title: "Badminton SMASH Tutorial (임팩트 포인트)", channel: "Badminton Insight" },
-  ],
-  followswing: [
-    { videoId: "zCq36gnqGdI", title: "How To Use Your Wrist In Badminton (팔로스윙/손가락)", channel: "Badminton Insight" },
-  ],
-};
-
-function curatedListForKf(kfKey) {
-  const raw = String(kfKey || "");
-  const k = raw.toLowerCase();
-
-  // stage keys
-  if (k.includes("1_ready_total") || k === "ready") return CURATED_YT.ready;
-  if (k.includes("2_rotation_total") || k === "rotation") return CURATED_YT.rotation;
-  if (k.includes("3_backswing_total") || k === "backswing") return CURATED_YT.backswing;
-  if (k.includes("4_impact_total") || k === "impact") return CURATED_YT.impact;
-  if (k.includes("5_followswing_total") || k === "followswing") return CURATED_YT.followswing;
-
-  // legacy KF keys
-  if (k.includes("kf1")) return CURATED_YT.action1;
-  if (k.includes("kf2")) return CURATED_YT.action2;
-  if (k.includes("kf3")) return CURATED_YT.action3;
-
-  return [];
-}
-
-function uniqByVideoId(items) {
-  const seen = new Set();
-  const out = [];
-  for (const it of Array.isArray(items) ? items : []) {
-    const id = String(it?.videoId || "");
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    out.push(it);
+  const rows = [];
+  for (const group of groups) {
+    const videos = Array.isArray(group?.videos) ? group.videos : [];
+    for (const v of videos) {
+      const url = String(v?.url || "");
+      if (!url) continue;
+      rows.push({
+        stage: String(group?.stage_label || group?.stage || "-"),
+        metric: String(group?.metric || "-"),
+        score: group?.score,
+        title: String(v?.title || "추천 영상"),
+        channel: String(v?.channel || "YouTube"),
+        url,
+        thumbnail: String(v?.thumbnail || ""),
+        content: String(v?.content || ""),
+      });
+    }
   }
-  return out;
+
+  const uniq = [];
+  const seen = new Set();
+  for (const r of rows) {
+    if (!r.url || seen.has(r.url)) continue;
+    seen.add(r.url);
+    uniq.push(r);
+  }
+  return uniq;
 }
 
-function renderYoutubeLinksByKfKeys(kfKeys) {
+function renderYoutubeLinksByKfKeys(kfKeysOrReport) {
   const wrap = document.getElementById("llmYoutubeLinks");
   if (!wrap) return;
 
-  const keys = Array.isArray(kfKeys) ? kfKeys : [];
-  const picked = [];
-  keys.forEach((k)=> picked.push(...curatedListForKf(k)));
+  const reportObj =
+  (kfKeysOrReport &&
+    !Array.isArray(kfKeysOrReport) && typeof kfKeysOrReport === "object") ? kfKeysOrReport
+    : (window.__LLM_REPORT__ || {});
 
-  if (!picked.length) {
-    picked.push(...CURATED_YT.action1, ...CURATED_YT.action2, ...CURATED_YT.action3);
-  }
-
-  const list = uniqByVideoId(picked).slice(0, 3);
+  const list = flattenRecommendedYoutube(reportObj).slice(0, 3);
 
   if (!list.length) {
-    wrap.innerHTML = `<div class="ytEmpty"></div>`;
+    wrap.innerHTML = `<div class="ytEmpty">추천 영상이 없습니다.</div>`;
     return;
   }
 
   wrap.innerHTML = list
     .map((v) => {
-      const url = youtubeWatchUrl(v.videoId);
-      const thumb = youtubeThumbUrl(v.videoId);
       const title = String(v.title || "추천 영상");
-      const channel = String(v.channel || "");
+      const thumb = String(v.thumbnail || "");
+      const meta = `${v.stage} · ${v.metric}${Number.isFinite(Number(v.score)) ? ` · ${Number(v.score).toFixed(1)}점` : ""}`;
 
       return `
-        <a class="ytCard" href="${url}" target="_blank" rel="noopener noreferrer">
+        <a class="ytCard" href="${v.url}" target="_blank" rel="noopener noreferrer">
           <div class="ytCard__thumbWrap">
-            <img class="ytCard__thumb" src="${thumb}" alt="${title}" loading="lazy" />
+            ${thumb ? `<img class="ytCard__thumb" src="${thumb}" alt="${title}" loading="lazy" />` : `<div class="ytCard__thumb ytCard__thumb--empty"></div>`}
             <div class="ytCard__badge">YouTube</div>
           </div>
           <div class="ytCard__body">
             <div class="ytCard__title">${title}</div>
-            <div class="ytCard__meta">${channel}</div>
+            <div class="ytCard__meta">${meta}</div>
           </div>
         </a>
       `;
@@ -582,41 +534,7 @@ function renderYoutubeTableFromReport(reportObj) {
   if (!tbody) return;
   tbody.innerHTML = "";
 
-  const plateauKf = reportObj?.plateau?.kf || null;
-  const consKf = reportObj?.consistency?.kf || null;
-
-  const picked = [];
-  if (plateauKf) picked.push({ kf: plateauKf, list: curatedListForKf(plateauKf) });
-  if (consKf && consKf !== plateauKf) picked.push({ kf: consKf, list: curatedListForKf(consKf) });
-
-  // fallback: 대표 세트
-  if (!picked.length) {
-    picked.push({ kf: "kf1_error", list: CURATED_YT.action1 });
-    picked.push({ kf: "kf2_error", list: CURATED_YT.action2 });
-    picked.push({ kf: "kf3_error", list: CURATED_YT.action3 });
-  }
-
-  const rows = [];
-  for (const group of picked) {
-    for (const v of Array.isArray(group.list) ? group.list : []) {
-      rows.push({
-        action: actionNameFromKfKey(group.kf),
-        title: String(v?.title || "추천 영상"),
-        channel: String(v?.channel || ""),
-        url: youtubeWatchUrl(v?.videoId),
-      });
-    }
-  }
-
-  const uniq = [];
-  const seen = new Set();
-  for (const r of rows) {
-    if (!r.url || seen.has(r.url)) continue;
-    seen.add(r.url);
-    uniq.push(r);
-  }
-
-  const top = uniq.slice(0, 6);
+  const top = flattenRecommendedYoutube(reportObj).slice(0, 6);
   if (!top.length) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td colspan="4">-</td>`;
@@ -626,8 +544,9 @@ function renderYoutubeTableFromReport(reportObj) {
 
   for (const r of top) {
     const tr = document.createElement("tr");
+    const action = `${r.stage} / ${r.metric}`;
     tr.innerHTML = `
-      <td>${r.action}</td>
+      <td>${action}</td>
       <td title="${r.title}">${r.title}</td>
       <td title="${r.channel}">${r.channel || "-"}</td>
       <td><a href="${r.url}" target="_blank" rel="noopener noreferrer">열기</a></td>
@@ -1675,31 +1594,7 @@ async function generateLLMReportByPostIdx(postIdx, lang = "ko") {
 
 // LLM report -> 추천 영상 선택(plateau/consistency 기반)
 function renderYoutubeLinksFromReport(reportObj){
-  const plateauKf = reportObj?.plateau?.kf || reportObj?.plateau?.key || null;
-  const consKf = reportObj?.consistency?.kf || reportObj?.consistency?.key || null;
-
-  // score-based report fallback: use sections to choose videos
-  // backswing -> kf1, impact -> kf2, followswing -> kf3
-  const hasSections = reportObj && typeof reportObj === "object" && reportObj.sections && typeof reportObj.sections === "object";
-  const sectionFallbackKeys = hasSections ? [
-    "1_Ready_Total",
-    "2_Rotation_Total",
-    "3_Backswing_Total",
-    "4_Impact_Total",
-    "5_FollowSwing_Total",
-  ] : [];
-
-  const keys = [];
-  if (plateauKf) keys.push(plateauKf);
-  if (consKf && consKf !== plateauKf) keys.push(consKf);
-
-  // fallback: 전체 대표 (sections가 있으면 섹션 기반 fallback 우선)
-  if (!keys.length) {
-    if (sectionFallbackKeys.length) keys.push(...sectionFallbackKeys);
-    else keys.push("1_Ready_Total", "2_Rotation_Total", "3_Backswing_Total", "4_Impact_Total", "5_FollowSwing_Total");
-  }
-
-  renderYoutubeLinksByKfKeys(keys);
+  renderYoutubeLinksByKfKeys(reportObj || window.__LLM_REPORT__ || {});
 }
 
 // LLM report -> 동작 카드(기존 actionCard UI)에 요약/피드백 반영
@@ -1780,6 +1675,7 @@ function renderActionCardsFromLLM(reportObj){
 }
 
 function renderLLMReport(reportObj){
+  window.__LLM_REPORT__ = reportObj || {};
   const DEV = location.hostname === "localhost";
   if (DEV) {
     console.groupCollapsed("[LLM REPORT RAW JSON]");
@@ -1926,6 +1822,7 @@ async function loadFromDB(range = "7d") {
           setLLMLoading(true);
           const llmReport = await generateLLMReportByPostIdx(postIdx, "ko");
           if (llmReport) {
+            window.__LLM_REPORT__ = llmReport || {};
             renderLLMReport(llmReport);
           }
         } catch (err) {
