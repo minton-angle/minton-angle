@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from app.services.report.LLM_Total_report import generate_report
+from app.services.report.tools.weak_metric_extractor import extract_weak_metrics
 
 # --- DB/ORM imports for post_idx-based report ---
 from sqlalchemy.orm import Session
@@ -764,11 +765,21 @@ def posture_report_from_post(
             "insights": insights,
         }
 
+        # score_stats를 LLM reasoning용 movement observation 포맷으로 정규화
+        weak_metrics = extract_weak_metrics(score_stats, threshold=90.0)
+        meta["weak_metrics"] = weak_metrics
+
+        logger_api.info(
+            "[LLM INPUT] weak_metrics=%s",
+            json.dumps(weak_metrics, ensure_ascii=False),
+        )
+
         logger_api.info(
             "[LLM INPUT] post_idx=%s range=%s",
             post_idx,
             r,
         )
+        
         logger_api.info(
             "[LLM INPUT] summary=%s",
             json.dumps(meta.get("summary", {}), ensure_ascii=False),
