@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from app.services.report.LLM_Total_report import generate_report
-from app.services.report.tools.weak_metric_extractor import extract_weak_metrics
+from backend.app.services.report.weak_metric_extractor import extract_weak_metrics
 from app.services.report.score_stats_service import build_score_report_state
 from app.services.report.report_data_service import (
     latest_llm_report_payload,
