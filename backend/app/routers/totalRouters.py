@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.services.report.LLM_Total_report import generate_report
 from app.services.report.tools.weak_metric_extractor import extract_weak_metrics
+from app.services.report.score_stats_service import build_score_report_state
 
 # --- DB/ORM imports for post_idx-based report ---
 from sqlalchemy.orm import Session
@@ -493,258 +494,12 @@ def posture_report_from_post(
         # 점수 기반 리포트로 전환: angles(단일 세션)은 사용하지 않음
         angles = {}
 
-        # ===== 점수 기반: Stage score들 + total_score 통계 =====
-        SCORE_KEYS = [
-            "1_Ready_Total",
-            "2_Rotation_Total",
-            "3_Backswing_Total",
-            "4_Impact_Total",
-            "5_FollowSwing_SuccessRate",
-            "total_score",
-        ]
-
-        # ===== stage breakdown(세부 항목) 정의 =====
-        # 새로운 score_json 스키마(details 기반)에서 stage별 세부 metric명을 동적으로 수집합니다.
-        STAGES = {
-            "1_Ready_Total": "Ready",
-            "2_Rotation_Total": "Rotation",
-            "3_Backswing_Total": "Backswing",
-            "4_Impact_Total": "Impact",
-        }
-
-        def _details_node(row: Analysis) -> Dict[str, Any]:
-            sj = getattr(row, "score_json", None) or {}
-            details = sj.get("details") if isinstance(sj, dict) else None
-            return details if isinstance(details, dict) else {}
-
-        def _stage_node(row: Analysis, stage_name: str) -> Dict[str, Any]:
-            details = _details_node(row)
-            node = details.get(stage_name)
-            return node if isinstance(node, dict) else {}
-
-        def _metric_score(row: Analysis, stage_name: str, metric_name: str) -> Optional[float]:
-            node = _stage_node(row, stage_name)
-            metric = node.get(metric_name)
-            if not isinstance(metric, dict):
-                return None
-            v = metric.get("score")
-            try:
-                return float(v) if v is not None else None
-            except Exception:
-                return None
-
-        def _stage_score(row: Analysis, stage_name: str) -> Optional[float]:
-            node = _stage_node(row, stage_name)
-            v = node.get(f"{stage_name}_score")
-            try:
-                return float(v) if v is not None else None
-            except Exception:
-                return None
-
-        def _mean_metric_score(rows: list[Analysis], stage_name: str, metric_name: str) -> float:
-            vals: list[float] = []
-            for rr in rows:
-                v = _metric_score(rr, stage_name, metric_name)
-                if v is None:
-                    continue
-                v = max(0.0, min(100.0, float(v)))
-                vals.append(v)
-            return sum(vals) / len(vals) if vals else 0.0
-
-        def _collect_stage_metrics(rows: list[Analysis], stage_name: str) -> list[str]:
-            # rows에서 stage_name 아래의 metric key들을 수집( *_score 제외 )
-            keys: set[str] = set()
-            for rr in rows:
-                node = _stage_node(rr, stage_name)
-                for k, v in node.items():
-                    if k == f"{stage_name}_score":
-                        continue
-                    # FollowSwing의 경우 Performance는 stage breakdown에 포함하지 않음(별도 성공률 처리)
-                    if stage_name == "FollowSwing" and k == "Performance":
-                        continue
-                    if isinstance(v, dict) and "score" in v:
-                        keys.add(str(k))
-            return sorted(keys)
-
-        def _compute_breakdown_stats(total_key: str, stage_name: str, cur_rows: list[Analysis], prev_rows: list[Analysis]) -> Dict[str, Any]:
-            """각 Stage Total에 대해 세부 항목 통계 + worst_sub(가장 낮은 세부 점수) 요약을 생성."""
-            sub_keys = _collect_stage_metrics(cur_rows, stage_name)
-            sub_stats: Dict[str, Any] = {}
-            for sk in sub_keys:
-                cm = _mean_metric_score(cur_rows, stage_name, sk)
-                pm = _mean_metric_score(prev_rows, stage_name, sk) if prev_rows else cm
-                d = cm - pm
-                sd = "improved" if d > 1e-9 else ("worsened" if d < -1e-9 else "flat")
-                # metric id는 RAG/KB 매칭을 위해 stage 접두를 붙여 저장
-                metric_id = f"{stage_name}.{sk}"
-                sub_stats[metric_id] = {
-                    "current_mean": round(cm, 2),
-                    "prev_mean": round(pm, 2),
-                    "delta": round(d, 2),
-                    "direction": sd,
-                }
-
-            worst_sub = None
-            worst_val = None
-            for sk, node in sub_stats.items():
-                v = node.get("current_mean")
-                try:
-                    v = float(v)
-                except Exception:
-                    continue
-                if worst_val is None or v < worst_val:
-                    worst_val = v
-                    worst_sub = sk
-
-            return {
-                "sub_stats": sub_stats,
-                "worst_sub": worst_sub,
-                "worst_sub_current_mean": (round(float(worst_val), 2) if worst_val is not None else None),
-            }
-
-        def _score_of(row: Analysis, key: str) -> Optional[float]:
-            sj = getattr(row, "score_json", None) or {}
-            if not isinstance(sj, dict):
-                return None
-
-            # total_score
-            if key == "total_score":
-                v = sj.get("total_score")
-                try:
-                    return float(v) if v is not None else None
-                except Exception:
-                    return None
-
-            # stage totals
-            stage_name = STAGES.get(key)
-            if stage_name:
-                v = _stage_score(row, stage_name)
-                try:
-                    return float(v) if v is not None else None
-                except Exception:
-                    return None
-
-            return None
-
-        def _mean_score(rows: list[Analysis], key: str) -> float:
-            vals: list[float] = []
-            for r in rows:
-                v = _score_of(r, key)
-                if v is None:
-                    continue
-                v = max(0.0, min(100.0, float(v)))
-                vals.append(v)
-            return sum(vals) / len(vals) if vals else 0.0
-
-        # 팔로스윙 false rate / risk level 계산 함수 추가
-        def _followswing_false_rate(rows: list[Analysis]) -> float:
-            total = 0
-            false_n = 0
-            for rr in rows:
-                sj = getattr(rr, "score_json", None) or {}
-                details = sj.get("details") if isinstance(sj, dict) else None
-                if not isinstance(details, dict):
-                    continue
-                fs = details.get("FollowSwing")
-                if not isinstance(fs, dict):
-                    continue
-                perf = fs.get("Performance")
-                if not isinstance(perf, dict):
-                    continue
-                passed = perf.get("success")
-                if passed is not True and passed is not False:
-                    continue
-
-                total += 1
-                if not passed:
-                    false_n += 1
-
-            return (false_n / total) if total else 0.0
-
-        def _followswing_risk_level(false_rate: float) -> str:
-            # <40%: ok, 40~<80%: improve, >=80%: risk
-            if false_rate >= 0.80:
-                return "risk"
-            if false_rate >= 0.40:
-                return "improve"
-            return "ok"
-
-        score_stats: Dict[str, Any] = {}
-
-        for k in SCORE_KEYS:
-            # FollowSwing: 성공률(=100 - false%) 기반으로 score_stats 구성
-            if k == "5_FollowSwing_SuccessRate":
-                cur_false = _followswing_false_rate(analyses)
-                prev_false = _followswing_false_rate(prev_analyses) if prev_analyses else cur_false
-
-                cur_sr = 100.0 - (cur_false * 100.0)
-                prev_sr = 100.0 - (prev_false * 100.0)
-
-                dlt = cur_sr - prev_sr
-                direction = "improved" if dlt > 1e-9 else ("worsened" if dlt < -1e-9 else "flat")
-
-                score_stats[k] = {
-                    "current_mean": round(cur_sr, 2),
-                    "prev_mean": round(prev_sr, 2),
-                    "delta": round(dlt, 2),
-                    "direction": direction,
-
-                    # LLM에게만 제공할 위험 신호(숫자/레벨)
-                    "false_rate_current": round(cur_false, 4),
-                    "false_rate_prev": round(prev_false, 4),
-                    "risk_level": _followswing_risk_level(cur_false),
-                    "success_rate_current": round(cur_sr, 2),
-                    "success_rate_prev": round(prev_sr, 2)
-                }
-                continue
-
-            # (나머지 키는 기존 점수 평균 로직 그대로)
-            cur_m = _mean_score(analyses, k)
-            prev_m = _mean_score(prev_analyses, k) if prev_analyses else cur_m
-            dlt = cur_m - prev_m
-            direction = "improved" if dlt > 1e-9 else ("worsened" if dlt < -1e-9 else "flat")
-            node: Dict[str, Any] = {
-                "current_mean": round(cur_m, 2),
-                "prev_mean": round(prev_m, 2),
-                "delta": round(dlt, 2),
-                "direction": direction,
-            }
-
-            # Total 키는 세부 항목 breakdown 요약을 추가(LLM 문장 다양성 목적)
-            if k in STAGES:
-                node.update(_compute_breakdown_stats(k, STAGES[k], analyses, prev_analyses))
-
-            score_stats[k] = node
-
-        # 전체 트렌드는 total_score 기준으로 요약
-        cur_avg = float(score_stats.get("total_score", {}).get("current_mean", 0.0))
-        prev_avg = float(score_stats.get("total_score", {}).get("prev_mean", cur_avg))
-        avg_delta = round(cur_avg - prev_avg, 2)
-        trend = "improved" if avg_delta > 1e-9 else ("worsened" if avg_delta < -1e-9 else "flat")
-
-        # 점수 기반 리포트에서는 kf_stats 대신 score_stats 사용
-        kf_stats = {}
-
-        # ===== KF별 평균 비교 =====
-        def _mean_of(rows, attr):
-            if not rows:
-                return 0.0
-            vals = [float(getattr(r, attr) or 0.0) for r in rows]
-            return sum(vals) / len(vals)
-
-        kf_stats = {}
-        for key in ["kf1_error", "kf2_error", "kf3_error"]:
-            cur_kf_mean = _mean_of(analyses, key)
-            prev_kf_mean = _mean_of(prev_analyses, key) if prev_analyses else cur_kf_mean
-            kf_delta = cur_kf_mean - prev_kf_mean
-            kf_direction = "improved" if kf_delta < -1e-9 else ("worsened" if kf_delta > 1e-9 else "flat")
-
-            kf_stats[key] = {
-                "current_mean": round(cur_kf_mean, 4),
-                "prev_mean": round(prev_kf_mean, 4),
-                "delta": round(kf_delta, 4),
-                "direction": kf_direction,
-            }
+        # ===== 점수 기반 통계 계산 =====
+        # DB에서 조회한 raw Analysis row를 score_stats/trend/kf_stats로 변환한다.
+        score_state = build_score_report_state(analyses, prev_analyses)
+        score_stats = score_state["score_stats"]
+        trend_state = score_state["trend"]
+        kf_stats = score_state["kf_stats"]
 
         insights = _compute_growth_insights(analyses)
 
@@ -755,12 +510,8 @@ def posture_report_from_post(
                 "current_count": len(analyses),
                 "prev_count": len(prev_analyses),
             },
-            "trend": {
-                "current_mean_average_score": round(cur_avg, 2),
-                "prev_mean_average_score": round(prev_avg, 2),
-                "delta_average_score": avg_delta,
-                "direction": trend,
-            },
+            "trend": trend_state,
+            "kf_stats": kf_stats,
             "score_stats": score_stats,
             "insights": insights,
         }
@@ -779,7 +530,7 @@ def posture_report_from_post(
             post_idx,
             r,
         )
-        
+
         logger_api.info(
             "[LLM INPUT] summary=%s",
             json.dumps(meta.get("summary", {}), ensure_ascii=False),
