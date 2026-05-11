@@ -5,7 +5,6 @@ import json
 
 import uuid
 from datetime import datetime
-from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
@@ -13,6 +12,11 @@ from pydantic import BaseModel, Field
 from app.services.report.LLM_Total_report import generate_report
 from app.services.report.tools.weak_metric_extractor import extract_weak_metrics
 from app.services.report.score_stats_service import build_score_report_state
+from app.services.report.report_data_service import (
+    latest_llm_report_payload,
+    load_analysis_windows,
+    load_latest_llm_report,
+)
 
 # --- DB/ORM imports for post_idx-based report ---
 from sqlalchemy.orm import Session
@@ -188,58 +192,11 @@ def get_analysis_by_post_alias(
       - range: "7d" | "1m" | "3m" | "all" | "5n" (default: 7d)
     """
     try:
-        r = (range or "7d").lower().strip()
-        if r in ("5n", "last5", "recent5"):
-            r = "5n"
-        if r in ("10n", "last10", "recent10"):
-            r = "10n"
-        if r not in ("7d", "1m", "3m", "all", "5n", "10n"):
-            r = "7d"
-
-        now = datetime.utcnow()
-        base_q = db.query(Analysis).filter(Analysis.post_idx == post_idx)
-
-        # ---- current window ----
-        current_start = None
-        if r == "7d":
-            current_start = now - timedelta(days=7)
-        elif r == "1m":
-            current_start = now - timedelta(days=30)
-        elif r == "3m":
-            current_start = now - timedelta(days=90)
-        elif r == "all":
-            current_start = None
-
-        # current analyses
-        if r in ("5n", "10n"):
-            n = 5 if r == "5n" else 10
-            latest = base_q.order_by(Analysis.create_date.desc()).limit(2 * n).all()
-
-            cur_desc = latest[:n]
-            prev_desc = latest[n:2 * n]
-
-            # asc 정렬로 변환 (왼쪽=과거, 오른쪽=최신)
-            current_analyses = list(reversed(cur_desc))
-            prev_analyses = list(reversed(prev_desc))
-        else:
-            q_current = base_q
-            if current_start is not None:
-                q_current = q_current.filter(Analysis.create_date >= current_start)
-
-            current_analyses = q_current.order_by(Analysis.create_date.asc()).all()
-
-            # ---- previous window (same length) ----
-            prev_analyses = []
-            if current_start is not None:
-                window_days = (now - current_start).days
-                prev_start = current_start - timedelta(days=window_days)
-                prev_end = current_start
-
-                q_prev = base_q.filter(
-                    Analysis.create_date >= prev_start,
-                    Analysis.create_date < prev_end,
-                )
-                prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
+        # ---- load analyses for current/previous windows ----
+        analysis_windows = load_analysis_windows(db=db, post_idx=post_idx, range_value=range)
+        r = analysis_windows["range"]
+        current_analyses = analysis_windows["current_analyses"]
+        prev_analyses = analysis_windows["prev_analyses"]
 
         def to_sessions(analyses: list[Analysis]) -> list[Dict[str, Any]]:
             def _clamp_score(v: Any) -> float:
@@ -335,20 +292,9 @@ def get_analysis_by_post_alias(
         prev_sessions = to_sessions(prev_analyses)
 
         # ---- latest LLM report (optional) ----
-        latest_llm = (
-            db.query(LLMReport)
-            .filter(LLMReport.post_idx == post_idx)
-            .order_by(LLMReport.create_date.desc())
-            .first()
+        latest_llm_payload = latest_llm_report_payload(
+            load_latest_llm_report(db=db, post_idx=post_idx)
         )
-
-        latest_llm_payload = None
-        if latest_llm is not None:
-            latest_llm_payload = {
-                "idx": latest_llm.idx,
-                "created_at": latest_llm.create_date.isoformat() if latest_llm.create_date else None,
-                "report": latest_llm.feedback,
-            }
 
         # ---- summary stats ----
         def mean_kf(arr: list[Dict[str, Any]]) -> float:
@@ -436,55 +382,10 @@ def posture_report_from_post(
     logger_api.info("POST /api/report/post/%s start lang=%s", post_idx, lang)
 
     try:
-        r = (range or "7d").lower().strip()
-        if r in ("5n", "last5", "recent5"):
-            r = "5n"
-        if r in ("10n", "last10", "recent10"):
-            r = "10n"
-        if r not in ("7d", "1m", "3m", "all", "5n", "10n"):
-            r = "7d"
-
-        now = datetime.utcnow()
-        base_q = db.query(Analysis).filter(Analysis.post_idx == post_idx)
-
-        current_start = None
-        if r == "7d":
-            current_start = now - timedelta(days=7)
-        elif r == "1m":
-            current_start = now - timedelta(days=30)
-        elif r == "3m":
-            current_start = now - timedelta(days=90)
-        elif r == "all":
-            current_start = None
-
-        if r in ("5n", "10n"):
-            n = 5 if r == "5n" else 10
-            latest = base_q.order_by(Analysis.create_date.desc()).limit(2 * n).all()
-
-            cur_desc = latest[:n]
-            prev_desc = latest[n:2 * n]
-
-            analyses = list(reversed(cur_desc))
-            prev_analyses = list(reversed(prev_desc))
-        else:
-            q_current = base_q
-            if current_start is not None:
-                q_current = q_current.filter(Analysis.create_date >= current_start)
-
-            analyses = q_current.order_by(Analysis.create_date.asc()).all()
-
-            # previous window
-
-            if current_start is not None:
-                window_days = (now - current_start).days
-                prev_start = current_start - timedelta(days=window_days)
-                prev_end = current_start
-
-                q_prev = base_q.filter(
-                    Analysis.create_date >= prev_start,
-                    Analysis.create_date < prev_end,
-                )
-                prev_analyses = q_prev.order_by(Analysis.create_date.asc()).all()
+        analysis_windows = load_analysis_windows(db=db, post_idx=post_idx, range_value=range)
+        r = analysis_windows["range"]
+        analyses = analysis_windows["current_analyses"]
+        prev_analyses = analysis_windows["prev_analyses"]
 
         if not analyses:
             raise HTTPException(status_code=404, detail="No analysis rows for this post_idx in the selected range")
