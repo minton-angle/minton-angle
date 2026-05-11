@@ -188,13 +188,6 @@ def _followswing_risk_level(false_rate: float) -> str:
     return "ok"
 
 
-def _mean_of(rows: list[Analysis], attr: str) -> float:
-    if not rows:
-        return 0.0
-    vals = [float(getattr(row, attr) or 0.0) for row in rows]
-    return sum(vals) / len(vals)
-
-
 def build_score_stats(cur_rows: list[Analysis], prev_rows: list[Analysis]) -> Dict[str, Any]:
     """Build score_stats from current/previous Analysis windows.
 
@@ -262,37 +255,15 @@ def build_score_trend(score_stats: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def build_kf_stats(cur_rows: list[Analysis], prev_rows: list[Analysis]) -> Dict[str, Any]:
-    """Build legacy KF error comparison stats."""
-    kf_stats: Dict[str, Any] = {}
-
-    for key in ["kf1_error", "kf2_error", "kf3_error"]:
-        current_mean = _mean_of(cur_rows, key)
-        prev_mean = _mean_of(prev_rows, key) if prev_rows else current_mean
-        delta = current_mean - prev_mean
-        direction = "improved" if delta < -1e-9 else ("worsened" if delta > 1e-9 else "flat")
-
-        kf_stats[key] = {
-            "current_mean": round(current_mean, 4),
-            "prev_mean": round(prev_mean, 4),
-            "delta": round(delta, 4),
-            "direction": direction,
-        }
-
-    return kf_stats
-
-
 def build_score_report_state(
     cur_rows: list[Analysis],
     prev_rows: list[Analysis],
 ) -> Dict[str, Any]:
-    """Build all score-derived state used by the LLM report route."""
+    """Build score_json-derived state used by the LLM report route."""
     score_stats = build_score_stats(cur_rows, prev_rows)
     trend = build_score_trend(score_stats)
-    kf_stats = build_kf_stats(cur_rows, prev_rows)
 
     return {
         "score_stats": score_stats,
         "trend": trend,
-        "kf_stats": kf_stats,
     }

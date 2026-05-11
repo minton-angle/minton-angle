@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from app.services.report.LLM_Total_report import generate_report
-from backend.app.services.report.weak_metric_extractor import extract_weak_metrics
+from app.services.report.weak_metric_extractor import extract_weak_metrics
 from app.services.report.score_stats_service import build_score_report_state
 from app.services.report.report_data_service import (
     latest_llm_report_payload,
@@ -20,7 +20,6 @@ from app.services.report.report_response_service import build_analysis_response
 # --- DB/ORM imports for post_idx-based report ---
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
-from app.models.analysisModels import Analysis
 
 
 def get_db():
@@ -45,71 +44,6 @@ class PostureReportRequest(BaseModel):
 class PostureReportResponse(BaseModel):
     report: Dict[str, Any]
 
-
-def _compute_growth_insights(analyses: list[Analysis]) -> Dict[str, Any]:
-    if not analyses:
-        return {"growth": None, "plateau": None, "consistency": None, "wins": []}
-
-    keys = ["kf1_error", "kf2_error", "kf3_error"]
-
-    # consistency: std 가장 큰 KF
-    stds = {k: _std(_series_vals(analyses, k)) for k in keys}
-    volatile = max(stds.items(), key=lambda kv: kv[1])[0] if stds else None
-
-    # plateau: 최근 N mean vs 이전 N mean
-    N = min(10, max(4, len(analyses) // 3))
-    plateau_obj = None
-    plateau_scores = []
-    for k in keys:
-        arr = _series_vals(analyses, k)
-        if len(arr) < 2 * N:
-            continue
-        prev = arr[-2 * N : -N]
-        recent = arr[-N:]
-        prev_m = _mean(prev)
-        recent_m = _mean(recent)
-        delta = recent_m - prev_m
-        plateau_scores.append((k, delta, prev_m, recent_m))
-    if plateau_scores:
-        plateau_scores.sort(key=lambda t: t[1], reverse=True)
-        k, delta, prev_m, recent_m = plateau_scores[0]
-        plateau_obj = {
-            "kf": k,
-            "prev_mean": round(prev_m, 4),
-            "recent_mean": round(recent_m, 4),
-            "delta": round(delta, 4),
-            "window_n": N,
-        }
-
-    # growth: first vs last
-    first_mean = _mean_abs_kf_error(analyses[0])
-    last_mean = _mean_abs_kf_error(analyses[-1])
-    growth_delta = last_mean - first_mean
-    direction = "improved" if growth_delta < -1e-9 else ("worsened" if growth_delta > 1e-9 else "flat")
-
-    # wins: first-half vs second-half delta (가장 개선된 KF top3)
-    wins = []
-    for k in keys:
-        arr = _series_vals(analyses, k)
-        if len(arr) < 4:
-            continue
-        h = max(1, len(arr) // 2)
-        m0 = _mean(arr[:h])
-        m1 = _mean(arr[h:]) if arr[h:] else m0
-        wins.append({"kf": k, "delta": round(m1 - m0, 4), "first_half": round(m0, 4), "second_half": round(m1, 4)})
-    wins.sort(key=lambda w: w["delta"])  # most negative = best improvement
-
-    return {
-        "growth": {
-            "direction": direction,
-            "delta_mean_abs_kf_error": round(growth_delta, 4),
-            "first_mean_abs_kf_error": round(first_mean, 4),
-            "last_mean_abs_kf_error": round(last_mean, 4),
-        },
-        "plateau": plateau_obj,
-        "consistency": {"kf": volatile, "std": round(stds.get(volatile, 0.0), 4)} if volatile else None,
-        "wins": wins[:3],
-    }
 
 # --------------- POST /api/report/posture ---------------
 @router.post("/posture", response_model=PostureReportResponse)
@@ -179,7 +113,7 @@ def get_analysis_by_post_alias(
             r,
             len(payload.get("current_sessions", [])),
             len(payload.get("prev_sessions", [])),
-            float(payload.get("comparison", {}).get("delta_mean_abs_kf_error", 0.0)),
+            float(payload.get("comparison", {}).get("delta_average_score", 0.0)),
         )
 
         return payload
@@ -229,10 +163,6 @@ def posture_report_from_post(
         score_state = build_score_report_state(analyses, prev_analyses)
         score_stats = score_state["score_stats"]
         trend_state = score_state["trend"]
-        kf_stats = score_state["kf_stats"]
-
-        insights = _compute_growth_insights(analyses)
-
         meta: Dict[str, Any] = {
             "post_idx": post_idx,
             "range": r,
@@ -241,9 +171,7 @@ def posture_report_from_post(
                 "prev_count": len(prev_analyses),
             },
             "trend": trend_state,
-            "kf_stats": kf_stats,
             "score_stats": score_stats,
-            "insights": insights,
         }
 
         # score_stats를 LLM reasoning용 movement observation 포맷으로 정규화

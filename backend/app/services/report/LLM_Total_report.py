@@ -713,7 +713,6 @@ def _user_prompt(
         "trend": m.get("trend", {}),
         "score_stats": m.get("score_stats", {}),
         "weak_metrics": m.get("weak_metrics", []),
-        "insights": m.get("insights", {}),
         "retrieved_coaching": m.get("retrieved_coaching", []),
     }
 
@@ -769,18 +768,6 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
             except Exception:
                 report_obj["growth"]["delta_average_score"] = 0.0
 
-    report_obj.setdefault("actions", {})
-    for k, title in [
-        ("kf1", "백스윙 동작"),
-        ("kf2", "임팩트 동작"),
-        ("kf3", "팔로스루 동작")
-    ]:
-        node = report_obj["actions"].setdefault(
-            k,
-            {"title": title, "problem_one": "-", "fix_two": []}
-        )
-        node["fix_two"] = _ensure_list(node.get("fix_two"))
-
     # New score-based sections
     report_obj.setdefault("sections", {})
     for key, title in [
@@ -796,14 +783,6 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
         )
         node.setdefault("analysis", "-")
         node.setdefault("fix", "-")
-
-    # Backward-compat: map score sections -> legacy actions(kf1/kf2/kf3) if actions missing
-    if not report_obj.get("actions"):
-        report_obj["actions"] = {
-            "kf1": {"title": "백스윙 동작", "problem_one": "-", "fix_two": []},
-            "kf2": {"title": "임팩트 동작", "problem_one": "-", "fix_two": []},
-            "kf3": {"title": "팔로스루 동작", "problem_one": "-", "fix_two": []},
-        }
 
     return report_obj
 
