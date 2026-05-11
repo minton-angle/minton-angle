@@ -3,9 +3,6 @@ import logging
 import time
 import json
 
-import uuid
-from datetime import datetime
-
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
@@ -17,14 +14,12 @@ from app.services.report.report_data_service import (
     load_analysis_windows,
     load_latest_llm_report,
 )
+from app.services.report.report_generation_service import create_and_save_llm_report
 
 # --- DB/ORM imports for post_idx-based report ---
 from sqlalchemy.orm import Session
-
 from app.db.session import SessionLocal
-from app.models.postModels import Post
 from app.models.analysisModels import Analysis
-from app.models.llmReportModels import LLMReport
 
 
 def get_db():
@@ -392,9 +387,6 @@ def posture_report_from_post(
 
         latest = analyses[-1]
 
-        # 점수 기반 리포트로 전환: angles(단일 세션)은 사용하지 않음
-        angles = {}
-
         # ===== 점수 기반 통계 계산 =====
         # DB에서 조회한 raw Analysis row를 score_stats/trend/kf_stats로 변환한다.
         score_state = build_score_report_state(analyses, prev_analyses)
@@ -448,22 +440,21 @@ def posture_report_from_post(
         # snapshot_only=True 인 경우 LLM 호출/DB저장을 하지 않고 meta만 반환합니다.
         if snapshot_only:
             return {"meta": meta}
-        # (2) LLM 호출
-        report = generate_report(angles=angles, meta=meta, lang=lang)
-        # (3) ✅ DB 저장 (llm_report)
-        llm_row = LLMReport(
-            idx=str(uuid.uuid4()),
+        # (2) LLM 호출 및 DB 저장
+        result = create_and_save_llm_report(
+            db=db,
             post_idx=post_idx,
-            feedback=report,                 # ← JSON 그대로 저장
-            create_date=datetime.utcnow(),
+            meta=meta,
+            lang=lang,
         )
-        db.add(llm_row)
-        db.commit()
 
-        logger_api.info("[LLM SAVE] post_idx=%s llm_report_idx=%s", post_idx, llm_row.idx)
+        logger_api.info("[LLM SAVE] post_idx=%s llm_report_idx=%s", post_idx, result["llm_report_idx"])
 
-        # (4) 응답
-        payload = {"report": report, "llm_report_idx": llm_row.idx}
+        # (3) 응답
+        payload = {
+            "report": result["report"],
+            "llm_report_idx": result["llm_report_idx"],
+        }
         if debug_meta:
             payload["meta"] = meta
         return payload
