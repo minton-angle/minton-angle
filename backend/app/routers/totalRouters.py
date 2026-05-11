@@ -15,6 +15,7 @@ from app.services.report.report_data_service import (
     load_latest_llm_report,
 )
 from app.services.report.report_generation_service import create_and_save_llm_report
+from app.services.report.report_response_service import build_analysis_response
 
 # --- DB/ORM imports for post_idx-based report ---
 from sqlalchemy.orm import Session
@@ -44,39 +45,6 @@ class PostureReportRequest(BaseModel):
 class PostureReportResponse(BaseModel):
     report: Dict[str, Any]
 
-def _mean_abs_kf_error(a: Analysis) -> float:
-    vals = []
-    for v in (a.kf1_error, a.kf2_error, a.kf3_error):
-        try:
-            if v is None:
-                continue
-            vals.append(abs(float(v)))
-        except Exception:
-            continue
-    if not vals:
-        return 0.0
-    return sum(vals) / len(vals)
-
-def _series_vals(analyses: list[Analysis], key: str) -> list[float]:
-    out: list[float] = []
-    for a in analyses:
-        v = getattr(a, key, None)
-        if v is None:
-            continue
-        try:
-            out.append(abs(float(v)))
-        except Exception:
-            continue
-    return out
-
-def _mean(arr: list[float]) -> float:
-    return sum(arr) / len(arr) if arr else 0.0
-
-def _std(arr: list[float]) -> float:
-    if not arr:
-        return 0.0
-    m = _mean(arr)
-    return (sum((x - m) ** 2 for x in arr) / len(arr)) ** 0.5
 
 def _compute_growth_insights(analyses: list[Analysis]) -> Dict[str, Any]:
     if not analyses:
@@ -193,159 +161,28 @@ def get_analysis_by_post_alias(
         current_analyses = analysis_windows["current_analyses"]
         prev_analyses = analysis_windows["prev_analyses"]
 
-        def to_sessions(analyses: list[Analysis]) -> list[Dict[str, Any]]:
-            def _clamp_score(v: Any) -> float:
-                try:
-                    x = float(v)
-                except Exception:
-                    return 0.0
-                return max(0.0, min(100.0, x))
-
-            def _stage_score(sj: Dict[str, Any], stage: str) -> Optional[float]:
-                details = sj.get("details") if isinstance(sj, dict) else None
-                if not isinstance(details, dict):
-                    return None
-                node = details.get(stage)
-                if not isinstance(node, dict):
-                    return None
-                v = node.get(f"{stage}_score")
-                try:
-                    return _clamp_score(v) if v is not None else None
-                except Exception:
-                    return None
-
-            def _followswing_success(sj: Dict[str, Any]) -> Optional[bool]:
-                details = sj.get("details") if isinstance(sj, dict) else None
-                if not isinstance(details, dict):
-                    return None
-                fs = details.get("FollowSwing")
-                if not isinstance(fs, dict):
-                    return None
-                perf = fs.get("Performance")
-                if not isinstance(perf, dict):
-                    return None
-                v = perf.get("success")
-                if v is True:
-                    return True
-                if v is False:
-                    return False
-                return None
-
-            out = []
-            for a in analyses:
-                # legacy KF-based score
-                mean_err = _mean_abs_kf_error(a)
-
-                sj = getattr(a, "score_json", None) or {}
-
-                # stage mean scores (for charts/cards)
-                stage_scores = {
-                    "1_Ready_Total": _clamp_score(_stage_score(sj, "Ready") or 0.0),
-                    "2_Rotation_Total": _clamp_score(_stage_score(sj, "Rotation") or 0.0),
-                    "3_Backswing_Total": _clamp_score(_stage_score(sj, "Backswing") or 0.0),
-                    "4_Impact_Total": _clamp_score(_stage_score(sj, "Impact") or 0.0),
-                    # FollowSwing is still rendered as a stage score for UI; use stage score if present, else 0
-                    "5_FollowSwing_Total": _clamp_score(_stage_score(sj, "FollowSwing") or 0.0),
-                }
-
-                # total score for ring/chart (strictly total_score)
-                total_score = sj.get("total_score", None)
-                total_score_num = None
-                try:
-                    if total_score is not None:
-                        total_score_num = _clamp_score(total_score)
-                except Exception:
-                    total_score_num = None
-
-                session_score = int(round(total_score_num)) if total_score_num is not None else 0
-
-                # boolean followswing pass for donut/false-rate logic on FE
-                followswing_pass = _followswing_success(sj)
-
-                out.append({
-                    "idx": a.idx,
-                    "created_at": a.create_date.isoformat() if a.create_date else None,
-                    "frame": "ALL",
-
-                    # score for ring/chart (strictly total_score)
-                    "score": session_score,
-
-                    # legacy fields (keep)
-                    "kf_error": round(mean_err, 4),
-                    "kf1_error": float(a.kf1_error or 0.0),
-                    "kf2_error": float(a.kf2_error or 0.0),
-                    "kf3_error": float(a.kf3_error or 0.0),
-
-                    # new fields
-                    "stage_scores": stage_scores,
-                    "total_score": total_score_num,
-                    "followswing_pass": followswing_pass,
-                })
-            return out
-
-        current_sessions = to_sessions(current_analyses)
-        prev_sessions = to_sessions(prev_analyses)
-
-        # ---- latest LLM report (optional) ----
         latest_llm_payload = latest_llm_report_payload(
             load_latest_llm_report(db=db, post_idx=post_idx)
         )
 
-        # ---- summary stats ----
-        def mean_kf(arr: list[Dict[str, Any]]) -> float:
-            vals = [abs(float(s.get("kf_error", 0.0))) for s in arr]
-            return sum(vals) / len(vals) if vals else 0.0
-
-        current_mean = mean_kf(current_sessions)
-        prev_mean = mean_kf(prev_sessions)
-        delta = round(current_mean - prev_mean, 4)
-
-        direction = "improved" if delta < 0 else ("worsened" if delta > 0 else "flat")
+        payload = build_analysis_response(
+            post_idx=post_idx,
+            range_value=r,
+            current_analyses=current_analyses,
+            prev_analyses=prev_analyses,
+            latest_llm_payload=latest_llm_payload,
+        )
 
         logger_api.info(
             "[GET ANALYSIS] post_idx=%s range=%s current=%d prev=%d delta=%.4f",
             post_idx,
             r,
-            len(current_sessions),
-            len(prev_sessions),
-            delta,
+            len(payload.get("current_sessions", [])),
+            len(payload.get("prev_sessions", [])),
+            float(payload.get("comparison", {}).get("delta_mean_abs_kf_error", 0.0)),
         )
 
-        return {
-            "post_idx": post_idx,
-            "range": r,
-            "current_sessions": current_sessions,
-            "prev_sessions": prev_sessions,
-            "latest_llm_report": latest_llm_payload,
-            "comparison": {
-                "current_mean_abs_kf_error": round(current_mean, 4),
-                "prev_mean_abs_kf_error": round(prev_mean, 4),
-                "delta_mean_abs_kf_error": delta,
-                "direction": direction,
-
-                # score-based (Average_Score) comparison for UI
-                "current_mean_average_score": round(
-                    sum([float(s.get("average_score") or s.get("score") or 0.0) for s in current_sessions]) / max(1, len(current_sessions)),
-                    2,
-                ),
-                "prev_mean_average_score": round(
-                    sum([float(s.get("average_score") or s.get("score") or 0.0) for s in prev_sessions]) / max(1, len(prev_sessions)) if prev_sessions else 0.0,
-                    2,
-                ),
-                "delta_average_score": round(
-                    (sum([float(s.get("average_score") or s.get("score") or 0.0) for s in current_sessions]) / max(1, len(current_sessions))) -
-                    (sum([float(s.get("average_score") or s.get("score") or 0.0) for s in prev_sessions]) / max(1, len(prev_sessions)) if prev_sessions else 0.0),
-                    2,
-                ),
-                "score_direction": (
-                    "improved" if ((sum([float(s.get("average_score") or s.get("score") or 0.0) for s in current_sessions]) / max(1, len(current_sessions))) -
-                                   (sum([float(s.get("average_score") or s.get("score") or 0.0) for s in prev_sessions]) / max(1, len(prev_sessions)) if prev_sessions else 0.0)) > 1e-9
-                    else ("worsened" if ((sum([float(s.get("average_score") or s.get("score") or 0.0) for s in current_sessions]) / max(1, len(current_sessions))) -
-                                         (sum([float(s.get("average_score") or s.get("score") or 0.0) for s in prev_sessions]) / max(1, len(prev_sessions)) if prev_sessions else 0.0)) < -1e-9
-                          else "flat")
-                ),
-            },
-        }
+        return payload
 
     except HTTPException:
         raise
