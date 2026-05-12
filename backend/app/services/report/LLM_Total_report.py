@@ -763,14 +763,6 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
         {"direction": "flat", "delta_average_score": 0.0, "message": "-"}
     )
 
-    # Backward-compat: if older key exists, map it
-    if isinstance(report_obj.get("growth"), dict) and "delta_average_score" not in report_obj["growth"]:
-        if "delta_mean_abs_kf_error" in report_obj["growth"]:
-            try:
-                report_obj["growth"]["delta_average_score"] = float(report_obj["growth"].get("delta_mean_abs_kf_error") or 0.0)
-            except Exception:
-                report_obj["growth"]["delta_average_score"] = 0.0
-
     # New score-based sections
     report_obj.setdefault("sections", {})
     for key, title in [
