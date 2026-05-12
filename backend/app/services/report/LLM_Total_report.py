@@ -1066,8 +1066,26 @@ def generate_report(
     raw_clean = _strip_markdown_code_fences(raw)
     raw_clean = _extract_first_json_object(raw_clean)
 
-    report_obj = json.loads(raw_clean)
-    report_obj = _normalize_report(report_obj)
+    try:
+        report_obj = json.loads(raw_clean)
+    except Exception as e:
+        logger_llm.exception(
+            "LLM report JSON parse failed err=%s raw_clean=%s raw=%s",
+            str(e),
+            raw_clean,
+            raw,
+        )
+        raise
+
+    try:
+        report_obj = _normalize_report(report_obj)
+    except Exception as e:
+        logger_llm.exception(
+            "LLM report normalize failed err=%s report_obj=%s",
+            str(e),
+            json.dumps(report_obj, ensure_ascii=False) if isinstance(report_obj, dict) else str(report_obj),
+        )
+        raise
     try:
         if recommended_youtube_tool is not None:
             report_obj["recommended_youtube"] = recommended_youtube_tool(meta or {})
