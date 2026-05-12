@@ -80,7 +80,7 @@ def metric_query_text(stage: str, metric: str) -> str:
     return f"badminton {mapped_stage} {readable_metric}"
 
 
-def _rewrite_query(
+def execute_query_generation(
     *,
     stage: str,
     metric: str,
@@ -153,7 +153,7 @@ def _build_queries_from_movement_reasoning(
 
         llm_query = ""
         if stage and metric:
-            llm_query = _rewrite_query(
+            llm_query = execute_query_generation(
                 stage=stage,
                 metric=metric,
                 rewrite_query_fn=rewrite_query_fn,
@@ -273,7 +273,7 @@ def _build_queries_from_weak_metrics(
             continue
 
         base_query = metric_query_text(stage, metric)
-        llm_query = _rewrite_query(
+        llm_query = execute_query_generation(
             stage=stage,
             metric=metric,
             rewrite_query_fn=rewrite_query_fn,
