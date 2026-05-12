@@ -4,6 +4,9 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict
 
+import json
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.models.llmReportModels import LLMReport
@@ -12,6 +15,7 @@ from app.services.report.LLM_Total_report import generate_report
 from app.services.report.agent.nodes import movement_reasoning_node
 from app.services.report.agent.state import ReportAgentState
 
+logger_report_generation = logging.getLogger("app.report.generation")
 
 def build_initial_report_agent_state(meta: Dict[str, Any]) -> ReportAgentState:
     """Build the initial state for the report reasoning workflow.
@@ -39,6 +43,15 @@ def upgrade_meta_with_movement_reasoning(meta: Dict[str, Any]) -> Dict[str, Any]
 
     upgrade_meta = dict(meta or {})
     upgrade_meta["movement_reasoning"] = next_state.get("movement_reasoning", {})
+
+    logger_report_generation.info(
+        "[MOVEMENT_REASONING] %s",
+        json.dumps(
+            upgrade_meta.get("movement_reasoning", {}),
+            ensure_ascii=False,
+        ),
+    )
+
     return upgrade_meta
 
 
