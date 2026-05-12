@@ -9,14 +9,13 @@ from typing import Any, Dict, Optional
 
 import httpx
 
-from functools import lru_cache
-
 try:
     from app.services.report.tools.recommended_youtube_tool import recommended_youtube_tool
 except Exception:
     recommended_youtube_tool = None
 
-from app.services.report.retrieval.rag_query_builder import build_rag_queries, metric_query_text
+from app.services.report.retrieval.chroma_retriever import retrieve_coaching_evidence
+from app.services.report.retrieval.rag_query_builder import metric_query_text
 
 
 logger_llm = logging.getLogger("app.llm")
@@ -75,151 +74,6 @@ LLM_DUMP_RAW_ON_ERROR = os.getenv("LLM_DUMP_RAW_ON_ERROR", "0").strip() not in (
 LLM_DUMP_RAW_DIR = os.getenv("LLM_DUMP_RAW_DIR", "./snapshots/llm_raw").strip() or "./snapshots/llm_raw"
 
 
-# ------------------------------------------------------------------
-# RAG (Chroma) Settings
-# ------------------------------------------------------------------
-CHROMA_DIR = os.getenv("CHROMA_DIR", "app/chroma_coach_pdf")
-CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "coach_pdf_chunks")
-EMBED_MODEL = os.getenv("EMBED_MODEL", "intfloat/multilingual-e5-base")
-COACH_RAG_TOPK = int(os.getenv("COACH_RAG_TOPK", "22"))
-COACH_RAG_MAX_CHARS = int(os.getenv("COACH_RAG_MAX_CHARS", "0"))
-COACH_RAG_CANDIDATE_K = int(os.getenv("COACH_RAG_CANDIDATE_K", "8"))
-COACH_RAG_PER_QUERY_TOPK = int(os.getenv("COACH_RAG_PER_QUERY_TOPK", "2"))
-CROSS_ENCODER_MODEL = os.getenv(
-    "CROSS_ENCODER_MODEL",
-    "cross-encoder/ms-marco-MiniLM-L-6-v2",
-)
-
-# 리포트 생성 시점에는 임베딩 적재를 수행하지 않는다.
-# backend/scripts/ingest_rag.py를 먼저 실행해 Chroma를 준비한 뒤, 여기서는 검색만 수행한다.
-
-
-def _safe_str(x: Any) -> str:
-    try:
-        s = "" if x is None else str(x)
-    except Exception:
-        s = ""
-    return s
-
-# 검색 전용 LangChain-compatible embedding wrapper
-class _E5LangChainEmbeddings:
-    """LangChain-compatible embedding wrapper for multilingual-e5 models.
-
-    E5 계열은 문서에는 `passage:`, 쿼리에는 `query:` prefix를 붙이는 사용법이 권장된다.
-    LangChain VectorStore가 호출하는 `embed_documents`, `embed_query` 인터페이스에 맞춰 래핑한다.
-    """
-
-    def __init__(self, model_name: str):
-        from sentence_transformers import SentenceTransformer
-
-        self.model_name = model_name
-        self.model = SentenceTransformer(model_name)
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        passages = [f"passage: {_safe_str(t)}" for t in texts]
-        return self.model.encode(passages, normalize_embeddings=True).tolist()
-
-    def embed_query(self, text: str) -> list[float]:
-        query = f"query: {_safe_str(text)}"
-        return self.model.encode([query], normalize_embeddings=True).tolist()[0]
-
-
-@lru_cache(maxsize=1)
-def _get_chroma():
-    """Lazy-load LangChain Chroma vectorstore for retrieval only.
-
-    임베딩 적재는 backend/scripts/ingest_rag.py에서 수행한다.
-    이 함수는 이미 생성된 Chroma collection에 연결하고 검색용 embedding wrapper만 준비한다.
-
-    Returns:
-        vectorstore or None
-    """
-    try:
-        try:
-            from langchain_chroma import Chroma
-        except Exception:
-            from langchain_community.vectorstores import Chroma
-    except Exception as e:
-        logger_llm.warning(
-            "LangChain RAG deps missing. install langchain langchain-community langchain-chroma chromadb sentence-transformers. err=%s",
-            str(e),
-        )
-        return None
-
-    try:
-        embeddings = _E5LangChainEmbeddings(EMBED_MODEL)
-        vectorstore = Chroma(
-            collection_name=CHROMA_COLLECTION,
-            embedding_function=embeddings,
-            persist_directory=CHROMA_DIR,
-        )
-    except Exception as e:
-        logger_llm.warning("LangChain RAG init failed err=%s", str(e))
-        return None
-
-    try:
-        existing = vectorstore._collection.count() if hasattr(vectorstore, "_collection") else 0
-    except Exception:
-        existing = 0
-
-    if not existing:
-        logger_llm.warning(
-            "LangChain RAG collection is empty. Run `python backend/scripts/ingest_rag.py --reset` before generating reports. dir=%s collection=%s",
-            CHROMA_DIR,
-            CHROMA_COLLECTION,
-        )
-    else:
-        logger_llm.info("LangChain RAG collection loaded count=%d dir=%s", existing, CHROMA_DIR)
-
-    return vectorstore
-
-@lru_cache(maxsize=1)
-def _get_cross_encoder():
-    try:
-        from sentence_transformers import CrossEncoder
-    except Exception as e:
-        logger_llm.warning("CrossEncoder deps missing err=%s", str(e))
-        return None
-
-    try:
-        model = CrossEncoder(CROSS_ENCODER_MODEL)
-        logger_llm.info("CrossEncoder loaded model=%s", CROSS_ENCODER_MODEL)
-        return model
-    except Exception as e:
-        logger_llm.warning(
-            "CrossEncoder load failed model=%s err=%s",
-            CROSS_ENCODER_MODEL,
-            str(e),
-        )
-        return None
-
-
-def _rerank_with_cross_encoder(query: str, retrieved_pairs: list):
-    if not retrieved_pairs:
-        return []
-
-    reranker = _get_cross_encoder()
-    if reranker is None:
-        return [(doc_obj, distance, 0.0) for doc_obj, distance in retrieved_pairs]
-
-    pairs = [
-        (query, _safe_str(getattr(doc_obj, "page_content", "")))
-        for doc_obj, _ in retrieved_pairs
-    ]
-
-    try:
-        scores = reranker.predict(pairs)
-    except Exception as e:
-        logger_llm.warning("CrossEncoder rerank failed query=%s err=%s", query, str(e))
-        return [(doc_obj, distance, 0.0) for doc_obj, distance in retrieved_pairs]
-
-    reranked = []
-    for (doc_obj, distance), score in zip(retrieved_pairs, scores):
-        reranked.append((doc_obj, distance, float(score)))
-
-    reranked.sort(key=lambda x: x[2], reverse=True)
-    return reranked
-
 # 쿼리 빌더: meta.score_stats의 sub_stats(세부 점수)와 worst_sub/risk_level을 기반으로 RAG 검색 쿼리 생성
 def _rewrite_query_with_llm(stage: str, metric: str) -> str:
     base_query = metric_query_text(stage, metric)
@@ -248,183 +102,6 @@ def _rewrite_query_with_llm(stage: str, metric: str) -> str:
     except Exception as e:
         logger_llm.warning("LLM query rewrite failed stage=%s metric=%s err=%s", stage, metric, str(e))
         return ""
-
-def _retrieve_coaching(meta: Dict[str, Any]) -> list[Dict[str, Any]]: # meta.score_stats의 sub_stats와 worst_sub/risk_level 기반으로 RAG 검색 쿼리 생성 및 Chroma에서 관련 문서 검색
-    """Retrieve coaching snippets from Chroma and return compact list for prompt injection."""
-    vectorstore = _get_chroma()
-    if vectorstore is None:
-        return []
-
-    # RAG검색 쿼리 호출: meta.score_stats의 sub_stats와 worst_sub/risk_level을 기반으로 LLM이 검색 의도를 재작성하도록 한다.
-    queries = build_rag_queries(
-        meta or {},
-        rewrite_query_fn=_rewrite_query_with_llm,
-        logger=logger_llm,
-    )
-
-
-    # RAG 쿼리 로그: 검색 의도 파악 및 디버깅용
-    logger_llm.info("RAG queries=%s", json.dumps(queries, ensure_ascii=False))
-
-    if not queries:
-        return []
-
-    results: list[Dict[str, Any]] = []
-    seen_ids: set[str] = set()
-
-    # 각 쿼리당 2개씩만, 전체 COACH_RAG_TOPK까지
-    candidate_k = max(COACH_RAG_CANDIDATE_K, COACH_RAG_PER_QUERY_TOPK)
-    per_q = COACH_RAG_PER_QUERY_TOPK 
-
-    for q in queries:
-        text = _safe_str(q.get("q"))
-        query_stage = _safe_str(q.get("stage"))
-        query_metric = _safe_str(q.get("metric"))
-        query_sub_key = _safe_str(q.get("sub_key"))
-
-        try:
-            retrieved_pairs = vectorstore.similarity_search_with_score(
-                text,
-                k=candidate_k,
-            )   
-        except Exception as e:
-            logger_llm.warning("LangChain RAG query failed q=%s err=%s", text, str(e))
-            continue
-
-        reranked_pairs = _rerank_with_cross_encoder(text, retrieved_pairs)
-        for rank, (doc_obj, distance, rerank_score) in enumerate(reranked_pairs, start=1):
-            md = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
-            raw_doc = _safe_str(getattr(doc_obj, "page_content", ""))
-            preview = raw_doc.replace("\n", " ").strip()[:300]
-            logger_llm.info(
-                "RAG candidate rank=%d stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s preview=%s",
-                rank,
-                query_stage,
-                query_metric,
-                _safe_str(md.get("source_file")),
-                _safe_str(md.get("page")),
-                _safe_str(md.get("chunk")),
-                distance,
-                rerank_score,
-                preview,
-            )
-        selected_pairs = reranked_pairs[:per_q]
-
-        logger_llm.info(
-            "[재정렬 결과 요약]RAG rerank query='%s' stage=%s metric=%s candidates=%d selected=%d",
-            text,
-            query_stage,
-            query_metric,
-            len(retrieved_pairs),
-            len(selected_pairs),
-        )
-
-        for doc_obj, distance, rerank_score in selected_pairs:
-            inject_allowed = len(results) < COACH_RAG_TOPK
-
-            md = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
-            source_file = _safe_str(md.get("source_file"))
-            page = _safe_str(md.get("page"))
-            chunk = _safe_str(md.get("chunk"))
-            sid = _safe_str(md.get("id"))
-            if not sid:
-                sid = (
-                    f"{query_stage}:"
-                    f"{query_metric}:"
-                    f"{_safe_str(q.get('score_band'))}:"
-                    f"{source_file}:"
-                    f"{page}:"
-                    f"{chunk}"
-                )
-            if sid in seen_ids:
-                continue
-            seen_ids.add(sid)
-
-            raw_doc = _safe_str(getattr(doc_obj, "page_content", ""))
-            doc = raw_doc
-            preview = raw_doc.replace("\n", " ").strip()
-            # if len(preview) > 220:
-            #     preview = preview[:220].rstrip() + "…"
-
-            # prompt 폭발 방지: 문서 길이 제한
-            if COACH_RAG_MAX_CHARS > 0 and len(doc) > COACH_RAG_MAX_CHARS:
-                doc = doc[:COACH_RAG_MAX_CHARS].rstrip() + "…"
-            logger_llm.info(
-                "[최종 입력 문서]RAG hit stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s injected=%s raw_len=%d preview=%s",
-                query_stage,
-                query_metric,
-                source_file,
-                page,
-                chunk,
-                distance,
-                rerank_score,
-                inject_allowed, # 검색 결과가 주입 되는지 여부 (COACH_RAG_TOPK 기준)
-                len(raw_doc),
-                preview,
-            )
-
-            # LangChain Document metadata를 우선 사용해 prompt 주입용 코칭 스니펫을 구성한다.
-            # page_content는 구조화 메타데이터가 비어 있을 때 fallback으로 사용한다.
-            inj_title = _safe_str(md.get("title"))
-            inj_summary = _safe_str(md.get("summary"))
-            inj_cause = _safe_str(md.get("cause"))
-            inj_impact = _safe_str(md.get("impact"))
-            inj_fix = _safe_str(md.get("fix"))
-            inj_check = _safe_str(md.get("checklist"))
-            inj_drills = _safe_str(md.get("drills"))
-
-            parts = []
-            if inj_summary:
-                parts.append(f"요약: {inj_summary}")
-            if inj_cause:
-                parts.append(f"원인: {inj_cause}")
-            if inj_impact:
-                parts.append(f"영향: {inj_impact}")
-            if inj_fix:
-                parts.append(f"교정: {inj_fix}")
-            if inj_check:
-                parts.append(f"체크: {inj_check}")
-            if inj_drills:
-                parts.append(f"개선방법: {inj_drills}")
-
-            inj_content = "\n".join(parts).strip() or doc
-
-            if inject_allowed:
-                results.append(
-                    {
-                        "id": sid,
-                        "stage": query_stage,
-                        "metric": query_metric,
-                        "metric_query": metric_query_text(query_stage, query_metric),
-                        "score_band": _safe_str(md.get("score_band")),
-                        "title": inj_title or source_file,
-                        "rerank_score": rerank_score,
-                        "content": inj_content,
-                        "distance": distance,
-                        "doc_type": _safe_str(md.get("doc_type")),
-                        "source_file": source_file,
-                        "page": page,
-                        "chunk": chunk,
-                    }
-                )
-
-    # 최종 누적 결과 로그
-    logger_llm.info(
-        "RAG retrieved 최종 누적(주입문서) 개수 count=%d ids=%s",
-        len(results),
-        [r.get("id") for r in results],
-    )
-    try:
-        stage_counts: Dict[str, int] = {}
-        for r in results:
-            st = _safe_str(r.get("stage"))
-            stage_counts[st] = stage_counts.get(st, 0) + 1
-        logger_llm.info("RAG injected stage_counts=%s", json.dumps(stage_counts, ensure_ascii=False))
-    except Exception:
-        pass
-
-    return results
-
 
 # ------------------------------------------------------------------
 # System Prompt (분석 리포트 톤 고정)
@@ -833,7 +510,11 @@ def generate_report(
     # Upgrade meta with RAG retrieved coaching snippets (optional)
     if meta is not None and not (meta.get("retrieved_coaching") or []):
         try:
-            meta["retrieved_coaching"] = _retrieve_coaching(meta)
+            meta["retrieved_coaching"] = retrieve_coaching_evidence(
+                meta,
+                rewrite_query_fn=_rewrite_query_with_llm,
+                logger=logger_llm,
+            )
             # RAG 검색 결과 로그: 검색 결과 파악 및 디버깅용
             logger_llm.info(
                 "RAG injected into meta count=%d",
