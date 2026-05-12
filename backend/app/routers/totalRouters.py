@@ -205,7 +205,7 @@ def posture_report_from_post(
         # snapshot_only=True 인 경우 LLM 호출/DB저장을 하지 않고 meta만 반환합니다.
         if snapshot_only:
             return {"meta": meta}
-        # (2) LLM 호출 및 DB 저장
+        # (2) movement reasoning 수행 후 LLM 호출 및 DB 저장
         result = create_and_save_llm_report(
             db=db,
             post_idx=post_idx,

@@ -651,12 +651,14 @@ def _system_prompt(lang: str) -> str:
    - backswing(백스윙): 팔꿈치 위치, 손목 각도, 라켓 준비 경로 중 최소 2개 포함
    - impact(임팩트): 타점 위치, 라켓 각도, 임팩트 순간 체중 이동 중 최소 2개 포함
    - followswing(팔로스윙): 스윙 마무리 높이, 어깨/팔꿈치 부담 여부, 과회전 여부 중 최소 2개 포함
-1-3) 각 섹션(ready/rotation/backswing/impact)에서,
-   Total(요약) 점수와 무관하게 worst_sub_current_mean(가장 낮은 세부 항목 점수)가 90 미만이면,
-   해당 섹션의 meta.score_stats["<TotalKey>"].worst_sub(가장 낮은 세부 항목)을 반드시 1회 이상 언급하여
-   'Total은 높아도 어떤 세부가 흔들려 보강이 필요한지'를 구체화하십시오.
+1-3) 각 섹션(ready/rotation/backswing/impact)에서, Total(요약) 점수와 무관하게 worst_sub_current_mean(가장 낮은 세부 항목 점수)가 90 미만이면, 해당 섹션의 meta.score_stats[””].worst_sub(가장 낮은 세부 항목)을 반드시 1회 이상 언급하여
+‘Total은 높아도 어떤 세부가 흔들려 보강이 필요한지’를 구체화하십시오.
    - 단, 세부 점수 수치는 sub_stats의 값만 사용하고 임의 추정 금지.
    - worst_sub_current_mean이 90 이상인 경우에는 worst_sub 언급은 선택입니다.
+1-4) meta.movement_reasoning이 제공되면, 이는 weak_metrics를 기반으로 생성된 biomechanical movement hypothesis입니다.
+   - 각 섹션의 analysis/fix 작성 시 해당 stage와 연결되는 movement_hypotheses와 retrieval_focus를 우선 참고하십시오.
+   - movement_reasoning은 원인 가설이며, score_stats에 없는 수치를 새로 만들면 안 됩니다.
+   - confidence가 낮은 hypothesis는 확정 표현 대신 "가능성", "경향", "주의가 필요" 수준으로 표현하십시오.
 2) 각 섹션(ready/rotation/backswing/impact/followswing)의 내용은 서로 달라야 합니다. (같은 문장/같은 수치 반복 금지)
 3) direction 판정은 입력의 direction 값을 그대로 따르십시오.
    - improved: delta > 0 (점수 상승)
@@ -713,6 +715,7 @@ def _user_prompt(
         "trend": m.get("trend", {}),
         "score_stats": m.get("score_stats", {}),
         "weak_metrics": m.get("weak_metrics", []),
+        "movement_reasoning": m.get("movement_reasoning", {}),
         "retrieved_coaching": m.get("retrieved_coaching", []),
     }
 
@@ -737,7 +740,7 @@ def _user_prompt(
     }
 
     return (
-    "다음 INPUT_JSON의 meta.score_stats, meta.trend, meta.retrieved_coaching을 사용해 "
+    "다음 INPUT_JSON의 meta.score_stats, meta.trend, meta.weak_metrics, meta.movement_reasoning, meta.retrieved_coaching을 사용해 "
     "'최근 N회 기준 비교 기반' 점수 리포트를 생성하세요.\n"
     "angles/단일 세션 값은 사용 금지입니다.\n\n"
     f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
@@ -1029,7 +1032,7 @@ def generate_report(
     user_prompt_override: Optional[str] = None,
 ) -> Dict[str, Any]:
 
-    # Enrich meta with RAG retrieved coaching snippets (optional)
+    # Upgrade meta with RAG retrieved coaching snippets (optional)
     if meta is not None and not (meta.get("retrieved_coaching") or []):
         try:
             meta["retrieved_coaching"] = _retrieve_coaching(meta)
