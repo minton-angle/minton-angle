@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable, Dict, List, Optional
-
-
-QueryRewriteFn = Callable[[str, str], str]
+from typing import Any, Dict, List, Optional
 
 
 def _safe_str(value: Any) -> str:
@@ -108,7 +105,6 @@ def _append_follow_swing_risk_query(
 def _build_queries_from_movement_reasoning(
     *,
     movement_reasoning: Dict[str, Any],
-    rewrite_query_fn: Optional[QueryRewriteFn],
     logger: Optional[logging.Logger],
 ) -> List[Dict[str, Any]]:
     queries: List[Dict[str, Any]] = []
@@ -128,6 +124,8 @@ def _build_queries_from_movement_reasoning(
             query_intent = metric_query_text(stage, metric)
         elif not query_intent:
             continue
+
+        text = f"badminton {query_intent}".strip()
 
         queries.append(
             {
@@ -223,7 +221,6 @@ def _build_queries_from_weak_metrics(
     *,
     weak_metrics: Any,
     score_stats: Dict[str, Any],
-    rewrite_query_fn: Optional[QueryRewriteFn],
     logger: Optional[logging.Logger],
 ) -> List[Dict[str, Any]]:
     queries: List[Dict[str, Any]] = []
@@ -284,7 +281,6 @@ def _dedupe_queries(queries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def build_rag_queries(
     meta: Dict[str, Any],
     *,
-    rewrite_query_fn: Optional[QueryRewriteFn] = None,
     logger: Optional[logging.Logger] = None,
 ) -> List[Dict[str, Any]]:
     """Build RAG search queries for coaching evidence retrieval.
@@ -304,7 +300,6 @@ def build_rag_queries(
     if isinstance(movement_reasoning, dict):
         queries = _build_queries_from_movement_reasoning(
             movement_reasoning=movement_reasoning,
-            rewrite_query_fn=rewrite_query_fn,
             logger=logger,
         )
         if queries and logger is not None:
@@ -321,7 +316,6 @@ def build_rag_queries(
         queries = _build_queries_from_weak_metrics(
             weak_metrics=weak_metrics,
             score_stats=score_stats,
-            rewrite_query_fn=rewrite_query_fn,
             logger=logger,
         )
 

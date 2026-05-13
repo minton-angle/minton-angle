@@ -4,13 +4,12 @@ import json
 import logging
 import os
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.services.report.retrieval.rag_query_builder import build_rag_queries, metric_query_text
 from app.services.report.retrieval.reranker import rerank_with_cross_encoder
 
 
-QueryRewriteFn = Callable[[str, str], str]
 
 logger_retrieval = logging.getLogger("app.llm")
 
@@ -102,7 +101,6 @@ def _get_chroma():
 def retrieve_coaching_evidence(
     meta: Dict[str, Any],
     *,
-    rewrite_query_fn: Optional[QueryRewriteFn] = None,
     logger: Optional[logging.Logger] = None,
 ) -> List[Dict[str, Any]]:
     """Retrieve coaching snippets from Chroma for prompt injection.
@@ -120,7 +118,6 @@ def retrieve_coaching_evidence(
 
     queries = build_rag_queries(
         meta or {},
-        rewrite_query_fn=rewrite_query_fn,
         logger=log,
     )
 
