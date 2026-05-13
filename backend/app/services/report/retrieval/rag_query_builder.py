@@ -80,28 +80,6 @@ def metric_query_text(stage: str, metric: str) -> str:
     return f"badminton {mapped_stage} {readable_metric}"
 
 
-def execute_query_generation(
-    *,
-    stage: str,
-    metric: str,
-    rewrite_query_fn: Optional[QueryRewriteFn],
-    logger: Optional[logging.Logger],
-) -> str:
-    if rewrite_query_fn is None:
-        return ""
-    try:
-        return _safe_str(rewrite_query_fn(stage, metric)).strip().replace("\n", " ")
-    except Exception as exc:
-        if logger is not None:
-            logger.warning(
-                "RAG query rewrite failed stage=%s metric=%s err=%s",
-                stage,
-                metric,
-                str(exc),
-            )
-        return ""
-
-
 def _append_follow_swing_risk_query(
     *,
     queries: List[Dict[str, Any]],
@@ -150,17 +128,6 @@ def _build_queries_from_movement_reasoning(
             query_intent = metric_query_text(stage, metric)
         elif not query_intent:
             continue
-
-        llm_query = ""
-        if stage and metric:
-            llm_query = execute_query_generation(
-                stage=stage,
-                metric=metric,
-                rewrite_query_fn=rewrite_query_fn,
-                logger=logger,
-            )
-
-        text = llm_query if llm_query else f"badminton {query_intent}".strip()
 
         queries.append(
             {
@@ -251,6 +218,7 @@ def _collect_weak_metric_candidates(
     return candidates
 
 
+# fallback 쿼리 생성 하는 함수: movement reasoning에서 명시적으로 retrieval focus가 없는 경우, weak_metrics와 score_stats를 기반으로 쿼리를 생성
 def _build_queries_from_weak_metrics(
     *,
     weak_metrics: Any,
@@ -273,13 +241,8 @@ def _build_queries_from_weak_metrics(
             continue
 
         base_query = metric_query_text(stage, metric)
-        llm_query = execute_query_generation(
-            stage=stage,
-            metric=metric,
-            rewrite_query_fn=rewrite_query_fn,
-            logger=logger,
-        )
-        text = llm_query if llm_query else base_query
+
+        text = base_query
 
         queries.append(
             {

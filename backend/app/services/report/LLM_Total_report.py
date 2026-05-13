@@ -74,35 +74,6 @@ LLM_DUMP_RAW_ON_ERROR = os.getenv("LLM_DUMP_RAW_ON_ERROR", "0").strip() not in (
 LLM_DUMP_RAW_DIR = os.getenv("LLM_DUMP_RAW_DIR", "./snapshots/llm_raw").strip() or "./snapshots/llm_raw"
 
 
-# 쿼리 빌더: meta.score_stats의 sub_stats(세부 점수)와 worst_sub/risk_level을 기반으로 RAG 검색 쿼리 생성
-def _rewrite_query_with_llm(stage: str, metric: str) -> str:
-    base_query = metric_query_text(stage, metric)
-
-    prompt = f"""
-    You are generating a semantic search query for retrieving BADMINTON COACHING knowledge.
-
-    Strict rules:
-    - No explanation
-    - No punctuation except spaces
-    - MUST include the word "badminton"
-    - MUST describe a player movement or coaching situation
-
-    Context:
-    {base_query}
-    """
-
-    messages = [
-        {"role": "system", "content": "You generate short search queries."},
-        {"role": "user", "content": prompt},
-    ]
-
-    try:
-        q = _call_llm_chat(messages, model="")
-        return q.strip().replace("\n", " ")
-    except Exception as e:
-        logger_llm.warning("LLM query rewrite failed stage=%s metric=%s err=%s", stage, metric, str(e))
-        return ""
-
 # ------------------------------------------------------------------
 # System Prompt (분석 리포트 톤 고정)
 # ------------------------------------------------------------------
@@ -512,7 +483,6 @@ def generate_report(
         try:
             meta["retrieved_coaching"] = retrieve_coaching_evidence(
                 meta,
-                rewrite_query_fn=_rewrite_query_with_llm,
                 logger=logger_llm,
             )
             # RAG 검색 결과 로그: 검색 결과 파악 및 디버깅용
