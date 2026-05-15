@@ -45,34 +45,6 @@ class PostureReportResponse(BaseModel):
     report: Dict[str, Any]
 
 
-# --------------- POST /api/report/posture ---------------
-@router.post("/posture", response_model=PostureReportResponse)
-def posture_report(payload: PostureReportRequest):
-    t0 = time.perf_counter()
-    logger_api.info("POST /api/report/posture start lang=%s meta=%s", payload.lang, (payload.meta or {}))
-
-    try:
-        report = generate_report( # 실질적으로 LLM/RAG 파이프라인이 시작되는 위치
-            angles=payload.angles,
-            meta=payload.meta,
-            lang=payload.lang,
-        )
-
-        dt_ms = (time.perf_counter() - t0) * 1000.0
-        logger_api.info(
-            "POST /api/report/posture ok time_ms=%.1f severity=%s summary=%s",
-            dt_ms,
-            report.get("overall_severity"),
-            (report.get("summary") or "")[:120],
-        )
-        return {"report": report}
-    except Exception as e:
-        dt_ms = (time.perf_counter() - t0) * 1000.0
-        logger_api.exception("POST /api/report/posture failed time_ms=%.1f err=%s", dt_ms, str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-
 # --------------- GET /api/report/analysis/post/{post_idx}?range=7d|1m|3m|all ---------------
 @router.get("/analysis/post/{post_idx}")
 def get_analysis_by_post_alias(

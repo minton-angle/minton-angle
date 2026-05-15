@@ -15,7 +15,6 @@ except Exception:
     recommended_youtube_tool = None
 
 from app.services.report.retrieval.chroma_retriever import retrieve_coaching_evidence
-from app.services.report.retrieval.rag_query_builder import metric_query_text
 
 
 logger_llm = logging.getLogger("app.llm")
