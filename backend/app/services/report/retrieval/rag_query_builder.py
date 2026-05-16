@@ -291,6 +291,8 @@ def build_rag_queries(
     3. score_stats fallback
     """
     meta = meta or {}
+    if isinstance(meta.get("rag_queries"), list) and meta.get("rag_queries"):
+        return meta["rag_queries"]
     score_stats = meta.get("score_stats", {}) or {}
     weak_metrics = meta.get("weak_metrics") or []
     movement_reasoning = meta.get("movement_reasoning") or {}

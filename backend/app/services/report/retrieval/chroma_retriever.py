@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from app.services.report.retrieval.rag_query_builder import build_rag_queries, metric_query_text
 from app.services.report.retrieval.reranker import rerank_with_cross_encoder
+from app.services.report.retrieval.retrieval_grader import grade_retrieval_results
 
 
 
@@ -120,6 +121,7 @@ def retrieve_coaching_evidence(
         meta or {},
         logger=log,
     )
+    meta["rag_queries"] = queries
 
     log.info("RAG queries=%s", json.dumps(queries, ensure_ascii=False))
 
@@ -277,5 +279,27 @@ def retrieve_coaching_evidence(
         log.info("RAG injected stage_counts=%s", json.dumps(stage_counts, ensure_ascii=False))
     except Exception:
         pass
+    try:
+        movement_reasoning = meta.get("movement_reasoning") or {}
+
+        grader_query = " ".join(
+            _safe_str(item.get("q"))
+            for item in (queries or [])
+        )
+
+        grader_result = grade_retrieval_results(
+            query=grader_query,
+            retrieved_docs=results,
+            movement_reasoning=movement_reasoning,
+        )
+
+        meta["retrieval_grader"] = grader_result
+
+        log.info(
+            "Adaptive RAG grader_result=%s",
+            json.dumps(grader_result, ensure_ascii=False),
+        )
+    except Exception as exc:
+        log.warning("retrieval grader failed err=%s", str(exc))
 
     return results

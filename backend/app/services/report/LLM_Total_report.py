@@ -14,7 +14,7 @@ try:
 except Exception:
     recommended_youtube_tool = None
 
-from app.services.report.retrieval.chroma_retriever import retrieve_coaching_evidence
+from app.services.report.agent.graph import build_report_graph
 
 
 logger_llm = logging.getLogger("app.llm")
@@ -480,17 +480,31 @@ def generate_report(
     # Upgrade meta with RAG retrieved coaching snippets (optional)
     if meta is not None and not (meta.get("retrieved_coaching") or []):
         try:
-            meta["retrieved_coaching"] = retrieve_coaching_evidence(
-                meta,
-                logger=logger_llm,
+            graph = build_report_graph()
+
+            graph_result = graph.invoke(
+                {
+                    "meta": meta,
+                    "weak_metrics": meta.get("weak_metrics") or [],
+                    "score_stats": meta.get("score_stats") or {},
+                    "retry_count": 0,
+                    "rag_queries": [],
+                }
             )
-            # RAG 검색 결과 로그: 검색 결과 파악 및 디버깅용
+
+            meta["movement_reasoning"] = graph_result.get("movement_reasoning") or {}
+            meta["retrieved_coaching"] = graph_result.get("retrieved_coaching") or []
+            meta["retrieval_grader"] = graph_result.get("retrieval_grader") or {}
+            meta["retrieval_history"] = graph_result.get("retrieval_history") or []
+
             logger_llm.info(
-                "RAG injected into meta count=%d",
+                "LangGraph Adaptive RAG completed retrieved=%d retries=%d",
                 len(meta.get("retrieved_coaching") or []),
+                len(meta.get("retrieval_history") or []),
             )
+
         except Exception as e:
-            logger_llm.warning("RAG retrieve failed err=%s", str(e))
+            logger_llm.warning("LangGraph Adaptive RAG failed err=%s", str(e))
             meta["retrieved_coaching"] = []
 
     # 최종 prompt 입력 로그(rag on/off는 enrichment 이후 상태 기준)
