@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any, Dict
 
-from app.services.report.LLM_Total_report import _call_llm_chat
+from app.services.report.llm.client import call_llm
 from app.services.report.agent.prompts import (
     MOVEMENT_REASONING_SYSTEM_PROMPT,
     build_movement_reasoning_user_prompt,
@@ -103,7 +103,7 @@ def _fallback_movement_reasoning(state: ReportAgentState, reason: str = "") -> D
         "fallback_reason": reason,
     }
 
-
+# metrics간 인과관계 및 패턴을 LLM으로 분석하여 movement_hypotheses를 생성하는 노드
 def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
     """Infer biomechanical movement hypotheses from weak_metrics.
 
@@ -138,7 +138,7 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
     ]
 
     try:
-        raw = _call_llm_chat(messages, model="")
+        raw = call_llm(messages, model="")
         parsed_text = _extract_json_object(_strip_markdown_code_fences(raw))
         movement_reasoning = json.loads(parsed_text)
     except Exception as exc:

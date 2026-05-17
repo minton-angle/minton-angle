@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 import json
-import os
 import logging
-import time
 
 from typing import Any, Dict, Optional
-
-import httpx
 
 try:
     from app.services.report.tools.recommended_youtube_tool import recommended_youtube_tool
@@ -15,62 +11,10 @@ except Exception:
     recommended_youtube_tool = None
 
 from app.services.report.agent.graph import build_report_graph
+from app.services.report.llm.client import call_llm
 
 
 logger_llm = logging.getLogger("app.llm")
-
-# ------------------------------------------------------------------
-# LLM usage (token counts)
-# ------------------------------------------------------------------
-# OpenAI-compatible responses may include `usage` like:
-# {"prompt_tokens": ..., "completion_tokens": ..., "total_tokens": ...}
-# We keep the last call's usage in-memory so `generate_report()` can attach it.
-_LAST_LLM_USAGE: Dict[str, Any] = {}
-
-def _set_last_llm_usage(u: Any) -> None:
-    global _LAST_LLM_USAGE
-    if isinstance(u, dict):
-        _LAST_LLM_USAGE = u
-    else:
-        _LAST_LLM_USAGE = {}
-
-def _get_last_llm_usage() -> Dict[str, Any]:
-    return _LAST_LLM_USAGE if isinstance(_LAST_LLM_USAGE, dict) else {}
-
-# ------------------------------------------------------------------
-# LLM Provider Settings (Groq / Hugging Face)
-# ------------------------------------------------------------------
-# env 파일에서 LLM_PROVIDER 값을 읽어서 사용할 LLM API를 결정함:
-# - LLM_PROVIDER=groq (디폴트값, Groq OpenAI-compatible endpoints)
-# - LLM_PROVIDER=hf  (Hugging Face OpenAI-compatible endpoints, e.g. Inference Endpoints/TGI)
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").strip().lower()
-
-# Groq (OpenAI-compatible)
-GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
-
-# Hugging Face (OpenAI-compatible)
-# Examples:
-# - HF_BASE_URL=https://<your-endpoint>/v1
-# - HF_API_KEY=hf_...  (or provider-specific token)
-# - HF_MODEL=<model name> (some endpoints ignore this; keep for compatibility)
-HF_BASE_URL = os.getenv("HF_BASE_URL", "").strip()
-HF_API_KEY = os.getenv("HF_API_KEY") or os.getenv("HF_TOKEN")
-HF_MODEL = os.getenv("HF_MODEL", "").strip()
-
-# Shared generation params
-DEFAULT_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", os.getenv("GROQ_MAX_TOKENS", "1600")))
-DEFAULT_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", os.getenv("GROQ_TEMPERATURE", "0.8")))
-
-
-# Some providers do not support response_format=json_object. Keep it optional.
-# - LLM_JSON_MODE=1 to request JSON mode when supported (Groq supports it).
-LLM_JSON_MODE = os.getenv("LLM_JSON_MODE", "1").strip() not in ("0", "false", "False")
-
-# Debug: dump raw LLM output on JSON parse error
-LLM_DUMP_RAW_ON_ERROR = os.getenv("LLM_DUMP_RAW_ON_ERROR", "0").strip() not in ("0", "false", "False")
-LLM_DUMP_RAW_DIR = os.getenv("LLM_DUMP_RAW_DIR", "./snapshots/llm_raw").strip() or "./snapshots/llm_raw"
 
 
 # ------------------------------------------------------------------
@@ -233,149 +177,6 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
         node.setdefault("fix", "-")
 
     return report_obj
-
-
-# ------------------------------------------------------------------
-# LLM API Call (OpenAI-compatible)
-# ------------------------------------------------------------------
-def _chat_completions_url(base_url: str) -> str:
-    """Build a chat-completions URL from a base URL.
-
-    Accepts base_url like:
-    - https://api.groq.com/openai/v1
-    - https://<hf-endpoint>/v1
-    - https://<custom-host>
-
-    Returns: <base_url>/chat/completions (with /v1 preserved if provided)
-    """
-    b = (base_url or "").rstrip("/")
-    if not b:
-        return ""
-    # If caller provided .../v1 already, we still append /chat/completions
-    return f"{b}/chat/completions"
-
-
-def _call_llm_chat(messages, model: str) -> str:
-    """Call the configured provider (Groq or Hugging Face) via OpenAI-compatible chat completions."""
-
-    provider = (LLM_PROVIDER or "groq").strip().lower()
-
-    # Log which provider/model is actually being used
-    try:
-        effective_model = (
-            model
-            or (HF_MODEL if provider == "hf" else GROQ_MODEL)
-            or "model"
-        )
-        logger_llm.info(
-            "LLM call provider=%s base_url=%s model=%s temperature=%.2f max_tokens=%d",
-            provider,
-            HF_BASE_URL if provider == "hf" else GROQ_BASE_URL,
-            effective_model,
-            DEFAULT_TEMPERATURE,
-            DEFAULT_MAX_TOKENS,
-        )
-    except Exception:
-        pass
-
-    if provider == "hf":
-        if not HF_BASE_URL:
-            raise RuntimeError("HF_BASE_URL is not set (e.g. https://<your-hf-endpoint>/v1)")
-        if not HF_API_KEY:
-            raise RuntimeError("HF_API_KEY (or HF_TOKEN) is not set")
-
-        url = _chat_completions_url(HF_BASE_URL)
-        headers = {
-            "Authorization": f"Bearer {HF_API_KEY}",
-            "Content-Type": "application/json",
-        }
-
-        # Some HF OpenAI-compatible endpoints ignore `model` (fixed endpoint model), but it is required by schema.
-        chosen_model = model or HF_MODEL or "model"
-
-        body = {
-            "model": chosen_model,
-            "messages": messages,
-            "temperature": DEFAULT_TEMPERATURE,
-            "max_tokens": DEFAULT_MAX_TOKENS,
-        }
-
-        timeout = httpx.Timeout(60.0)
-        t0 = time.perf_counter()
-
-        with httpx.Client(timeout=timeout) as client:
-            r = client.post(url, headers=headers, json=body)
-
-        logger_llm.info(
-            "HF status=%s time_ms=%.1f",
-            r.status_code,
-            (time.perf_counter() - t0) * 1000.0,
-        )
-
-        if r.status_code >= 400:
-            raise RuntimeError(f"HF API error {r.status_code}: {r.text}")
-        data = r.json()
-        _set_last_llm_usage(data.get("usage"))
-        try:
-            if data.get("usage"):
-                logger_llm.info("HF usage=%s", json.dumps(data.get("usage"), ensure_ascii=False))
-        except Exception:
-            pass
-        return data["choices"][0]["message"]["content"]
-
-    # default: groq
-    if not GROQ_API_KEY:
-        raise RuntimeError("GROQ_API_KEY is not set")
-
-    url = _chat_completions_url(GROQ_BASE_URL)
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json",
-    }
-
-    body = {
-        "model": model or GROQ_MODEL,
-        "messages": messages,
-        "temperature": DEFAULT_TEMPERATURE,
-        "max_tokens": DEFAULT_MAX_TOKENS,
-    }
-
-    # Groq supports JSON mode; keep optional.
-    if LLM_JSON_MODE:
-        body["response_format"] = {"type": "json_object"}
-
-    timeout = httpx.Timeout(40.0)
-    t0 = time.perf_counter()
-
-    with httpx.Client(timeout=timeout) as client:
-        r = client.post(url, headers=headers, json=body)
-
-        # If provider rejects response_format, retry once without it.
-        if r.status_code == 400 and LLM_JSON_MODE and "response_format" in body:
-            try:
-                txt = r.text or ""
-            except Exception:
-                txt = ""
-            if "response_format" in txt or "json_object" in txt or "response format" in txt.lower():
-                body.pop("response_format", None)
-                r = client.post(url, headers=headers, json=body)
-
-    logger_llm.info(
-        "Groq status=%s time_ms=%.1f",
-        r.status_code,
-        (time.perf_counter() - t0) * 1000.0,
-    )
-
-    if r.status_code >= 400:
-        raise RuntimeError(f"Groq API error {r.status_code}: {r.text}")
-    data = r.json()
-    _set_last_llm_usage(data.get("usage"))
-    try:
-        if data.get("usage"):
-            logger_llm.info("Groq usage=%s", json.dumps(data.get("usage"), ensure_ascii=False))
-    except Exception:
-        pass
-    return data["choices"][0]["message"]["content"]
 
 
 def _strip_markdown_code_fences(s: str) -> str:

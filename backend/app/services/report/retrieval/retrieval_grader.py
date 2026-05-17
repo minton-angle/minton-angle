@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any, Dict, List
+from app.services.report.llm.client import call_llm
 
 
 logger_grader = logging.getLogger("app.llm")
@@ -134,8 +135,8 @@ def grade_retrieval_results(
     ]
 
     try:
-        from app.services.report.LLM_Total_report import _call_llm_chat
-        raw = _call_llm_chat(messages, model="")
+
+        raw = call_llm(messages, model="")
 
         parsed = json.loads(
             _extract_json_object(
