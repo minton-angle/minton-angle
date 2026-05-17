@@ -6,7 +6,6 @@ import json
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
-from app.services.report.LLM_Total_report import generate_report
 from app.services.report.weak_metric_extractor import extract_weak_metrics
 from app.services.report.score_stats_service import build_score_report_state
 from app.services.report.report_data_service import (
@@ -146,7 +145,7 @@ def posture_report_from_post(
             "score_stats": score_stats,
         }
 
-        # score_stats를 LLM reasoning용 movement observation 포맷으로 정규화
+        # score_stats를 기반으로 LLM 리포트의 추론 타겟이 되는 약점 지표(weak_metrics)를 추출
         weak_metrics = extract_weak_metrics(score_stats, threshold=90.0)
         meta["weak_metrics"] = weak_metrics
 
