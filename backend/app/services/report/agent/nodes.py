@@ -9,10 +9,16 @@ from app.services.report.agent.prompts import (
     MOVEMENT_REASONING_SYSTEM_PROMPT,
     build_movement_reasoning_user_prompt,
 )
+from app.services.report.retrieval.retrieval_pipeline import (
+    MAX_RETRY,
+    rewrite_rag_queries,
+    run_retrieval_attempt,
+)
 from app.services.report.agent.state import ReportAgentState
 
 
 logger_agent = logging.getLogger("app.report.agent")
+logger_graph_node = logging.getLogger("app.report.graph")
 
 
 def _strip_markdown_code_fences(text: str) -> str:
@@ -154,3 +160,67 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
         **state,
         "movement_reasoning": movement_reasoning,
     }
+
+
+def adaptive_rag_node(state: ReportAgentState) -> ReportAgentState:
+    """Run one retrieval attempt and attach retrieval state.
+
+    LangGraph controls retry/branching. This node performs one action only:
+    execute a single Adaptive RAG retrieval attempt.
+    """
+    meta = state.get("meta") or {}
+    retry_count = int(state.get("retry_count") or 0)
+
+    docs = run_retrieval_attempt(
+        meta=meta,
+        attempt=retry_count,
+        logger=logger_graph_node,
+    )
+
+    return {
+        **state,
+        "meta": meta,
+        "retrieved_coaching": docs,
+        "retrieval_grader": meta.get("retrieval_grader") or {},
+        "retrieval_history": meta.get("retrieval_history") or [],
+        "rag_queries": meta.get("rag_queries") or [],
+    }
+
+
+def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
+    """Rewrite RAG queries from grader feedback for the next retrieval attempt."""
+    meta = state.get("meta") or {}
+    grader = state.get("retrieval_grader") or {}
+    current_queries = state.get("rag_queries") or meta.get("rag_queries") or []
+    retry_count = int(state.get("retry_count") or 0) + 1
+
+    rewritten_queries = rewrite_rag_queries(
+        queries=current_queries,
+        grader_result=grader,
+    )
+
+    meta["rag_queries"] = rewritten_queries
+
+    logger_graph_node.info(
+        "LangGraph query rewrite retry_count=%d queries=%s",
+        retry_count,
+        rewritten_queries,
+    )
+
+    return {
+        **state,
+        "meta": meta,
+        "retry_count": retry_count,
+        "rag_queries": rewritten_queries,
+    }
+
+
+def should_retry(state: ReportAgentState) -> str:
+    """Route graph execution based on LLM retrieval grader result."""
+    grader = state.get("retrieval_grader") or {}
+    retry_count = int(state.get("retry_count") or 0)
+
+    if grader.get("needs_retry") and retry_count < MAX_RETRY:
+        return "rewrite"
+
+    return "end"
