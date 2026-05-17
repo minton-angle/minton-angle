@@ -528,9 +528,7 @@ def generate_report(
         {"role": "user", "content": user_prompt},
     ]
 
-    raw = _call_llm_chat(messages, model)
-    # Attach token usage (if provider returns it)
-    usage = _get_last_llm_usage()
+    raw = call_llm(messages, model)
     logger_llm.info("LLM raw(head)=%s", raw)
 
     raw_clean = _strip_markdown_code_fences(raw)
