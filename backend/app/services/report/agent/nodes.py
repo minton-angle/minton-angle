@@ -117,19 +117,23 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
     It does not retrieve documents. It only interprets the user's normalized
     movement observations and creates reasoning targets for later retrieval.
     """
-    weak_metrics = state.get("weak_metrics") or []
-    score_stats = state.get("score_stats") or (state.get("meta") or {}).get("score_stats", {}) or {}
+    meta = state.get("meta") or {}
+    weak_metrics = meta.get("weak_metrics")
+    score_stats = meta.get("score_stats", {})
 
     if not weak_metrics:
         logger_agent.info("movement_reasoning skipped: weak_metrics empty")
+        movement_reasoning = {
+            "summary": "기준치 미만의 세부 동작이 없어 별도 movement weakness reasoning을 수행하지 않았습니다.",
+            "movement_hypotheses": [],
+            "retrieval_focus": [],
+            "risk_notes": [],
+        }
+        #meta에 movement_reasoning 결과를 포함시키도록 함
+        meta["movement_reasoning"] = movement_reasoning
         return {
             **state,
-            "movement_reasoning": {
-                "summary": "기준치 미만의 세부 동작이 없어 별도 movement weakness reasoning을 수행하지 않았습니다.",
-                "movement_hypotheses": [],
-                "retrieval_focus": [],
-                "risk_notes": [],
-            },
+            "meta": meta,
         }
 
     messages = [
@@ -156,9 +160,11 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
         len(movement_reasoning.get("movement_hypotheses", []) if isinstance(movement_reasoning, dict) else []),
     )
 
+    meta["movement_reasoning"] = movement_reasoning
+
     return {
         **state,
-        "movement_reasoning": movement_reasoning,
+        "meta": meta,
     }
 
 

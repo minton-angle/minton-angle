@@ -285,14 +285,13 @@ def generate_report(
             graph_result = graph.invoke(
                 {
                     "meta": meta,
-                    "weak_metrics": meta.get("weak_metrics") or [],
-                    "score_stats": meta.get("score_stats") or {},
                     "retry_count": 0,
                     "rag_queries": [],
                 }
             )
 
-            meta["movement_reasoning"] = graph_result.get("movement_reasoning") or {}
+            graph_meta = graph_result.get("meta") or meta
+            meta.update(graph_meta)
             meta["retrieved_coaching"] = graph_result.get("retrieved_coaching") or []
             meta["retrieval_grader"] = graph_result.get("retrieval_grader") or {}
             meta["retrieval_history"] = graph_result.get("retrieval_history") or []
@@ -321,7 +320,7 @@ def generate_report(
 
     # 오버라이드 허용: 디버깅/실험용으로 system/user prompt를 완전히 교체할 수 있도록 허용
     system_prompt = system_prompt_override if system_prompt_override is not None else _system_prompt(lang)
-    user_prompt = user_prompt_override if user_prompt_override is not None else _user_prompt(angles, meta, lang)
+    user_prompt = user_prompt_override if user_prompt_override is not None else _user_prompt(meta, lang)
 
     messages = [
         {"role": "system", "content": system_prompt},

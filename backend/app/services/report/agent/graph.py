@@ -17,7 +17,6 @@ logger_graph = logging.getLogger("app.report.graph")
 
 class AdaptiveRAGState(TypedDict, total=False):
     meta: Dict[str, Any]
-    movement_reasoning: Dict[str, Any]
     retrieved_coaching: list
     retrieval_grader: Dict[str, Any]
     retrieval_history: list
