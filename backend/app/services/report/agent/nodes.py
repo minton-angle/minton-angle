@@ -156,7 +156,7 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
         movement_reasoning = _fallback_movement_reasoning(state, reason=str(exc))
 
     logger_agent.info(
-        "movement_reasoning generated hypotheses=%d",
+        "[RAG] movement_reasoning 기반 생성된 연결 관계 개수=%d",
         len(movement_reasoning.get("movement_hypotheses", []) if isinstance(movement_reasoning, dict) else []),
     )
 

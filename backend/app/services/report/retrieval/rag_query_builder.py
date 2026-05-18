@@ -256,7 +256,7 @@ def _build_queries_from_weak_metrics(
     if logger is not None:
         try:
             logger.info(
-                "RAG weak_metrics_fallback count=%d items=%s",
+                "[RAG] weak_metrics_fallback count=%d items=%s",
                 len(candidates),
                 json.dumps(candidates, ensure_ascii=False),
             )
@@ -304,15 +304,6 @@ def build_rag_queries(
             movement_reasoning=movement_reasoning,
             logger=logger,
         )
-        if queries and logger is not None:
-            try:
-                logger.info(
-                    "RAG movement_reasoning_focus count=%d items=%s",
-                    len(queries),
-                    json.dumps(queries, ensure_ascii=False),
-                )
-            except Exception:
-                pass
 
     if not queries:
         queries = _build_queries_from_weak_metrics(
@@ -323,25 +314,5 @@ def build_rag_queries(
 
     _append_follow_swing_risk_query(queries=queries, score_stats=score_stats)
     output = _dedupe_queries(queries)
-
-    if logger is not None:
-        try:
-            logger.info(
-                "RAG query_source_summary=%s",
-                json.dumps(
-                    [
-                        {
-                            "source": item.get("query_source"),
-                            "stage": item.get("stage"),
-                            "metric": item.get("metric"),
-                            "q": item.get("q"),
-                        }
-                        for item in output
-                    ],
-                    ensure_ascii=False,
-                ),
-            )
-        except Exception:
-            pass
 
     return output

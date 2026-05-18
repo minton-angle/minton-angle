@@ -308,12 +308,11 @@ def generate_report(
 
     # 최종 prompt 입력 로그(rag on/off는 enrichment 이후 상태 기준)
     try:
-        score_stats = (meta or {}).get("score_stats", {})
         logger_llm.info(
-            "LLM prompt inputs range=%s score_stats=%s rag=%s",
+            "LLM prompt inputs range=%s [RAG] ON/OFF=%s",
             (meta or {}).get("range"),
-            json.dumps(score_stats, ensure_ascii=False),
-            "on" if ((meta or {}).get("retrieved_coaching") or []) else "off",
+            json.dumps(ensure_ascii=False),
+            "ON" if ((meta or {}).get("retrieved_coaching") or []) else "OFF",
         )
     except Exception:
         pass

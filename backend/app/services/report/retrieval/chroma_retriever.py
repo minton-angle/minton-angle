@@ -123,7 +123,18 @@ def retrieve_coaching_evidence(
     )
     meta["rag_queries"] = queries
 
-    log.info("RAG queries=%s", json.dumps(queries, ensure_ascii=False))
+    log.info(
+        "[RAG] 검색 쿼리 개수=%d 쿼리 내용=%s",
+        len(queries),
+        json.dumps([
+            {
+                "stage": item.get("stage"),
+                "metric": item.get("metric"),
+                "q": item.get("q"),
+            }
+            for item in queries
+        ], ensure_ascii=False),
+    )
 
     if not queries:
         return []
@@ -158,7 +169,7 @@ def retrieve_coaching_evidence(
             raw_doc = _safe_str(getattr(doc_obj, "page_content", ""))
             preview = raw_doc.replace("\n", " ").strip()[:300]
             log.info(
-                "RAG candidate rank=%d stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s preview=%s",
+                "[RAG] candidate rank=%d stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s preview=%s",
                 rank,
                 query_stage,
                 query_metric,
@@ -267,7 +278,7 @@ def retrieve_coaching_evidence(
                 )
 
     log.info(
-        "RAG retrieved 최종 누적(주입문서) 개수 count=%d ids=%s",
+        "[RAG] 최종 누적(주입문서) 개수 =%d ids=%s",
         len(results),
         [item.get("id") for item in results],
     )
