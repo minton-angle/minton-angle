@@ -99,21 +99,20 @@ def _system_prompt(lang: str) -> str:
 # User Prompt
 # ------------------------------------------------------------------
 def _user_prompt(
-    angles: Dict[str, float],
     meta: Optional[Dict[str, Any]],
-    lang: str,
+    lang: str
 ) -> str:
-    m = meta or {}
+    meta = meta
 
     # LLM이 반드시 써야 하는 값만 제공(angles는 제공하지 않음: 최신 1건 고정/0.1° 앵커링 방지)
     safe_meta = {
-        "post_idx": m.get("post_idx"),
-        "range": m.get("range"),
-        "trend": m.get("trend", {}),
-        "score_stats": m.get("score_stats", {}),
-        "weak_metrics": m.get("weak_metrics", []),
-        "movement_reasoning": m.get("movement_reasoning", {}),
-        "retrieved_coaching": m.get("retrieved_coaching", []),
+        "post_idx": meta.get("post_idx"),
+        "range": meta.get("range"),
+        "trend": meta.get("trend", {}),
+        "score_stats": meta.get("score_stats", {}),
+        "weak_metrics": meta.get("weak_metrics", []),
+        "movement_reasoning": meta.get("movement_reasoning", {}),
+        "retrieved_coaching": meta.get("retrieved_coaching", []),
     }
 
     schema = {
