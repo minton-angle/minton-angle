@@ -128,10 +128,6 @@ def extract_weak_metrics(
                     "stage_current_mean": round(stage_current_mean, 2) if stage_current_mean is not None else None,
                     "stage_prev_mean": round(stage_prev_mean, 2) if stage_prev_mean is not None else None,
                     "stage_delta": round(stage_delta, 2) if stage_delta is not None else None,
-                    "reasoning_hint": (
-                        f"{STAGE_LABELS.get(stage, stage)} 단계의 {metric} 세부 지표가 "
-                        f"{round(score, 2)}점으로 기준치 {threshold:g}점 미만입니다."
-                    ),
                 }
             )
 
