@@ -297,13 +297,13 @@ def generate_report(
             meta["retrieval_history"] = graph_result.get("retrieval_history") or []
 
             logger_llm.info(
-                "LangGraph Adaptive RAG completed retrieved=%d retries=%d",
+                "[LangGraph] Adaptive RAG 최종 누적(주입문서) 개수=%d 검색 회수=%d",
                 len(meta.get("retrieved_coaching") or []),
                 len(meta.get("retrieval_history") or []),
             )
 
         except Exception as e:
-            logger_llm.warning("LangGraph Adaptive RAG failed err=%s", str(e))
+            logger_llm.warning("[LangGraph] Adaptive RAG failed err=%s", str(e))
             meta["retrieved_coaching"] = []
 
     # 최종 prompt 입력 로그(rag on/off는 enrichment 이후 상태 기준)

@@ -278,7 +278,7 @@ def retrieve_coaching_evidence(
                 )
 
     log.info(
-        "[RAG] 최종 누적(주입문서) 개수 =%d ids=%s",
+        "[RAG] 최종 누적(주입문서) 개수=%d ids=%s",
         len(results),
         [item.get("id") for item in results],
     )
