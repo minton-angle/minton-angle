@@ -88,11 +88,14 @@ def run_retrieval_attempt(
     )
     meta["retrieval_history"] = history
 
+    grader = meta.get("retrieval_grader") or {}
     logger.info(
-        "Adaptive RAG retrieval attempt=%d docs=%d grader=%s",
+        "[Adaptive RAG] 현재 검색 시도 회수 =%d 주입 대상 문서 개수=%d 검색 결과와 질문 관련성=%s 재검색 필요 여부=%s 요구사항 커버 정도(1이 완벽)=%s 현재 검색 결과에서 부족한 개념 목록=%s",
         attempt,
         len(docs or []),
-        json.dumps(meta.get("retrieval_grader") or {}, ensure_ascii=False),
+        grader.get("relevant"),
+        grader.get("needs_retry"),
+        grader.get("coverage"),
+        grader.get("missing_concepts") or [],
     )
-
     return docs

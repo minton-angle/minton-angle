@@ -287,7 +287,7 @@ def retrieve_coaching_evidence(
         for item in results:
             stage = _safe_str(item.get("stage"))
             stage_counts[stage] = stage_counts.get(stage, 0) + 1
-        log.info("RAG injected stage_counts=%s", json.dumps(stage_counts, ensure_ascii=False))
+        log.info("[RAG] 주입된 stage_counts=%s", json.dumps(stage_counts, ensure_ascii=False))
     except Exception:
         pass
     try:
@@ -306,10 +306,6 @@ def retrieve_coaching_evidence(
 
         meta["retrieval_grader"] = grader_result
 
-        log.info(
-            "Adaptive RAG grader_result=%s",
-            json.dumps(grader_result, ensure_ascii=False),
-        )
     except Exception as exc:
         log.warning("retrieval grader failed err=%s", str(exc))
 
