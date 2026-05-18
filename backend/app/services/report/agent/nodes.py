@@ -155,9 +155,21 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
         logger_agent.warning("movement_reasoning failed err=%s", str(exc))
         movement_reasoning = _fallback_movement_reasoning(state, reason=str(exc))
 
+    hypotheses = movement_reasoning.get("movement_hypotheses", []) if isinstance(movement_reasoning, dict) else []
+    hypothesis_summary = [
+        {
+            "name": item.get("name"),
+            "related_stages": item.get("related_stages"),
+            "related_metrics": item.get("related_metrics"),
+            "confidence": item.get("confidence"),
+        }
+        for item in hypotheses
+        if isinstance(item, dict)
+    ]
     logger_agent.info(
-        "[RAG] movement_reasoning 기반 생성된 연결 관계 개수=%d",
-        len(movement_reasoning.get("movement_hypotheses", []) if isinstance(movement_reasoning, dict) else []),
+        "[Movement Reasoning] 생성된 동작 관계 가설 개수=%d details=%s",
+        len(hypothesis_summary),
+        json.dumps(hypothesis_summary, ensure_ascii=False),
     )
 
     meta["movement_reasoning"] = movement_reasoning
