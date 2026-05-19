@@ -101,7 +101,7 @@ def _extract_json_object(text: str) -> str:
     return text[start:]
 
 
-# 검색 문서가 movement_reasoning을 설명 가능한가? -> relevant
+# 검색 문서가 movement_reasoning을 설명 가능하는지 평가하는 함수(relevant)
 def grade_retrieval_results(
     *,
     query: str,

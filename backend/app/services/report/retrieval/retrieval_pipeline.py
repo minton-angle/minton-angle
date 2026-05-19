@@ -8,6 +8,7 @@ from app.services.report.retrieval.chroma_retriever import (
     retrieve_coaching_evidence,
 )
 from app.services.report.retrieval.query_rewriter import rewrite_rag_queries_with_llm
+from app.services.report.retrieval.retrieval_grader import grade_retrieval_results
 
 
 logger_pipeline = logging.getLogger("app.llm")
@@ -70,7 +71,17 @@ def run_retrieval_attempt(
     )
     meta["retrieval_history"] = history
 
-    grader = meta.get("retrieval_grader") or {}
+    grader = grade_retrieval_results(
+
+        query=json.dumps(meta.get("rag_queries") or [], ensure_ascii=False),
+
+        retrieved_docs=docs,
+
+        movement_reasoning=meta.get("movement_reasoning") or {},
+
+    )
+    meta["retrieval_grader"] = grader
+    
     logger.info(
         "[Adaptive RAG] 현재 검색 시도 회수 =%d 주입 대상 문서 개수=%d 검색 결과와 질문 관련성=%s 재검색 필요 여부=%s 요구사항 커버 정도(1이 완벽)=%s 현재 검색 결과에서 부족한 개념 목록=%s",
         attempt,

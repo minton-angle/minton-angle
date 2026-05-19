@@ -226,7 +226,7 @@ def rewrite_rag_queries_with_llm(
 
     except Exception as exc:
         logger_query_rewriter.warning(
-            "LLM query rewrite failed err=%s. fallback rewrite used.",
+            "[LLM_QUERY_REWRITE] failed err=%s. fallback rewrite used.",
             str(exc),
         )
         return _fallback_rewrite_queries(
