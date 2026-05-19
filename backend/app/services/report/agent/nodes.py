@@ -15,6 +15,7 @@ from app.services.report.retrieval.retrieval_pipeline import (
     rewrite_rag_queries,
     run_retrieval_attempt,
 )
+from app.services.report.retrieval.retrieval_grader import grade_retrieval_results
 from app.services.report.agent.state import ReportAgentState
 
 
@@ -206,25 +207,55 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
 
 
 def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
-    """Grade retrieved candidate documents and keep accepted evidence only."""
+    """Evaluate retrieved documents and keep only relevant evidence.
+
+    This follows the notebook-style Self-RAG flow:
+    state["retrieved_candidates"] -> grade documents -> state["retrieved_coaching"]
+    """
     meta = state.get("meta") or {}
     retry_count = int(state.get("retry_count") or 0)
-    docs = state.get("retrieved_candidates") or meta.get("retrieved_candidates") or []
+    docs = state.get("retrieved_candidates") or []
+    rag_queries = state.get("rag_queries") or meta.get("rag_queries") or []
+    movement_reasoning = meta.get("movement_reasoning") or state.get("movement_reasoning") or {}
 
-    graded = filter_docs_by_grader(
-        meta=meta,
+    grader = grade_retrieval_results(
+        query=json.dumps(rag_queries, ensure_ascii=False),
+        retrieved_docs=docs,
+        movement_reasoning=movement_reasoning,
+    )
+
+    filtered_docs = filter_docs_by_grader(
         docs=docs,
-        attempt=retry_count,
-        logger=logger_graph_node,
+        grader=grader,
+    )
+
+    retrieval_history = state.get("retrieval_history") or meta.get("retrieval_history") or []
+    if retrieval_history:
+        retrieval_history[-1]["grader"] = grader
+        retrieval_history[-1]["filtered_doc_count"] = len(filtered_docs or [])
+
+    meta["retrieval_grader"] = grader
+    meta["retrieved_coaching"] = filtered_docs
+    meta["retrieval_history"] = retrieval_history
+
+    logger_graph_node.info(
+        "[Adaptive RAG] retrieval grading attempt=%d candidate_doc_count=%d filtered_doc_count=%d relevant=%s needs_retry=%s coverage=%s missing_concepts=%s",
+        retry_count,
+        len(docs or []),
+        len(filtered_docs or []),
+        grader.get("relevant"),
+        grader.get("needs_retry"),
+        grader.get("coverage"),
+        grader.get("missing_concepts") or [],
     )
 
     return {
         **state,
         "meta": meta,
-        "retrieval_grader": graded.get("retrieval_grader") or {},
-        "retrieved_coaching": graded.get("retrieved_coaching") or [],
-        "retrieval_history": graded.get("retrieval_history") or [],
-        "rag_queries": meta.get("rag_queries") or [],
+        "retrieval_grader": grader,
+        "retrieved_coaching": filtered_docs,
+        "retrieval_history": retrieval_history,
+        "rag_queries": rag_queries,
     }
 
 

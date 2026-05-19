@@ -29,6 +29,7 @@ QUERY_REWRITE_SYSTEM_PROMPT = """
 7. 입력에 없는 수치나 metric을 만들지 마십시오.
 
 출력은 반드시 JSON 객체 하나만 반환하십시오.
+모든 문자열 값은 반드시 한국어로 작성하십시오. 
 markdown code block을 사용하지 마십시오.
 
 JSON schema:
