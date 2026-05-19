@@ -28,6 +28,7 @@ RETRIEVAL_GRADER_SYSTEM_PROMPT = """
 8. 모든 문서가 약하더라도 최종 리포트에 사용할 최소 근거가 있으면 filtered_doc_indices에 포함할 수 있습니다.
 
 출력은 반드시 JSON 객체 하나만 반환하십시오.
+모든 문자열 값은 반드시 한국어로 작성하십시오.
 
 JSON schema:
 {
