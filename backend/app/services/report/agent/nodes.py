@@ -259,7 +259,7 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
     }
 
 
-def should_retry(state: ReportAgentState) -> str:
+def decide_to_generate_self(state: ReportAgentState) -> str:
     """Route graph execution based on LLM retrieval grader result."""
     grader = state.get("retrieval_grader") or {}
     retry_count = int(state.get("retry_count") or 0)

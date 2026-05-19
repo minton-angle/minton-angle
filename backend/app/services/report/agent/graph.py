@@ -10,7 +10,7 @@ from app.services.report.agent.nodes import (
     movement_reasoning_node,
     query_rewrite_node,
     retrieval_grader_node,
-    should_retry,
+    decide_to_generate_self,
 )
 
 logger_graph = logging.getLogger("app.report.graph")
@@ -55,18 +55,18 @@ def build_report_graph():
     # 그래프 구축
     graph.add_edge(
         "movement_reasoning",
-        "adaptive_rag",
+        "retrieval_rag",
     )
     
     graph.add_edge(
-        "adaptive_rag",
+        "retrieval_rag",
         "retrieval_grader",
     )
 
     # 조건부 엣지 추가: 문서 평가 후 결정   
     graph.add_conditional_edges(
         "retrieval_grader",
-        should_retry,
+        decide_to_generate_self,
         {
             "rewrite": "query_rewrite",
             "end": END,
@@ -75,7 +75,7 @@ def build_report_graph():
 
     graph.add_edge(
         "query_rewrite",
-        "adaptive_rag",
+        "retrieval_rag",
     )
 
     return graph.compile()
