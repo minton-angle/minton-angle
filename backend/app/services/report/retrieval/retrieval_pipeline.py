@@ -99,9 +99,10 @@ def run_retrieval_attempt(
     attempt: int,
     logger: logging.Logger | None = None,
 ) -> List[Dict[str, Any]]:
-    """Run exactly one retrieval + grading attempt.
+    """Run exactly one retrieval attempt.
 
-    Retry loop orchestration belongs to LangGraph, not this function.
+    This function only retrieves candidate documents. Retrieval grading and
+    document filtering are handled by the LangGraph retrieval_grader node.
     """
     logger = logger or logger_pipeline
 
@@ -115,33 +116,16 @@ def run_retrieval_attempt(
         {
             "attempt": attempt,
             "query_source": "rewrite" if attempt > 0 else "initial",
-            "grader": meta.get("retrieval_grader") or {},
             "doc_count": len(docs or []),
         }
     )
     meta["retrieval_history"] = history
-
-    grader = grade_retrieval_results(
-        query=json.dumps(meta.get("rag_queries") or [], ensure_ascii=False),
-        retrieved_docs=docs,
-        movement_reasoning=meta.get("movement_reasoning") or {},
-    )
-
-    filtered_docs = _filter_docs_by_grader(
-        docs=docs,
-        grader=grader,
-    )
-
-    meta["retrieval_grader"] = grader
-    meta["retrieved_coaching"] = filtered_docs
+    meta["retrieved_candidates"] = docs
 
     logger.info(
-        "[Adaptive RAG] 현재 검색 시도 회수 =%d 주입 대상 문서 개수=%d 검색 결과와 질문 관련성=%s 재검색 필요 여부=%s 요구사항 커버 정도(1이 완벽)=%s 현재 검색 결과에서 부족한 개념 목록=%s",
+        "[Adaptive RAG] retrieval attempt=%d candidate_doc_count=%d",
         attempt,
-        len(filtered_docs or []),
-        grader.get("relevant"),
-        grader.get("needs_retry"),
-        grader.get("coverage"),
-        grader.get("missing_concepts") or [],
+        len(docs or []),
     )
-    return filtered_docs
+
+    return docs

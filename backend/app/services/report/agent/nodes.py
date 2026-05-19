@@ -11,6 +11,7 @@ from app.services.report.agent.prompts import (
 )
 from app.services.report.retrieval.retrieval_pipeline import (
     MAX_RETRY,
+    grade_and_filter_retrieval_attempt,
     rewrite_rag_queries,
     run_retrieval_attempt,
 )
@@ -181,10 +182,10 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
 
 
 def adaptive_rag_node(state: ReportAgentState) -> ReportAgentState:
-    """Run one retrieval attempt and attach retrieval state.
+    """Run one retrieval attempt and attach candidate retrieval documents.
 
-    LangGraph controls retry/branching. This node performs one action only:
-    execute a single Adaptive RAG retrieval attempt.
+    LangGraph controls retry/branching. This node performs retrieval only.
+    Retrieval grading is handled by retrieval_grader_node.
     """
     meta = state.get("meta") or {}
     retry_count = int(state.get("retry_count") or 0)
@@ -198,9 +199,31 @@ def adaptive_rag_node(state: ReportAgentState) -> ReportAgentState:
     return {
         **state,
         "meta": meta,
-        "retrieved_coaching": docs,
-        "retrieval_grader": meta.get("retrieval_grader") or {},
+        "retrieved_candidates": docs,
         "retrieval_history": meta.get("retrieval_history") or [],
+        "rag_queries": meta.get("rag_queries") or [],
+    }
+
+
+def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
+    """Grade retrieved candidate documents and keep accepted evidence only."""
+    meta = state.get("meta") or {}
+    retry_count = int(state.get("retry_count") or 0)
+    docs = state.get("retrieved_candidates") or meta.get("retrieved_candidates") or []
+
+    graded = grade_and_filter_retrieval_attempt(
+        meta=meta,
+        docs=docs,
+        attempt=retry_count,
+        logger=logger_graph_node,
+    )
+
+    return {
+        **state,
+        "meta": meta,
+        "retrieval_grader": graded.get("retrieval_grader") or {},
+        "retrieved_coaching": graded.get("retrieved_coaching") or [],
+        "retrieval_history": graded.get("retrieval_history") or [],
         "rag_queries": meta.get("rag_queries") or [],
     }
 
