@@ -181,7 +181,7 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
     }
 
 
-def adaptive_rag_node(state: ReportAgentState) -> ReportAgentState:
+def retrieval_node(state: ReportAgentState) -> ReportAgentState:
     """Run one retrieval attempt and attach candidate retrieval documents.
 
     LangGraph controls retry/branching. This node performs retrieval only.

@@ -6,7 +6,7 @@ from typing import TypedDict, Any, Dict
 from langgraph.graph import StateGraph, END
 
 from app.services.report.agent.nodes import (
-    adaptive_rag_node,
+    retrieval_node,
     movement_reasoning_node,
     query_rewrite_node,
     retrieval_grader_node,
@@ -36,8 +36,8 @@ def build_report_graph():
     )
 
     graph.add_node(
-        "adaptive_rag",
-        adaptive_rag_node,
+        "retrieval_rag",
+        retrieval_node,
     )
 
     graph.add_node(
