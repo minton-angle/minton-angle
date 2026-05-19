@@ -158,11 +158,13 @@ def retrieve_coaching_evidence(
             log.warning("LangChain RAG query failed q=%s err=%s", text, str(exc))
             continue
 
-        reranked_pairs = rerank_with_cross_encoder(
-            text,
-            retrieved_pairs,
-            logger=log,
-        )
+        # NOTE: rerank  일시적 사용 안함 while validating the LangGraph Self-RAG loop.
+        # Use Chroma similarity results directly.
+        reranked_pairs = [
+            (doc_obj, distance, None)
+            for doc_obj, distance in retrieved_pairs
+        ]
+
         for rank, (doc_obj, distance, rerank_score) in enumerate(reranked_pairs, start=1):
             metadata = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
             raw_doc = _safe_str(getattr(doc_obj, "page_content", ""))
@@ -183,7 +185,7 @@ def retrieve_coaching_evidence(
         selected_pairs = reranked_pairs[:per_q]
 
         log.info(
-            "[재정렬 결과 요약]RAG rerank query='%s' stage=%s metric=%s candidates=%d selected=%d",
+            "[RAG similarity 결과 요약] query='%s' stage=%s metric=%s candidates=%d selected=%d",
             text,
             query_stage,
             query_metric,
