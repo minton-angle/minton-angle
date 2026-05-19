@@ -11,7 +11,7 @@ from app.services.report.agent.prompts import (
 )
 from app.services.report.retrieval.retrieval_pipeline import (
     MAX_RETRY,
-    grade_and_filter_retrieval_attempt,
+    filter_docs_by_grader,
     rewrite_rag_queries,
     run_retrieval_attempt,
 )
@@ -211,7 +211,7 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
     retry_count = int(state.get("retry_count") or 0)
     docs = state.get("retrieved_candidates") or meta.get("retrieved_candidates") or []
 
-    graded = grade_and_filter_retrieval_attempt(
+    graded = filter_docs_by_grader(
         meta=meta,
         docs=docs,
         attempt=retry_count,

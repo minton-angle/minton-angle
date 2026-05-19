@@ -23,13 +23,13 @@ def _safe_str(v: Any) -> str:
         return ""
     
 
-def _filter_docs_by_grader(
+# 문서 필터링 실행 함수
+def filter_docs_by_grader(
     *,
     docs: List[Dict[str, Any]],
     grader: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    """Keep only documents accepted by the retrieval grader.
-    """
+    """선택된 문서 인덱스를 retrieval_grader 결과에서 받아서 실제 문서 리스트를 필터링"""
     accepted = grader.get("filtered_doc_indices")
     if not isinstance(accepted, list):
         return docs
