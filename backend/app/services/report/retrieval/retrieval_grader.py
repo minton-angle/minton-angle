@@ -10,7 +10,7 @@ logger_grader = logging.getLogger("app.llm")
 
 # 문서 관련성 및 커버리지 평가를 위한 시스템 프롬프트
 RETRIEVAL_GRADER_SYSTEM_PROMPT = """
-당신은 Adaptive RAG Retrieval Evaluator 입니다.
+당신은 RAG Retrieval Evaluator 입니다.
 
 역할:
 - 현재 retrieval evidence가 사용자의 movement reasoning을 충분히 설명하는지 평가합니다.
@@ -121,7 +121,7 @@ def grade_retrieval_results(
     retrieved_docs: List[Dict[str, Any]],
     movement_reasoning: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
-    """LLM-based Adaptive RAG retrieval grader."""
+    """LLM-based 검색 평가."""
 
     movement_reasoning = movement_reasoning or {}
 

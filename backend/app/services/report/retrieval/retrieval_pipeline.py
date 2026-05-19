@@ -123,7 +123,7 @@ def run_retrieval_attempt(
     meta["retrieved_candidates"] = docs
 
     logger.info(
-        "[Adaptive RAG] retrieval attempt=%d candidate_doc_count=%d",
+        "[LangGraph] RAG retrieval attempt=%d candidate_doc_count=%d",
         attempt,
         len(docs or []),
     )

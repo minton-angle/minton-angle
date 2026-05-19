@@ -131,11 +131,10 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
             "retrieval_focus": [],
             "risk_notes": [],
         }
-        #meta에 movement_reasoning 결과를 포함시키도록 함
-        meta["movement_reasoning"] = movement_reasoning
         return {
             **state,
             "meta": meta,
+            "movement_reasoning": movement_reasoning,
         }
 
     messages = [
@@ -174,11 +173,10 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
         json.dumps(hypothesis_summary, ensure_ascii=False),
     )
 
-    meta["movement_reasoning"] = movement_reasoning
-
     return {
         **state,
         "meta": meta,
+        "movement_reasoning": movement_reasoning,
     }
 
 
@@ -190,11 +188,22 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
     """
     meta = state.get("meta") or {}
     retry_count = int(state.get("retry_count") or 0)
+    movement_reasoning = state.get("movement_reasoning") or {}
+    if movement_reasoning:
+        # Backward compatibility: rag_query_builder currently reads movement_reasoning from meta.
+        # The graph-level source of truth remains state["movement_reasoning"].
+        meta["movement_reasoning"] = movement_reasoning
 
     docs = run_retrieval_attempt(
         meta=meta,
         attempt=retry_count,
         logger=logger_graph_node,
+    )
+    logger_graph_node.info(
+        "[LangGraph] node=retrieval_rag attempt=%d state_candidate_doc_count=%d meta_candidate_doc_count=%d",
+        retry_count,
+        len(docs or []),
+        len(meta.get("retrieved_candidates") or []),
     )
 
     return {
@@ -215,8 +224,14 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
     meta = state.get("meta") or {}
     retry_count = int(state.get("retry_count") or 0)
     docs = state.get("retrieved_candidates") or []
+    logger_graph_node.info(
+        "[LangGraph][retrieval_grader_node] input state_candidate_doc_count=%d meta_candidate_doc_count=%d selected_candidate_doc_count=%d",
+        len(state.get("retrieved_candidates") or []),
+        len(meta.get("retrieved_candidates") or []),
+        len(docs or []),
+    )
     rag_queries = state.get("rag_queries") or meta.get("rag_queries") or []
-    movement_reasoning = meta.get("movement_reasoning") or state.get("movement_reasoning") or {}
+    movement_reasoning = state.get("movement_reasoning") or {}
 
     grader = grade_retrieval_results(
         query=json.dumps(rag_queries, ensure_ascii=False),
@@ -239,7 +254,7 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
     meta["retrieval_history"] = retrieval_history
 
     logger_graph_node.info(
-        "[Adaptive RAG] retrieval grading attempt=%d candidate_doc_count=%d filtered_doc_count=%d relevant=%s needs_retry=%s coverage=%s missing_concepts=%s",
+        "[LangGraph] retrieval grading attempt=%d candidate_doc_count=%d filtered_doc_count=%d relevant=%s needs_retry=%s coverage=%s missing_concepts=%s",
         retry_count,
         len(docs or []),
         len(filtered_docs or []),
@@ -266,19 +281,26 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
     current_queries = state.get("rag_queries") or meta.get("rag_queries") or []
     retry_count = int(state.get("retry_count") or 0) + 1
 
+    rewrite_context_docs = (
+        state.get("retrieved_candidates")
+        or state.get("retrieved_coaching")
+        or []
+    )
+
     rewritten_queries = rewrite_rag_queries(
         queries=current_queries,
         grader_result=grader,
-        movement_reasoning=meta.get("movement_reasoning") or {},
-        retrieved_docs=state.get("retrieved_coaching") or [],
+        movement_reasoning=state.get("movement_reasoning") or {},
+        retrieved_docs=rewrite_context_docs,
     )
 
     meta["rag_queries"] = rewritten_queries
 
     logger_graph_node.info(
-        "[LangGraph] LLM query rewrite retry_count=%d query_count=%d queries=%s",
+        "[LangGraph] LLM query rewrite retry_count=%d query_count=%d context_doc_count=%d queries=%s",
         retry_count,
         len(rewritten_queries or []),
+        len(rewrite_context_docs or []),
         json.dumps(rewritten_queries, ensure_ascii=False),
     )
 
