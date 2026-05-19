@@ -27,6 +27,7 @@ class AdaptiveRAGState(TypedDict, total=False):
 def build_report_graph():
     graph = StateGraph(AdaptiveRAGState)
 
+    # 노드 정의 
     graph.add_node(
         "movement_reasoning",
         movement_reasoning_node,
@@ -44,11 +45,13 @@ def build_report_graph():
 
     graph.set_entry_point("movement_reasoning")
 
+    # 그래프 구축
     graph.add_edge(
         "movement_reasoning",
         "adaptive_rag",
     )
-
+    
+    # 조건부 엣지 추가: 문서 평가 후 결정
     graph.add_conditional_edges(
         "adaptive_rag",
         should_retry,

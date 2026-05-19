@@ -22,6 +22,10 @@ RETRIEVAL_GRADER_SYSTEM_PROMPT = """
 2. retrieval evidence에 실제 코칭/교정/움직임 근거가 존재하는가?
 3. retrieval evidence가 단순 일반론인지, query_intent를 직접적으로 설명하는지 평가하라.
 4. retrieval evidence가 부족하다면 어떤 biomechanical concept가 부족한지 반환하라.
+5. 입력 payload의 retrieved_docs는 평가 직전에 index 필드가 부여된 문서 목록입니다. 각 문서를 개별 평가하여 최종 리포트 근거로 사용할 문서 index만 filtered_doc_indices에 넣으십시오.
+6. filtered_doc_indices에는 movement_reasoning 또는 query_intent와 직접 연결되는 문서만 포함하십시오.
+7. 일반론, 다른 stage/metric 문서, 교정 근거가 약한 문서는 filtered_doc_indices에 포함하지 마십시오.
+8. 모든 문서가 약하더라도 최종 리포트에 사용할 최소 근거가 있으면 filtered_doc_indices에 포함할 수 있습니다.
 
 출력은 반드시 JSON 객체 하나만 반환하십시오.
 
@@ -32,7 +36,15 @@ JSON schema:
   "coverage": 0.0,
   "reason": "string",
   "missing_concepts": ["string"],
-  "rewrite_guidance": ["string"]
+  "rewrite_guidance": ["string"],
+  "filtered_doc_indices": [0, 1],
+  "doc_judgements": [
+    {
+      "index": 0,
+      "relevant": true,
+      "reason": "string"
+    }
+  ]
 }
 """.strip()
 
@@ -112,15 +124,24 @@ def grade_retrieval_results(
 
     movement_reasoning = movement_reasoning or {}
 
-    retrieval_text = "\n\n".join(
-        _safe_str(item.get("content"))
-        for item in (retrieved_docs or [])
-    )
+    indexed_docs = []
+    for idx, item in enumerate(retrieved_docs or []):
+        if not isinstance(item, dict):
+            continue
+        indexed_docs.append(
+            {
+                "index": idx,
+                "stage": item.get("stage"),
+                "metric": item.get("metric"),
+                "source": item.get("source"),
+                "content": _safe_str(item.get("content"))[:1800],
+            }
+        )
 
     user_payload = {
         "query": query,
         "movement_reasoning": movement_reasoning,
-        "retrieved_docs": retrieval_text[:12000],
+        "retrieved_docs": indexed_docs,
     }
 
     messages = [
@@ -143,6 +164,19 @@ def grade_retrieval_results(
                 _strip_markdown_code_fences(raw)
             )
         )
+        doc_count = len(retrieved_docs or [])
+        filtered_doc_indices = []
+        for idx in parsed.get("filtered_doc_indices") or []:
+            try:
+                idx_int = int(idx)
+            except Exception:
+                continue
+            if 0 <= idx_int < doc_count and idx_int not in filtered_doc_indices:
+                filtered_doc_indices.append(idx_int)
+
+        doc_judgements = parsed.get("doc_judgements") or []
+        if not isinstance(doc_judgements, list):
+            doc_judgements = []
 
         result = {
             "relevant": bool(parsed.get("relevant", False)),
@@ -151,6 +185,8 @@ def grade_retrieval_results(
             "reason": _safe_str(parsed.get("reason")),
             "missing_concepts": parsed.get("missing_concepts") or [],
             "rewrite_guidance": parsed.get("rewrite_guidance") or [],
+            "filtered_doc_indices": filtered_doc_indices,
+            "doc_judgements": doc_judgements,
         }
 
     except Exception as exc:
@@ -166,6 +202,8 @@ def grade_retrieval_results(
             "reason": f"fallback grader used: {str(exc)}",
             "missing_concepts": [],
             "rewrite_guidance": [],
+            "filtered_doc_indices": list(range(len(retrieved_docs or []))) if retrieved_docs else [],
+            "doc_judgements": [],
         }
 
     logger_grader.info(
