@@ -8,7 +8,7 @@ from app.services.report.llm.client import call_llm
 
 logger_grader = logging.getLogger("app.llm")
 
-
+# 문서 관련성 및 커버리지 평가를 위한 시스템 프롬프트
 RETRIEVAL_GRADER_SYSTEM_PROMPT = """
 당신은 Adaptive RAG Retrieval Evaluator 입니다.
 
@@ -101,7 +101,7 @@ def _extract_json_object(text: str) -> str:
     return text[start:]
 
 
-
+# 검색 문서가 movement_reasoning을 설명 가능한가? -> relevant
 def grade_retrieval_results(
     *,
     query: str,

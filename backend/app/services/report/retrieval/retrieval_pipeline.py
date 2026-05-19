@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 from app.services.report.retrieval.chroma_retriever import (
     retrieve_coaching_evidence,
 )
+from app.services.report.retrieval.query_rewriter import rewrite_rag_queries_with_llm
 
 
 logger_pipeline = logging.getLogger("app.llm")
@@ -25,39 +26,20 @@ def rewrite_rag_queries(
     *,
     queries: List[Dict[str, Any]],
     grader_result: Dict[str, Any],
+    movement_reasoning: Dict[str, Any] | None = None,
+    retrieved_docs: List[Dict[str, Any]] | None = None,
 ) -> List[Dict[str, Any]]:
     """Rewrite existing RAG queries using LLM grader guidance.
 
-    This function does not run retrieval. LangGraph controls when this is called
-    and whether another retrieval attempt is needed.
+    LangGraph controls when this is called and whether another retrieval attempt
+    is needed. The actual semantic rewrite is delegated to query_rewriter.py.
     """
-    rewrite_guidance = grader_result.get("rewrite_guidance") or []
-    missing_concepts = grader_result.get("missing_concepts") or []
-
-    suffix_parts = []
-    if rewrite_guidance:
-        suffix_parts.extend(_safe_str(x) for x in rewrite_guidance if _safe_str(x))
-    if missing_concepts:
-        suffix_parts.extend(_safe_str(x) for x in missing_concepts if _safe_str(x))
-
-    suffix = " ".join(suffix_parts).strip()
-    if not suffix:
-        return queries
-
-    rewritten_queries: List[Dict[str, Any]] = []
-    for item in queries or []:
-        q = _safe_str(item.get("q"))
-        rewritten_queries.append(
-            {
-                **item,
-                "q": f"{q} {suffix}".strip(),
-                "query_source": "rewrite",
-                "rewrite_guidance": rewrite_guidance,
-                "missing_concepts": missing_concepts,
-            }
-        )
-
-    return rewritten_queries
+    return rewrite_rag_queries_with_llm(
+        queries=queries,
+        grader_result=grader_result,
+        movement_reasoning=movement_reasoning,
+        retrieved_docs=retrieved_docs,
+    )
 
 
 def run_retrieval_attempt(

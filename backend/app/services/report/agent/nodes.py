@@ -167,7 +167,7 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
         if isinstance(item, dict)
     ]
     logger_agent.info(
-        "[Movement Reasoning] 생성된 동작 관계 가설 개수=%d details=%s",
+        "[Movement Reasoning] weak_metric관계 chain counts=%d details=%s",
         len(hypothesis_summary),
         json.dumps(hypothesis_summary, ensure_ascii=False),
     )
@@ -215,14 +215,17 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
     rewritten_queries = rewrite_rag_queries(
         queries=current_queries,
         grader_result=grader,
+        movement_reasoning=meta.get("movement_reasoning") or {},
+        retrieved_docs=state.get("retrieved_coaching") or [],
     )
 
     meta["rag_queries"] = rewritten_queries
 
     logger_graph_node.info(
-        "LangGraph query rewrite retry_count=%d queries=%s",
+        "[LangGraph] LLM query rewrite retry_count=%d query_count=%d queries=%s",
         retry_count,
-        rewritten_queries,
+        len(rewritten_queries or []),
+        json.dumps(rewritten_queries, ensure_ascii=False),
     )
 
     return {

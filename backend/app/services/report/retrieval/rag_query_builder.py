@@ -136,6 +136,8 @@ def _build_queries_from_movement_reasoning(
                 "sub_key": _safe_str(item.get("sub_key")),
                 "query_source": "movement_reasoning",
                 "query_intent": query_intent,
+                "hypothesis_name": _safe_str(item.get("hypothesis_name")),
+                "related_metrics": item.get("related_metrics") or [],
                 "where": None,
             }
         )
