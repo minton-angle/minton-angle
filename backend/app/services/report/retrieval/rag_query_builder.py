@@ -281,23 +281,28 @@ def _dedupe_queries(queries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def build_rag_queries(
-    meta: Dict[str, Any],
+    meta: Optional[Dict[str, Any]] = None,
     *,
+    movement_reasoning: Optional[Dict[str, Any]] = None,
+    rag_queries: Optional[List[Dict[str, Any]]] = None,
     logger: Optional[logging.Logger] = None,
 ) -> List[Dict[str, Any]]:
     """Build RAG search queries for coaching evidence retrieval.
 
     Priority:
-    1. movement_reasoning.retrieval_focus
-    2. weak_metrics
-    3. score_stats fallback
+    1. rag_queries from LangGraph state, e.g. query rewrite result
+    2. movement_reasoning.retrieval_focus from LangGraph state
+    3. weak_metrics from DB/meta input
+    4. score_stats fallback from DB/meta input
     """
     meta = meta or {}
-    if isinstance(meta.get("rag_queries"), list) and meta.get("rag_queries"):
-        return meta["rag_queries"]
+
+    if isinstance(rag_queries, list) and rag_queries:
+        return rag_queries
+
     score_stats = meta.get("score_stats", {}) or {}
     weak_metrics = meta.get("weak_metrics") or []
-    movement_reasoning = meta.get("movement_reasoning") or {}
+    movement_reasoning = movement_reasoning or {}
 
     queries: List[Dict[str, Any]] = []
 
