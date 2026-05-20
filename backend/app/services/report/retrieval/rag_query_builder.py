@@ -287,13 +287,13 @@ def build_rag_queries(
     rag_queries: Optional[List[Dict[str, Any]]] = None,
     logger: Optional[logging.Logger] = None,
 ) -> List[Dict[str, Any]]:
-    """Build RAG search queries for coaching evidence retrieval.
+    """코칭 근거 검색을 위한 RAG 쿼리 목록을 생성합니다.
 
-    Priority:
-    1. rag_queries from LangGraph state, e.g. query rewrite result
-    2. movement_reasoning.retrieval_focus from LangGraph state
-    3. weak_metrics from DB/meta input
-    4. score_stats fallback from DB/meta input
+    우선순위:
+    1. LangGraph state의 rag_queries: Query Rewrite 결과가 있으면 그대로 사용
+    2. LangGraph state의 movement_reasoning.retrieval_focus
+    3. DB/meta 입력의 weak_metrics
+    4. DB/meta 입력의 score_stats fallback
     """
     meta = meta or {}
 

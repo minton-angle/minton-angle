@@ -189,28 +189,39 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
     meta = state.get("meta") or {}
     retry_count = int(state.get("retry_count") or 0)
     movement_reasoning = state.get("movement_reasoning") or {}
-    if movement_reasoning:
-        # Backward compatibility: rag_query_builder currently reads movement_reasoning from meta.
-        # The graph-level source of truth remains state["movement_reasoning"].
-        meta["movement_reasoning"] = movement_reasoning
+    rag_queries = state.get("rag_queries") or []
 
     docs = run_retrieval_attempt(
         meta=meta,
+        movement_reasoning=movement_reasoning,
+        rag_queries=rag_queries,
         attempt=retry_count,
         logger=logger_graph_node,
     )
+    # 초기 검색인 경우 retrieve_coaching_evidence/build_rag_queries 내부에서 쿼리를 생성
+    # 재검색 루프에서는 state["rag_queries"] 값을 유지하고,
+    # 쿼리 목록은 query_rewrite_node에서 재작성
     logger_graph_node.info(
         "[LangGraph] node=retrieval_rag attempt=%d candidate_doc_count=%d",
         retry_count,
         len(docs or []),
     )
+    retrieval_history = state.get("retrieval_history") or []
+    retrieval_history = [
+        *retrieval_history,
+        {
+            "attempt": retry_count,
+            "query_source": "rewrite" if retry_count > 0 else "initial",
+            "doc_count": len(docs or []),
+        },
+    ]
 
     return {
         **state,
         "meta": meta,
         "retrieved_candidates": docs,
-        "retrieval_history": meta.get("retrieval_history") or [],
-        "rag_queries": meta.get("rag_queries") or [],
+        "retrieval_history": retrieval_history,
+        "rag_queries": rag_queries,
     }
 
 
@@ -241,14 +252,10 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
         grader=grader,
     )
 
-    retrieval_history = state.get("retrieval_history") or meta.get("retrieval_history") or []
+    retrieval_history = state.get("retrieval_history") or []
     if retrieval_history:
         retrieval_history[-1]["grader"] = grader
         retrieval_history[-1]["filtered_doc_count"] = len(filtered_docs or [])
-
-    meta["retrieval_grader"] = grader
-    meta["retrieved_coaching"] = filtered_docs
-    meta["retrieval_history"] = retrieval_history
 
     logger_graph_node.info(
         "[LangGraph] retrieval grading attempt=%d candidate_doc_count=%d filtered_doc_count=%d relevant=%s needs_retry=%s coverage=%s missing_concepts=%s",
@@ -290,8 +297,6 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
         movement_reasoning=state.get("movement_reasoning") or {},
         retrieved_docs=rewrite_context_docs,
     )
-
-    meta["rag_queries"] = rewritten_queries
 
     logger_graph_node.info(
         "[LangGraph] LLM query rewrite retry_count=%d query_count=%d context_doc_count=%d queries=%s",

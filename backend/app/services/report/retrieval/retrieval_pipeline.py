@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.services.report.retrieval.chroma_retriever import (
     retrieve_coaching_evidence,
@@ -92,34 +92,31 @@ def rewrite_rag_queries(
         retrieved_docs=retrieved_docs,
     )
 
-# 검색 실행 하고 기록하는 함수
+# 검색만 실행하고 docs 반환
 def run_retrieval_attempt(
     *,
     meta: Dict[str, Any],
+    movement_reasoning: Optional[Dict[str, Any]] = None,
+    rag_queries: Optional[List[Dict[str, Any]]] = None,
     attempt: int,
     logger: logging.Logger | None = None,
 ) -> List[Dict[str, Any]]:
-    """Run exactly one retrieval attempt.
+    """Run exactly one retrieval attempt and return candidate documents only.
 
-    This function only retrieves candidate documents. Retrieval grading and
-    document filtering are handled by the LangGraph retrieval_grader node.
+    State updates such as retrieval_history are handled by LangGraph nodes.
     """
     logger = logger or logger_pipeline
 
     docs = retrieve_coaching_evidence(
         meta,
+        movement_reasoning=movement_reasoning or {},
+        rag_queries=rag_queries or [],
         logger=logger,
     )
 
-    history = meta.get("retrieval_history") or []
-    history.append(
-        {
-            "attempt": attempt,
-            "query_source": "rewrite" if attempt > 0 else "initial",
-            "doc_count": len(docs or []),
-        }
-    )
-    meta["retrieval_history"] = history
+    # 초기 검색인 경우 retrieve_coaching_evidence/build_rag_queries 내부에서 쿼리를 생성
+    # 재검색 루프에서는 LangGraph state의 rag_queries를 유지하고,
+    # 쿼리 목록은 query_rewrite_node에서 재작성
 
     logger.info(
         "[LangGraph] RAG retrieval attempt=%d candidate_doc_count=%d",

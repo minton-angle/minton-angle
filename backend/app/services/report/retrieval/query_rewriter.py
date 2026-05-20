@@ -108,7 +108,7 @@ def _fallback_rewrite_queries(
     queries: List[Dict[str, Any]],
     grader_result: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    """Rule-based fallback when LLM query rewrite fails."""
+    """LLM 기반 쿼리 재작성 실패 시 사용하는 규칙 기반 fallback입니다."""
     rewrite_guidance = grader_result.get("rewrite_guidance") or []
     missing_concepts = grader_result.get("missing_concepts") or []
 
@@ -143,12 +143,12 @@ def rewrite_rag_queries_with_llm(
     movement_reasoning: Dict[str, Any] | None = None,
     retrieved_docs: List[Dict[str, Any]] | None = None,
 ) -> List[Dict[str, Any]]:
-    """Rewrite RAG queries using movement reasoning and retrieval failure feedback.
+    """movement_reasoning과 검색 실패 피드백을 기반으로 RAG 쿼리를 재작성합니다.
 
-    This is a Self-RAG style query rewrite step:
-    1. Interpret why retrieval failed.
-    2. Compare movement_reasoning with retrieval_grader feedback.
-    3. Rebuild the semantic retrieval intent instead of appending keywords.
+    Self-RAG 스타일의 쿼리 재작성 단계입니다.
+    1. 검색이 왜 실패했는지 해석합니다.
+    2. movement_reasoning과 retrieval_grader 피드백을 함께 비교합니다.
+    3. 키워드만 덧붙이지 않고 semantic retrieval intent 자체를 재설계합니다.
     """
     movement_reasoning = movement_reasoning or {}
     retrieved_docs = retrieved_docs or []
