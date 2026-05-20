@@ -113,11 +113,11 @@ def _fallback_movement_reasoning(state: ReportAgentState, reason: str = "") -> D
 
 # metrics간 인과관계 및 패턴을 LLM으로 분석하여 movement_hypotheses를 생성하는 노드
 def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
-    """Infer biomechanical movement hypotheses from weak_metrics.
+    """weak_metrics를 기반으로 biomechanical movement hypothesis를 추론합니다.
 
-    This node is the first LLM reasoning step in the agent workflow.
-    It does not retrieve documents. It only interprets the user's normalized
-    movement observations and creates reasoning targets for later retrieval.
+    이 노드는 에이전트 흐름의 첫 번째 LLM reasoning 단계입니다.
+    문서 검색은 수행하지 않고, 사용자의 정규화된 동작 관찰값을 해석하여
+    이후 RAG 검색에 사용할 reasoning target을 생성합니다.
     """
     meta = state.get("meta") or {}
     weak_metrics = meta.get("weak_metrics")
@@ -181,10 +181,10 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
 
 
 def retrieval_node(state: ReportAgentState) -> ReportAgentState:
-    """Run one retrieval attempt and attach candidate retrieval documents.
+    """RAG 검색을 1회 수행하고 후보 문서를 state에 저장합니다.
 
-    LangGraph controls retry/branching. This node performs retrieval only.
-    Retrieval grading is handled by retrieval_grader_node.
+    retry와 분기는 LangGraph가 제어합니다.
+    이 노드는 검색만 수행하며, 문서 평가는 retrieval_grader_node에서 처리합니다.
     """
     meta = state.get("meta") or {}
     retry_count = int(state.get("retry_count") or 0)
@@ -226,10 +226,11 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
 
 
 def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
-    """Evaluate retrieved documents and keep only relevant evidence.
+    """검색 후보 문서를 평가하고 관련성 있는 evidence만 state에 저장합니다.
 
-    This follows the notebook-style Self-RAG flow:
-    state["retrieved_candidates"] -> grade documents -> state["retrieved_coaching"]
+    주피터 Self-RAG 예제 흐름과 동일하게,
+    state["retrieved_candidates"]를 평가한 뒤
+    통과 문서만 state["retrieved_coaching"]에 저장합니다.
     """
     meta = state.get("meta") or {}
     retry_count = int(state.get("retry_count") or 0)

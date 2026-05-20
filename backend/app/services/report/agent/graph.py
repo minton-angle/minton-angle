@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import TypedDict, Any, Dict
+from typing import Any, Dict
 
 from langgraph.graph import StateGraph, END
+
+from app.services.report.agent.state import ReportAgentState
 
 from app.services.report.agent.nodes import (
     retrieval_node,
@@ -16,19 +18,8 @@ from app.services.report.agent.nodes import (
 logger_graph = logging.getLogger("app.report.graph")
 
 
-class AdaptiveRAGState(TypedDict, total=False):
-    meta: Dict[str, Any]
-    movement_reasoning: Dict[str, Any]
-    retrieved_coaching: list
-    retrieved_candidates: list
-    retrieval_grader: Dict[str, Any]
-    retrieval_history: list
-    retry_count: int
-    rag_queries: list
-
-
 def build_report_graph():
-    graph = StateGraph(AdaptiveRAGState)
+    graph = StateGraph(ReportAgentState)
 
     # 노드 정의 
     graph.add_node(
