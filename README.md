@@ -1,1 +1,174 @@
-AICV 3기 종합 프로젝트
+# 🏸 민턴 각? (Minton-Angle)
+
+ ### 배드민턴 입문자를 위한 실시간 AI 코칭 앱
+ > "'오늘 배드민턴 각?' 이라는 친근한 제안과, 입문자에게 꼭 필요한 '정석의 각도'를 알려주겠다는 두 가지 의미를 담았습니다."
+
+🗓️ **진행 기간 :** 2026.01.27 ~ 2026.02.27 
+ <br/>
+  ### 🏆 **멋쟁이사자처럼 AI 컴퓨터 비전(CV) 3기 최종 프로젝트 우수상 (2등)**
+  **9개 팀 중 종합 2위 달성**
+  <br/>
+
+ <img width="2032" height="1142" alt="image" src="https://github.com/user-attachments/assets/26cf035d-13d2-4578-9f49-e9f0bf6a7f95" />
+
+
+  ## 🛠 Tech Stack
+
+| Category | Technologies |
+| :--- | :--- |
+| **Frontend** | ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white) ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white) ![JS](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black) ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white) |
+| **Backend** | ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) |
+| **Infra** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) |
+| **AI/Vision** | ![YOLO11](https://img.shields.io/badge/YOLO11n-00FFFF?style=flat-square&logo=ultralytics&logoColor=black) ![MediaPipe](https://img.shields.io/badge/MediaPipe-0082FC?style=flat-square&logo=google&logoColor=white) ![TrackNet](https://img.shields.io/badge/TrackNetV3-FF4B4B?style=flat-square&logo=pytorch&logoColor=white) |
+| **LLM/RAG** | ![Qwen2.5](https://img.shields.io/badge/Qwen2.5--7B--Instruct-8A2BE2?style=flat-square&logo=alibabacloud&logoColor=white) [![E5](https://img.shields.io/badge/E5_Embedding-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/intfloat/multilingual-e5-base) |
+
+  ## 👨‍💻 팀원 소개 및 역할 (Team)
+
+| ![노은서](https://github.com/RohEunSeo.png) | ![김민지](https://github.com/mjmjkkk.png) | ![이원호](https://github.com/hohohoho1223.png) | ![권주은](https://github.com/jueun27.png) | ![한태호](https://github.com/hantaeho123.png) |
+| :---: | :---: | :---: | :---: | :---: |
+| [노은서](https://github.com/RohEunSeo) | [김민지](https://github.com/mjmjkkk) | [이원호](https://github.com/hohohoho1223) | [권주은](https://github.com/jueun27) | [한태호](https://github.com/hantaeho123) |
+| **팀장 / PM,프론트엔드,배포** | **프론트엔드**<br>스윙 알고리즘 | **백엔드**<br>LLM 종합 리포트 | **백엔드**<br>자세교정 알고리즘 | **셔틀콕 궤적**<br>그립 알고리즘 |
+
+## 🌐 링크 (Links)
+
+🔗 **서비스 링크:** [minton-angle.vercel.app](https://minton-angle.vercel.app) <br>
+📄 **발표 자료 :** [민턴각_배드민턴자세교정서비스_실전프로젝트03](https://github.com/user-attachments/files/25681981/03.pdf) <br>
+📽️ **데모 영상 :** [민턴각_데모 영상](https://www.youtube.com/watch?v=6Lcwspuvrx4)
+
+---
+
+# 🎯 1. 프로젝트 개요 (Overview)
+<img width="2613" height="1461" alt="image" src="https://github.com/user-attachments/assets/eea241a9-9a65-4d62-aac2-6a2d955c1ef5" />
+
+- 배드민턴은 남녀노소 즐기는 압도적인 인기 스포츠이지만, 입문자들이 겪는 진입 장벽이 존재합니다.
+- 레슨을 받기에는 시간과 장소가 한정적이고 비용이 부담되며, 기존 서비스들은 "스윙을 열심히 연습해보세요"와 같은 추상적인 피드백을 제공하여 자기주도 학습에 한계가 있었습니다.
+
+**민턴 각?** 은 이러한 문제를 해결하기 위해 컴퓨터 비전(CV)과 LLM을 결합하여, **스마트폰 하나로 언제 어디서나 전문가 수준의 1:1 맞춤형 AI 코칭**을 받을 수 있는 서비스를 제공합니다.
+
+---
+
+# ✨ 2. 주요 기능 (Key Features)
+
+### 🏸 그립 교정 (Grip Correction)
+* 부상 방지와 실력 향상의 기초인 '올바른 포핸드 그립' 여부를 실시간으로 판별합니다.
+* 오답 클래스(테니스 그립, 검지 펴짐, 엄지 펴짐 등)를 직관적으로 분석하여 피드백을 제공합니다.
+
+
+
+### 🧍‍♂️ 기본 스윙 자세 교정 (Swing Posture Correction)
+* 스윙을 **3단계(준비, 백스윙, 임팩트/팔로우)** 로 구분하여 세분화된 자세 분석을 제공합니다.
+* 전문가(국가대표 선출 코치)의 정석 자세(Ground Truth)와 내 자세를 1:1로 비교 시각화하여 문제점을 정확히 짚어줍니다.
+
+
+
+
+### 📊 LLM 종합 AI 피드백 리포트 (Comprehensive Report)
+* 과거 기록을 바탕으로 주/월 단위 성장 추이와 자세 변동성을 분석합니다.
+* 점수가 낮고 변동성이 큰 동작을 찾아내어, **RAG 기반 맞춤형 코칭 피드백**과 연관된 **유튜브 추천 영상**을 제공합니다.
+
+
+
+---
+
+# 🏗 3. 시스템 아키텍처 및 API 설계
+### 시스템 아키텍처
+<img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/4c542aca-2884-4975-868c-5849639c1e6b" />
+
+### 🗄 Database (ERD 요약)
+* `USER`: 사용자 계정 및 인증 정보 관리
+* `POST`: 분석 세션 관리 (실시간/동영상) 및 종합 점수
+* `FILE`: 키프레임 이미지 및 영상 파일 경로 저장
+* `ANALYSIS`: CV 분석 결과 및 단계별 오차/점수 저장
+* `LLM_REPORT`: 생성된 맞춤형 LLM 피드백 보관
+
+### 📡 주요 API (FastAPI)
+* `/api/auth/*`: 회원 가입, 로그인, 정보 조회/수정
+* `/api/realtime/*`: 웹캠을 통한 실시간 스윙 3회 분석 및 즉각 피드백
+* `/api/upload/*`: 동영상 업로드, 상태 조회 및 분석 결과 반환
+* `/api/report/*`: 스윙 자세 리포트, LLM 피드백 리포트 생성 및 조회
+* `/api/grip/*`: 라켓 그립 이미지 전송 및 AI 진단 결과 반환
+* `/api/calendar/*`: 날짜별 분석 히스토리 및 월별 요약 제공
+
+---
+
+# 🧠 4. 핵심 AI 알고리즘 (Core AI Algorithms)
+
+### 5.1. 그립 분류 알고리즘 (YOLO11n)
+* **접근 방식의 전환:** 초기 MediaPipe 기반 3D 각도 측정 방식을 시도했으나, 손가락 겹침 및 촬영 구도 제약으로 인식 한계가 발생했습니다. 이를 해결하기 위해 단순 각도 계산 방식을 버리고 **YOLO 기반의 객체 분류(Classification) 모델로 재정의**했습니다.
+* **클래스 정의 (6종):** [정답] 올바른 그립 / [오답] 테니스 그립, 검지 펴짐, 검지-엄지 순서 불일치, 엄지 펴짐 / 기타
+* **모델 최적화:** 정확도(mAP50 0.987)와 추론 속도(`inference_time_ms`), 모델 크기를 종합적으로 평가하여 **YOLO11n**을 최종 채택했습니다.
+
+### 5.2. 스윙 자세 교정 알고리즘 (MediaPipe & FastDTW)
+국가대표 출신 코치의 완벽한 스윙 동작을 Ground Truth(GT)로 삼고, 100점 만점 룰 기반 평가를 진행합니다.
+* **전처리 및 정규화:** 다양한 신체 크기에 대응하기 위해 어깨 폭과 골반을 기준으로 스켈레톤 데이터를 정규화하고 강력한 보간(Interpolation) 처리를 적용했습니다.
+* **FastDTW:** 사람마다 다른 스윙 속도를 맞추기 위해 전문가와 사용자의 프레임을 동기화했습니다.
+* **10개 세부 평가 지표:**
+  * **Ready (준비):** 팔꿈치 각도, 손목 높이, 어깨-발 너비, 팔꿈치 높이
+  * **Backswing (백스윙):** 골반/어깨 회전율, 손목 깊이, 팔꿈치 들림 비, L자 팔 각도, 골반 회전, 어깨 회전
+  * **Impact & Follow:** 팔 뻗음 각도, 손목 높이 비율, 팔로우스루 시 손목/팔꿈치 x좌표 교차 검증
+
+### 5.3. 맞춤형 LLM 코칭 (RAG Architecture)
+실제 배드민턴 코칭 매뉴얼 자료를 벡터화하여 DB에 구축했습니다. 분석된 약점 데이터(점수 및 변동성)를 프롬프트와 함께 Qwen2.5-7B-Instruct 모델에 전달하여, 동작별 "왜 틀렸는지"와 "어떻게 고쳐야 하는지"를 구체적으로 알려주는 전문적인 텍스트 리포트를 생성합니다.
+
+---
+
+# 🚀 5. R&D 및 트러블슈팅 (Troubleshooting)
+
+<img width="2596" height="1455" alt="image" src="https://github.com/user-attachments/assets/071570d9-6fbf-4816-980b-23337e9726cd" />
+<img width="2607" height="1458" alt="image" src="https://github.com/user-attachments/assets/92de1e9c-278a-49a8-a54d-bafbe7923057" />
+
+### 🔴 셔틀콕 궤적 기반 스윙 분석의 구조적 한계 (R&D)
+* **시도:** TrackNetV3와 YOLO를 이용해 셔틀콕의 타점과 낙하점을 포착하고 이상적인 스윙 궤적을 시각화하고자 했습니다.
+* **결론:** 일반 체육관의 하얀 벽으로 인한 보호색 현상(객체 소실), 조명 노이즈, 정적 객체 오탐지 등 현존하는 비전 AI가 겪는 통제되지 않은 환경에서의 명백한 기술적 한계를 확인했습니다. 무리한 도입 대신, 좀 더 보완 후 기능 추가를 할 예정입니다.
+  
+---
+
+
+
+# ✨ 6. 데모 영상 (Demo & Features)
+
+앱의 핵심 기능과 실제 동작 화면입니다.
+
+<table width="100%">
+  <tr>
+    <th width="50%">🏸 8.1 그립 교정</th>
+    <th width="50%">🎥 8.2 실시간 레슨 모드</th>
+  </tr>
+  <tr>
+    <td align="center"><video src="https://github.com/user-attachments/assets/f5c024e4-2fc8-47ab-afb7-af6814f3000f" autoplay loop muted playsinline width="80%"></video></td>
+    <td align="center"><video src="https://github.com/user-attachments/assets/9aae412e-16f1-484b-815e-41b4d04210fe" autoplay loop muted playsinline width="80%"></video></td>
+  </tr>
+  <tr>
+    <td align="center"><b>YOLO11n 기반 실시간 판별</b><br>올바른 그립과 잘못된 그립을 분류하고 즉각적인 피드백을 제공합니다.</td>
+    <td align="center"><b>웹캠 기반 스윙 추적</b><br>사용자의 스윙 동작을 3단계로 분석하여 음성 코칭과 가이드를 제공합니다.</td>
+  </tr>
+
+  <tr>
+    <th colspan="2">📊 8.3 전문가 vs 초보자 스윙 비교</th>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><video src="https://github.com/user-attachments/assets/f73b143d-3ac7-4096-91c4-07d7e8f035d6" autoplay loop muted playsinline width="40%"></video></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><b>정석 자세 1:1 시각화</b><br>초보자(65점)와 전문가(90점)의 자세 차이를 직관적으로 비교 분석합니다.</td>
+  </tr>
+
+  <tr>
+    <th width="50%">📅 8.4 성장 리포트 및 캘린더</th>
+    <th width="50%">⚙️ 8.5 마이페이지 (계정 관리)</th>
+  </tr>
+  <tr>
+    <td align="center"><video src="https://github.com/user-attachments/assets/f78e6aa3-2811-4aa9-ae94-401de94775ac" autoplay loop muted playsinline width="80%"></video></td>
+    <td align="center"><video src="https://github.com/user-attachments/assets/74bed9c2-a241-4f32-b0a7-c5dc92c738f6" autoplay loop muted playsinline width="80%"></video></td>
+  </tr>
+  <tr>
+    <td align="center"><b>기간별 성장 추이 확인</b><br>누적된 데이터를 바탕으로 LLM 종합 피드백과 유튜브 영상을 추천합니다.</td>
+    <td align="center"><b>사용자 설정 및 탈퇴</b><br>개인 정보 수정 및 안전한 계정 관리 기능을 제공합니다.</td>
+  </tr>
+</table>
+
+
+
+
+
+
