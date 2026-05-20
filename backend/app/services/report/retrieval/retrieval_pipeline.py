@@ -92,7 +92,7 @@ def rewrite_rag_queries(
         retrieved_docs=retrieved_docs,
     )
 
-
+# 검색 실행 하고 기록하는 함수
 def run_retrieval_attempt(
     *,
     meta: Dict[str, Any],
@@ -120,7 +120,6 @@ def run_retrieval_attempt(
         }
     )
     meta["retrieval_history"] = history
-    meta["retrieved_candidates"] = docs
 
     logger.info(
         "[LangGraph] RAG retrieval attempt=%d candidate_doc_count=%d",

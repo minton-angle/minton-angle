@@ -200,10 +200,9 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
         logger=logger_graph_node,
     )
     logger_graph_node.info(
-        "[LangGraph] node=retrieval_rag attempt=%d state_candidate_doc_count=%d meta_candidate_doc_count=%d",
+        "[LangGraph] node=retrieval_rag attempt=%d candidate_doc_count=%d",
         retry_count,
         len(docs or []),
-        len(meta.get("retrieved_candidates") or []),
     )
 
     return {
@@ -225,9 +224,7 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
     retry_count = int(state.get("retry_count") or 0)
     docs = state.get("retrieved_candidates") or []
     logger_graph_node.info(
-        "[LangGraph][retrieval_grader_node] input state_candidate_doc_count=%d meta_candidate_doc_count=%d selected_candidate_doc_count=%d",
-        len(state.get("retrieved_candidates") or []),
-        len(meta.get("retrieved_candidates") or []),
+        "[LangGraph][retrieval_grader_node] input candidate_doc_count=%d",
         len(docs or []),
     )
     rag_queries = state.get("rag_queries") or meta.get("rag_queries") or []
