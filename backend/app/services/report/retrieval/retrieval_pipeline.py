@@ -8,7 +8,6 @@ from app.services.report.retrieval.chroma_retriever import (
     retrieve_coaching_evidence,
 )
 from app.services.report.retrieval.query_rewriter import rewrite_rag_queries_with_llm
-from app.services.report.retrieval.retrieval_grader import grade_retrieval_results
 
 
 logger_pipeline = logging.getLogger("app.llm")
@@ -80,10 +79,10 @@ def rewrite_rag_queries(
     movement_reasoning: Dict[str, Any] | None = None,
     retrieved_docs: List[Dict[str, Any]] | None = None,
 ) -> List[Dict[str, Any]]:
-    """Rewrite existing RAG queries using LLM grader guidance.
+    """retrieval_grader 피드백을 기반으로 기존 RAG 쿼리를 재작성합니다.
 
-    LangGraph controls when this is called and whether another retrieval attempt
-    is needed. The actual semantic rewrite is delegated to query_rewriter.py.
+    호출 시점과 재검색 여부는 LangGraph가 제어하고,
+    실제 semantic rewrite는 query_rewriter.py에 위임합니다.
     """
     return rewrite_rag_queries_with_llm(
         queries=queries,
@@ -101,9 +100,9 @@ def run_retrieval_attempt(
     attempt: int,
     logger: logging.Logger | None = None,
 ) -> List[Dict[str, Any]]:
-    """Run exactly one retrieval attempt and return candidate documents only.
+    """RAG 검색을 1회 실행하고 후보 문서만 반환합니다.
 
-    State updates such as retrieval_history are handled by LangGraph nodes.
+    retrieval_history와 rag_queries 같은 상태 갱신은 LangGraph 노드에서 처리합니다.
     """
     logger = logger or logger_pipeline
 
@@ -114,7 +113,8 @@ def run_retrieval_attempt(
         logger=logger,
     )
 
-    # 초기 검색인 경우 retrieve_coaching_evidence/build_rag_queries 내부에서 쿼리를 생성
+    # rag_queries는 retrieval_node에서 확정한 뒤 전달됩니다.
+    # run_retrieval_attempt는 전달받은 rag_queries로 검색만 수행합니다.
     # 재검색 루프에서는 LangGraph state의 rag_queries를 유지하고,
     # 쿼리 목록은 query_rewrite_node에서 재작성
 

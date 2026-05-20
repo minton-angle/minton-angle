@@ -16,6 +16,7 @@ from app.services.report.retrieval.retrieval_pipeline import (
     run_retrieval_attempt,
 )
 from app.services.report.retrieval.retrieval_grader import grade_retrieval_results
+from app.services.report.retrieval.rag_query_builder import build_rag_queries
 from app.services.report.agent.state import ReportAgentState
 
 
@@ -189,7 +190,22 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
     meta = state.get("meta") or {}
     retry_count = int(state.get("retry_count") or 0)
     movement_reasoning = state.get("movement_reasoning") or {}
-    rag_queries = state.get("rag_queries") or []
+
+    # retrieval_node에서 이번 검색에 사용할 rag_queries를 먼저 확정합니다.
+    # 초기 검색이면 movement_reasoning/meta 기반으로 생성하고,
+    # rewrite 이후 재검색이면 state["rag_queries"]를 그대로 사용합니다.
+    rag_queries = build_rag_queries(
+        meta,
+        movement_reasoning=movement_reasoning,
+        rag_queries=state.get("rag_queries") or [],
+        logger=logger_graph_node,
+    )
+
+    logger_graph_node.info(
+        "[LangGraph] node=retrieval_rag query_count=%d queries=%s",
+        len(rag_queries or []),
+        json.dumps(rag_queries, ensure_ascii=False),
+    )
 
     docs = run_retrieval_attempt(
         meta=meta,
@@ -198,9 +214,7 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
         attempt=retry_count,
         logger=logger_graph_node,
     )
-    # 초기 검색인 경우 retrieve_coaching_evidence/build_rag_queries 내부에서 쿼리를 생성
-    # 재검색 루프에서는 state["rag_queries"] 값을 유지하고,
-    # 쿼리 목록은 query_rewrite_node에서 재작성
+
     logger_graph_node.info(
         "[LangGraph] node=retrieval_rag attempt=%d candidate_doc_count=%d",
         retry_count,
