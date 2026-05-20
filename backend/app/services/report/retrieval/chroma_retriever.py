@@ -101,14 +101,16 @@ def _get_chroma():
 def retrieve_coaching_evidence(
     meta: Dict[str, Any],
     *,
+    movement_reasoning: Optional[Dict[str, Any]] = None,
+    rag_queries: Optional[List[Dict[str, Any]]] = None,
     logger: Optional[logging.Logger] = None,
 ) -> List[Dict[str, Any]]:
     """Retrieve coaching snippets from Chroma for prompt injection.
 
     Responsibilities:
-    - build RAG queries from movement_reasoning / weak_metrics
+    - state에서 전달받은 movement_reasoning / rag_queries와 meta의 weak_metrics를 기반으로 RAG 쿼리를 생성
     - execute Chroma similarity search
-    - rerank candidates with CrossEncoder
+    - 현재는 rerank 없이 Chroma similarity 결과를 사용
     - normalize selected documents into retrieved_coaching evidence
     """
     log = logger or logger_retrieval
@@ -118,9 +120,10 @@ def retrieve_coaching_evidence(
 
     queries = build_rag_queries(
         meta or {},
+        movement_reasoning=movement_reasoning or {},
+        rag_queries=rag_queries or [],
         logger=log,
     )
-    meta["rag_queries"] = queries
 
     log.info(
         "[RAG] 검색 쿼리 개수=%d 쿼리 내용=%s",
@@ -158,8 +161,8 @@ def retrieve_coaching_evidence(
             log.warning("LangChain RAG query failed q=%s err=%s", text, str(exc))
             continue
 
-        # NOTE: rerank  일시적 사용 안함 while validating the LangGraph Self-RAG loop.
-        # Use Chroma similarity results directly.
+        # LangGraph Self-RAG 루프 검증 중에는 rerank를 임시로 사용하지 않습니다.
+        # Chroma similarity 결과를 그대로 사용합니다.
         reranked_pairs = [
             (doc_obj, distance, None)
             for doc_obj, distance in retrieved_pairs
