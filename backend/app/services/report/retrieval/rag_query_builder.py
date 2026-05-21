@@ -25,27 +25,27 @@ def score_band_from_mean(value: Any) -> str:
 
 
 METRIC_QUERY_MAP: Dict[str, str] = {
-    # Ready
-    "Arm_Angle": "배드민턴 준비 자세 라켓 잡은 팔 팔꿈치 각도 라켓을 몸 앞쪽에 잡는 방법 ready position racket arm elbow angle",
-    "Left_Wrist_Height": "배드민턴 준비 자세 보조 팔 손목 높이 균형 라켓 준비 non racket arm wrist height balance",
-    "Stance_Width": "배드민턴 준비 자세 양발 간격 스탠스 균형 발 위치 ready stance foot width balance",
-    "Wrist_Height_Ratio": "배드민턴 준비 자세 라켓 손목 높이 어깨 높이 라켓을 몸 앞쪽에 잡기 wrist height shoulder level ready position",
+    # ready
+    "arm_angle": "배드민턴 준비 자세 라켓 잡은 팔 팔꿈치 각도 라켓을 몸 앞쪽에 잡는 방법 ready position racket arm elbow angle",
+    "left_wrist_height": "배드민턴 준비 자세 보조 팔 손목 높이 균형 라켓 준비 non racket arm wrist height balance",
+    "stance_width": "배드민턴 준비 자세 양발 간격 스탠스 균형 발 위치 ready stance foot width balance",
+    "wrist_height_ratio": "배드민턴 준비 자세 라켓 손목 높이 어깨 높이 라켓을 몸 앞쪽에 잡기 wrist height shoulder level ready position",
 
-    # Rotation
-    "Hip_Level": "배드민턴 스윙 몸통 회전 골반 회전 체중 이동 하체 상체 연결 hip rotation body turn power transfer",
-    "Shoulder_Ratio": "배드민턴 스윙 어깨 회전 몸통 회전 라켓 준비 shoulder rotation trunk turn overhead stroke",
+    # rotation
+    "hip_level": "배드민턴 스윙 몸통 회전 골반 회전 체중 이동 하체 상체 연결 hip rotation body turn power transfer",
+    "shoulder_ratio": "배드민턴 스윙 어깨 회전 몸통 회전 라켓 준비 shoulder rotation trunk turn overhead stroke",
 
-    # Backswing
-    "Wrist_X_Depth": "배드민턴 백스윙 라켓 손 위치 어깨 뒤로 준비 손목 위치 racket hand behind shoulder backswing preparation",
-    "Elbow_Lift": "배드민턴 백스윙 팔꿈치 들기 팔꿈치 위치 손목보다 팔꿈치 높게 racket preparation elbow lift backswing",
-    "L_Shape_Angle": "배드민턴 백스윙 L자 모양 팔 각도 어깨 팔꿈치 손목 라켓 준비 L shape arm angle backswing",
+    # backswing
+    "wrist_x_depth": "배드민턴 백스윙 라켓 손 위치 어깨 뒤로 준비 손목 위치 racket hand behind shoulder backswing preparation",
+    "elbow_lift": "배드민턴 백스윙 팔꿈치 들기 팔꿈치 위치 손목보다 팔꿈치 높게 racket preparation elbow lift backswing",
+    "l_shape_angle": "배드민턴 백스윙 L자 모양 팔 각도 어깨 팔꿈치 손목 라켓 준비 L shape arm angle backswing",
 
-    # Impact
-    "Arm_Extension_Angle": "배드민턴 임팩트 팔 펴기 팔꿈치 신전 타점 라켓 맞는 순간 arm extension straight elbow contact point",
-    "Impact_Wrist_Height_Ratio": "배드민턴 임팩트 손목 높이 팔꿈치보다 손목 높게 타점 wrist height above elbow contact point",
+    # impact
+    "arm_extension_angle": "배드민턴 임팩트 팔 펴기 팔꿈치 신전 타점 라켓 맞는 순간 arm extension straight elbow contact point",
+    "impact_wrist_height_ratio": "배드민턴 임팩트 손목 높이 팔꿈치보다 손목 높게 타점 wrist height above elbow contact point",
 
-    # FollowSwing
-    "Performance": "배드민턴 팔로스윙 스윙 마무리 라켓 팔 마무리 손목 팔꿈치 위치 follow through swing finish",
+    # followswing
+    "performance": "배드민턴 팔로스윙 스윙 마무리 라켓 팔 마무리 손목 팔꿈치 위치 follow through swing finish",
 }
 
 
@@ -61,11 +61,12 @@ STAGE_QUERY_MAP: Dict[str, str] = {
 def metric_query_text(stage: str, metric: str) -> str:
     """Convert internal pose metric names into semantic badminton coaching queries."""
     stage = _safe_str(stage)
-    metric = _safe_str(metric)
+    metric = _safe_str(metric).lower()
 
-    stage_metric_key = f"{stage.capitalize()}_{metric}"
-    if stage == "impact" and metric == "Wrist_Height_Ratio":
-        stage_metric_key = "Impact_Wrist_Height_Ratio"
+    stage_metric_key = f"{stage}_{metric}"
+
+    if stage == "impact" and metric == "wrist_height_ratio":
+        stage_metric_key = "impact_wrist_height_ratio"
 
     mapped_metric = METRIC_QUERY_MAP.get(stage_metric_key) or METRIC_QUERY_MAP.get(metric)
     mapped_stage = STAGE_QUERY_MAP.get(stage, stage)
@@ -125,19 +126,18 @@ def _build_queries_from_movement_reasoning(
         elif not query_intent:
             continue
 
-        text = f"badminton {query_intent}".strip()
+        # 실제 검색용 q는 metric/stage 기반 semantic query와
+        # movement reasoning에서 생성된 query_intent를 결합해 생성합니다.
+        base_query = metric_query_text(stage, metric)
+        text = f"{base_query} {query_intent}".strip()
 
         queries.append(
             {
                 "q": text,
                 "stage": stage,
-                "metric": metric,
-                "score_band": _safe_str(item.get("score_band")),
-                "sub_key": _safe_str(item.get("sub_key")),
+                "metric": metric.lower(),
                 "query_source": "movement_reasoning",
                 "query_intent": query_intent,
-                "hypothesis_name": _safe_str(item.get("hypothesis_name")),
-                "related_metrics": item.get("related_metrics") or [],
             }
         )
 
@@ -199,9 +199,10 @@ def _collect_weak_metric_candidates(
             if sub_score >= 90:
                 continue
 
-            metric_only = _safe_str(sub_key)
+            metric_only = _safe_str(sub_key).lower()
             if "." in metric_only:
                 metric_only = metric_only.split(".")[-1]
+            metric_only = metric_only.lower()
 
             candidates.append(
                 {
@@ -296,6 +297,8 @@ def build_rag_queries(
     """
     meta = meta or {}
 
+    # rewrite 이후 재검색에서는 state의 rag_queries를 그대로 사용합니다.
+    # retrieval_node는 항상 rag_queries 형태의 검색 요청 리스트를 state에 유지합니다.
     if isinstance(rag_queries, list) and rag_queries:
         return rag_queries
 

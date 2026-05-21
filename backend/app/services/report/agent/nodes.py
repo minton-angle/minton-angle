@@ -192,9 +192,16 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
     retrieval_count = int(state.get("retrieval_count", 0)) + 1
     movement_reasoning = state.get("movement_reasoning") or {}
 
-    # retrieval_node에서 이번 검색에 사용할 rag_queries를 먼저 확정합니다.
-    # 초기 검색이면 movement_reasoning/meta 기반으로 생성하고,
-    # rewrite 이후 재검색이면 state["rag_queries"]를 그대로 사용합니다.
+    # retrieval_node는 항상 rag_queries 상태를 기준으로 검색을 수행합니다.
+    #
+    # - 첫 검색:
+    #   movement_reasoning.retrieval_focus 기반으로 rag_queries 생성
+    #
+    # - rewrite 이후 재검색:
+    #   query_rewrite_node에서 갱신한 rag_queries를 그대로 재사용
+    #
+    # 즉 build_rag_queries()는 최종적으로
+    # state에 유지할 rag_queries 리스트를 반환합니다.
     rag_queries = build_rag_queries(
         meta,
         movement_reasoning=movement_reasoning,
@@ -203,7 +210,7 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
     )
 
     logger_graph_node.info(
-        "[LangGraph] node=retrieval_rag query_count=%d queries=%s",
+        "[LangGraph] retrieval_node 쿼리 개수=%d 쿼리 리스트=%s",
         len(rag_queries or []),
         json.dumps(rag_queries, ensure_ascii=False),
     )
@@ -217,7 +224,7 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
     )
 
     logger_graph_node.info(
-        "[LangGraph] node=retrieval_rag retrieval_count=%d candidate_doc_count=%d",
+        "[LangGraph] retrieval_node 전체 후보 검색 회수=%d 평가 받을 후보 문서 개수=%d",
         retrieval_count,
         len(docs or []),
     )

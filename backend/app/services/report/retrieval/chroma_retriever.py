@@ -188,12 +188,12 @@ def retrieve_coaching_evidence(
         selected_pairs = reranked_pairs[:per_q]
 
         log.info(
-            "[RAG similarity 결과 요약] query='%s' stage=%s metric=%s candidates=%d selected=%d",
-            text,
+        "[RAG query별 검색 결과] stage=%s metric=%s retrieved=%d selected=%d query='%s'",
             query_stage,
             query_metric,
             len(retrieved_pairs),
             len(selected_pairs),
+            text,
         )
 
         for doc_obj, distance, rerank_score in selected_pairs:
