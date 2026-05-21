@@ -65,9 +65,6 @@ def metric_query_text(stage: str, metric: str) -> str:
 
     stage_metric_key = f"{stage}_{metric}"
 
-    if stage == "impact" and metric == "wrist_height_ratio":
-        stage_metric_key = "impact_wrist_height_ratio"
-
     mapped_metric = METRIC_QUERY_MAP.get(stage_metric_key) or METRIC_QUERY_MAP.get(metric)
     mapped_stage = STAGE_QUERY_MAP.get(stage, stage)
 
