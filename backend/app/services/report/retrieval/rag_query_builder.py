@@ -138,7 +138,6 @@ def _build_queries_from_movement_reasoning(
                 "query_intent": query_intent,
                 "hypothesis_name": _safe_str(item.get("hypothesis_name")),
                 "related_metrics": item.get("related_metrics") or [],
-                "where": None,
             }
         )
 
@@ -306,12 +305,13 @@ def build_rag_queries(
 
     queries: List[Dict[str, Any]] = []
 
+    # movement_reasoning의 retrieval_focus를 기반으로 쿼리를 생성
     if isinstance(movement_reasoning, dict):
         queries = _build_queries_from_movement_reasoning(
             movement_reasoning=movement_reasoning,
             logger=logger,
         )
-
+    # movement_reasoning에서 명시적으로 retrieval_focus가 없는 경우, weak_metrics와 score_stats를 기반으로 fallback 쿼리를 생성
     if not queries:
         queries = _build_queries_from_weak_metrics(
             weak_metrics=weak_metrics,
