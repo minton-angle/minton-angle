@@ -72,6 +72,45 @@ def filter_docs_by_grader(
     return filtered_docs
 
 
+# Evidence Merge: attempt별 Retrieval Grader 통과 문서를 누적 병합합니다.
+def merge_evidence_docs(
+    *,
+    previous_docs: List[Dict[str, Any]],
+    new_docs: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Evidence Merge 단계입니다.
+
+    이전 attempt의 통과 문서와 이번 attempt의 통과 문서를 누적 병합합니다.
+    동일 문서가 여러 번 검색될 수 있으므로 id/source/page/chunk/stage/metric 조합으로 중복을 제거합니다.
+    """
+    merged: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for doc in [*(previous_docs or []), *(new_docs or [])]:
+        if not isinstance(doc, dict):
+            continue
+
+        key = _safe_str(doc.get("id"))
+        if not key:
+            key = "::".join(
+                [
+                    _safe_str(doc.get("stage")),
+                    _safe_str(doc.get("metric")),
+                    _safe_str(doc.get("source_file")),
+                    _safe_str(doc.get("page")),
+                    _safe_str(doc.get("chunk")),
+                ]
+            )
+
+        if not key or key in seen:
+            continue
+
+        seen.add(key)
+        merged.append(doc)
+
+    return merged
+
+
 def rewrite_rag_queries(
     *,
     queries: List[Dict[str, Any]],

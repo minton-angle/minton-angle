@@ -12,6 +12,7 @@ from app.services.report.agent.prompts import (
 from app.services.report.retrieval.retrieval_pipeline import (
     MAX_RETRY,
     filter_docs_by_grader,
+    merge_evidence_docs,
     rewrite_rag_queries,
     run_retrieval_attempt,
 )
@@ -267,16 +268,25 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
         grader=grader,
     )
 
+    # Evidence Merge: retry 과정에서 통과한 evidence를 누적 보존합니다.
+    previous_evidence_docs = state.get("retrieved_coaching") or []
+    merged_evidence_docs = merge_evidence_docs(
+        previous_docs=previous_evidence_docs,
+        new_docs=filtered_docs,
+    )
+
     retrieval_history = state.get("retrieval_history") or []
     if retrieval_history:
         retrieval_history[-1]["grader"] = grader
         retrieval_history[-1]["filtered_doc_count"] = len(filtered_docs or [])
+        retrieval_history[-1]["merged_evidence_count"] = len(merged_evidence_docs or [])
 
     logger_graph_node.info(
-        "[LangGraph] retrieval grading attempt=%d candidate_doc_count=%d filtered_doc_count=%d relevant=%s needs_retry=%s coverage=%s missing_concepts=%s",
+        "[LangGraph][Evidence Merge] attempt=%d candidate_doc_count=%d filtered_doc_count=%d merged_evidence_count=%d relevant=%s needs_retry=%s coverage=%s missing_concepts=%s",
         retry_count,
         len(docs or []),
         len(filtered_docs or []),
+        len(merged_evidence_docs or []),
         grader.get("relevant"),
         grader.get("needs_retry"),
         grader.get("coverage"),
@@ -287,14 +297,14 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
         **state,
         "meta": meta,
         "retrieval_grader": grader,
-        "retrieved_coaching": filtered_docs,
+        "retrieved_coaching": merged_evidence_docs,
         "retrieval_history": retrieval_history,
         "rag_queries": rag_queries,
     }
 
 
 def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
-    """Rewrite RAG queries from grader feedback for the next retrieval attempt."""
+    """retrieval_grader 피드백을 기반으로 다음 검색에 사용할 RAG 쿼리를 재작성합니다."""
     meta = state.get("meta") or {}
     grader = state.get("retrieval_grader") or {}
     current_queries = state.get("rag_queries") or meta.get("rag_queries") or []
@@ -330,7 +340,7 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
 
 
 def decide_to_generate_self(state: ReportAgentState) -> str:
-    """Route graph execution based on LLM retrieval grader result."""
+    """Retrieval Grader 결과를 기반으로 rewrite 여부를 결정합니다."""
     grader = state.get("retrieval_grader") or {}
     retry_count = int(state.get("retry_count") or 0)
 
