@@ -189,7 +189,7 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
     이 노드는 검색만 수행하며, 문서 평가는 retrieval_grader_node에서 처리합니다.
     """
     meta = state.get("meta") or {}
-    retry_count = int(state.get("retry_count") or 0)
+    retrieval_count = int(state.get("retrieval_count"), 0) + 1
     movement_reasoning = state.get("movement_reasoning") or {}
 
     # retrieval_node에서 이번 검색에 사용할 rag_queries를 먼저 확정합니다.
@@ -212,21 +212,21 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
         meta=meta,
         movement_reasoning=movement_reasoning,
         rag_queries=rag_queries,
-        attempt=retry_count,
+        retrieval_count=retrieval_count,
         logger=logger_graph_node,
     )
 
     logger_graph_node.info(
-        "[LangGraph] node=retrieval_rag attempt=%d candidate_doc_count=%d",
-        retry_count,
+        "[LangGraph] node=retrieval_rag retrieval_count=%d candidate_doc_count=%d",
+        retrieval_count,
         len(docs or []),
     )
     retrieval_history = state.get("retrieval_history") or []
     retrieval_history = [
         *retrieval_history,
         {
-            "attempt": retry_count,
-            "query_source": "rewrite" if retry_count > 0 else "initial",
+            "retrieval_count": retrieval_count,
+            "query_source": "rewrite" if retrieval_count > 1 else "initial",
             "doc_count": len(docs or []),
         },
     ]
@@ -237,6 +237,7 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
         "retrieved_candidates": docs,
         "retrieval_history": retrieval_history,
         "rag_queries": rag_queries,
+        "retrieval_count": retrieval_count,
     }
 
 
@@ -248,7 +249,7 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
     통과 문서만 state["retrieved_coaching"]에 저장합니다.
     """
     meta = state.get("meta") or {}
-    retry_count = int(state.get("retry_count") or 0)
+    retrieval_count = int(state.get("retrieval_count") or 0)
     docs = state.get("retrieved_candidates") or []
     logger_graph_node.info(
         "[LangGraph][retrieval_grader_node] input candidate_doc_count=%d",
@@ -282,8 +283,8 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
         retrieval_history[-1]["merged_evidence_count"] = len(merged_evidence_docs or [])
 
     logger_graph_node.info(
-        "[LangGraph][Evidence Merge] attempt=%d candidate_doc_count=%d filtered_doc_count=%d merged_evidence_count=%d relevant=%s needs_retry=%s coverage=%s missing_concepts=%s",
-        retry_count,
+        "[LangGraph][Evidence Merge] retrieval_count=%d candidate_doc_count=%d filtered_doc_count=%d merged_evidence_count=%d relevant=%s needs_retry=%s coverage=%s missing_concepts=%s",
+        retrieval_count,
         len(docs or []),
         len(filtered_docs or []),
         len(merged_evidence_docs or []),
@@ -300,6 +301,7 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
         "retrieved_coaching": merged_evidence_docs,
         "retrieval_history": retrieval_history,
         "rag_queries": rag_queries,
+        "retrieval_count": retrieval_count,
     }
 
 
@@ -308,7 +310,7 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
     meta = state.get("meta") or {}
     grader = state.get("retrieval_grader") or {}
     current_queries = state.get("rag_queries") or meta.get("rag_queries") or []
-    retry_count = int(state.get("retry_count") or 0) + 1
+    retrieval_count = int(state.get("retrieval_count") or 0)
 
     rewrite_context_docs = (
         state.get("retrieved_candidates")
@@ -324,8 +326,8 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
     )
 
     logger_graph_node.info(
-        "[LangGraph] LLM query rewrite retry_count=%d query_count=%d context_doc_count=%d queries=%s",
-        retry_count,
+        "[LangGraph] LLM query rewrite after_retrieval_count=%d query_count=%d context_doc_count=%d queries=%s",
+        retrieval_count,
         len(rewritten_queries or []),
         len(rewrite_context_docs or []),
         json.dumps(rewritten_queries, ensure_ascii=False),
@@ -334,7 +336,6 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
     return {
         **state,
         "meta": meta,
-        "retry_count": retry_count,
         "rag_queries": rewritten_queries,
     }
 
@@ -342,9 +343,11 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
 def decide_to_generate_self(state: ReportAgentState) -> str:
     """Retrieval Grader 결과를 기반으로 rewrite 여부를 결정합니다."""
     grader = state.get("retrieval_grader") or {}
-    retry_count = int(state.get("retry_count") or 0)
+    retrieval_count = int(state.get("retrieval_count") or 0)
 
-    if grader.get("needs_retry") and retry_count < MAX_RETRY:
+    # MAX_RETRY는 허용되는 rewrite 횟수입니다.
+    # 첫 검색은 retrieval_count=1이므로 최대 검색 회수는 MAX_RETRY + 1입니다.
+    if grader.get("needs_retry") and retrieval_count <= MAX_RETRY:
         return "rewrite"
 
     return "end"

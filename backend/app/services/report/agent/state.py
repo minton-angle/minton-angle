@@ -29,8 +29,8 @@ class ReportAgentState(TypedDict, total=False):
     retrieval_grader: Dict[str, Any]
     retrieval_history: List[Dict[str, Any]]
 
-    # Query Rewrite 재시도 횟수
-    retry_count: int
+    # RAG 검색 실행 횟수. 첫 검색은 1부터 시작합니다.
+    retrieval_count: int
 
     # 향후 Report Grader / Evidence Merge 확장용 필드
     rag_results: List[Dict[str, Any]]

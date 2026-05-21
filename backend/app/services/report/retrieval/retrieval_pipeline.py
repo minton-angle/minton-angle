@@ -136,7 +136,7 @@ def run_retrieval_attempt(
     meta: Dict[str, Any],
     movement_reasoning: Optional[Dict[str, Any]] = None,
     rag_queries: Optional[List[Dict[str, Any]]] = None,
-    attempt: int,
+    retrieval_count: int,
     logger: logging.Logger | None = None,
 ) -> List[Dict[str, Any]]:
     """RAG 검색을 1회 실행하고 후보 문서만 반환합니다.
@@ -158,8 +158,8 @@ def run_retrieval_attempt(
     # 쿼리 목록은 query_rewrite_node에서 재작성
 
     logger.info(
-        "[LangGraph] RAG retrieval attempt=%d candidate_doc_count=%d",
-        attempt,
+        "[LangGraph] RAG retrieval_count=%d candidate_doc_count=%d",
+        retrieval_count,
         len(docs or []),
     )
 
