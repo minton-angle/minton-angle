@@ -189,7 +189,7 @@ def retrieval_node(state: ReportAgentState) -> ReportAgentState:
     이 노드는 검색만 수행하며, 문서 평가는 retrieval_grader_node에서 처리합니다.
     """
     meta = state.get("meta") or {}
-    retrieval_count = int(state.get("retrieval_count"), 0) + 1
+    retrieval_count = int(state.get("retrieval_count", 0)) + 1
     movement_reasoning = state.get("movement_reasoning") or {}
 
     # retrieval_node에서 이번 검색에 사용할 rag_queries를 먼저 확정합니다.
@@ -249,7 +249,7 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
     통과 문서만 state["retrieved_coaching"]에 저장합니다.
     """
     meta = state.get("meta") or {}
-    retrieval_count = int(state.get("retrieval_count") or 0)
+    retrieval_count = int(state.get("retrieval_count", 0))
     docs = state.get("retrieved_candidates") or []
     logger_graph_node.info(
         "[LangGraph][retrieval_grader_node] input candidate_doc_count=%d",
@@ -310,7 +310,7 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
     meta = state.get("meta") or {}
     grader = state.get("retrieval_grader") or {}
     current_queries = state.get("rag_queries") or meta.get("rag_queries") or []
-    retrieval_count = int(state.get("retrieval_count") or 0)
+    retrieval_count = int(state.get("retrieval_count", 0))
 
     rewrite_context_docs = (
         state.get("retrieved_candidates")
@@ -343,7 +343,7 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
 def decide_to_generate_self(state: ReportAgentState) -> str:
     """Retrieval Grader 결과를 기반으로 rewrite 여부를 결정합니다."""
     grader = state.get("retrieval_grader") or {}
-    retrieval_count = int(state.get("retrieval_count") or 0)
+    retrieval_count = int(state.get("retrieval_count", 0))
 
     # MAX_RETRY는 허용되는 rewrite 횟수입니다.
     # 첫 검색은 retrieval_count=1이므로 최대 검색 회수는 MAX_RETRY + 1입니다.
