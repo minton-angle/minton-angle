@@ -59,7 +59,7 @@ STAGE_QUERY_MAP: Dict[str, str] = {
 
 
 def metric_query_text(stage: str, metric: str) -> str:
-    """Convert internal pose metric names into semantic badminton coaching queries."""
+    """fallback 검색과 evidence metadata 표시를 위한 metric/stage semantic query를 생성합니다."""
     stage = _safe_str(stage)
     metric = _safe_str(metric).lower()
 
@@ -123,10 +123,9 @@ def _build_queries_from_movement_reasoning(
         elif not query_intent:
             continue
 
-        # 실제 검색용 q는 metric/stage 기반 semantic query와
-        # movement reasoning에서 생성된 query_intent를 결합해 생성합니다.
-        base_query = metric_query_text(stage, metric)
-        text = f"{base_query} {query_intent}".strip()
+        # query_intent는 movement_reasoning_node에서 reference를 참고해 생성된 검색 의도입니다.
+        # 여기서는 LLM이 만든 intent를 실제 Chroma 검색 문자열로만 정리합니다.
+        text = f"badminton {query_intent}".strip()
 
         queries.append(
             {

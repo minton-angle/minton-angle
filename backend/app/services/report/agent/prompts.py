@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 MOVEMENT_REASONING_SYSTEM_PROMPT = """
@@ -19,6 +19,8 @@ MOVEMENT_REASONING_SYSTEM_PROMPT = """
   4) Backswing 문제가 Impact의 Arm_Extension_Angle 또는 Wrist_Height_Ratio 문제로 이어질 수 있는가?
 - 위 관계가 입력 metric과 근거상 약하면 억지로 연결하지 말고 separate hypothesis로 유지하십시오.
 - metric 이름 자체보다 biomechanical chain 관계를 우선적으로 해석하십시오.
+- 입력에 함께 제공되는 metric_query_reference와 stage_query_reference는 metric/stage 의미를 이해하기 위한 참고서입니다.
+- reference 문장을 그대로 복사해 query_intent를 만들지 말고, weak_metrics와 movement_hypotheses에 맞게 검색 의도를 재구성하십시오.
 - 추론은 반드시 입력된 weak_metrics와 score_stats 범위 안에서만 수행합니다.
 - 부상 가능성은 '부담이 커질 수 있음', '주의가 필요함' 수준으로 표현합니다.
 
@@ -28,6 +30,9 @@ MOVEMENT_REASONING_SYSTEM_PROMPT = """
 - 입력에 없는 수치나 metric을 만들지 마십시오.
 - 확신이 낮으면 confidence를 낮게 표기하십시오.
 - related_metrics에는 반드시 입력된 weak_metrics의 stage.metric만 사용하십시오.
+- 모든 문자열 출력은 한국어로 작성하십시오.
+- retrieval_focus.stage는 ready, rotation, backswing, impact, followswing 중 하나로 작성하십시오.
+- retrieval_focus.metric은 입력 metric을 lowercase snake_case로 작성하십시오. 예: Wrist_Height_Ratio는 wrist_height_ratio로 작성하십시오.
 
 출력 스키마:
 {
@@ -67,16 +72,22 @@ def build_movement_reasoning_user_prompt(
     *,
     weak_metrics: List[Dict[str, Any]],
     score_stats: Dict[str, Any],
+    metric_query_reference: Optional[Dict[str, str]] = None,
+    stage_query_reference: Optional[Dict[str, str]] = None,
 ) -> str:
     payload = {
         "weak_metrics": weak_metrics,
         "score_stats": score_stats,
+        "metric_query_reference": metric_query_reference or {},
+        "stage_query_reference": stage_query_reference or {},
     }
 
     return (
         "다음 INPUT_JSON을 기반으로 사용자의 배드민턴 자세에서 나타나는 "
         "biomechanical movement pattern을 분석하십시오.\n"
         "weak_metrics는 sub_score < 90인 세부 동작 observation입니다.\n"
-        "score_stats는 최근/이전 구간 비교 통계입니다.\n\n"
+        "score_stats는 최근/이전 구간 비교 통계입니다.\n"
+        "metric_query_reference와 stage_query_reference는 metric/stage 의미를 이해하기 위한 참고서입니다.\n"
+        "reference 문장을 그대로 복사하지 말고, 사용자의 weak_metrics 관계에 맞는 movement_hypotheses와 retrieval_focus를 작성하십시오.\n\n"
         f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
     )

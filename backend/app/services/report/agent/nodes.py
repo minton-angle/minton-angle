@@ -17,7 +17,11 @@ from app.services.report.retrieval.retrieval_pipeline import (
     run_retrieval_attempt,
 )
 from app.services.report.retrieval.retrieval_grader import grade_retrieval_results
-from app.services.report.retrieval.rag_query_builder import build_rag_queries
+from app.services.report.retrieval.rag_query_builder import (
+    METRIC_QUERY_MAP,
+    STAGE_QUERY_MAP,
+    build_rag_queries,
+)
 from app.services.report.agent.state import ReportAgentState
 
 
@@ -146,6 +150,8 @@ def movement_reasoning_node(state: ReportAgentState) -> ReportAgentState:
             "content": build_movement_reasoning_user_prompt(
                 weak_metrics=weak_metrics,
                 score_stats=score_stats,
+                metric_query_reference=METRIC_QUERY_MAP,
+                stage_query_reference=STAGE_QUERY_MAP,
             ),
         },
     ]
