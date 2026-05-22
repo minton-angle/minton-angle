@@ -21,23 +21,22 @@ class ReportAgentState(TypedDict, total=False):
     # RAG 검색 쿼리 목록
     rag_queries: List[Dict[str, Any]]
 
-    # RAG 검색 후보 문서
-    retrieved_candidates: List[Dict[str, Any]]
-
-    # Retrieval Grader를 통과하고 Evidence Merge까지 완료된 최종 grounded evidence
-    retrieved_merged_evidence: List[Dict[str, Any]]
+    # RAG 검색 실행 횟수. 첫 검색은 1부터 시작합니다.
+    retrieval_count: int
 
     # Retrieval Grader 결과와 검색 이력
     retrieval_grader: Dict[str, Any]
     retrieval_history: List[Dict[str, Any]]
 
-    # RAG 검색 실행 횟수. 첫 검색은 1부터 시작합니다.
-    retrieval_count: int
+    # RAG 검색 후보 문서
+    retrieved_candidates: List[Dict[str, Any]]
 
-    # 향후 Report Grader / Evidence Merge 확장용 필드
-    rag_results: List[Dict[str, Any]]
-    retrieval_grade: Dict[str, Any]
-    merged_evidence: List[Dict[str, Any]] 
+    # Retrieval Grader를 통과하고 Evidence Merge까지 완료된 최종 grounded evidence
+    retrieved_merged_evidence: List[Dict[str, Any]]
     
     # 최종 보고서 정보
     final_report: Dict[str, Any]
+
+    # 향후 Report Grader 확장용 필드
+    report_grader: Dict[str, Any]
+    report_retry_count: int
