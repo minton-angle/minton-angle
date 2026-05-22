@@ -26,10 +26,10 @@ def _system_prompt(lang: str) -> str:
 당신은 배드민턴 동작 개선 AI 코치입니다.
 
 [절대 규칙]
-0) `meta.retrieved_coaching`가 제공되면, 각 섹션의 analysis는 retrieved_coaching의 stage/metric과 직접 연결되는
+0) `meta.retrieved_merged_evidence`가 제공되면, 각 섹션의 analysis는 retrieved_merged_evidence의 stage/metric과 직접 연결되는
     구체적인 신체 움직임 설명을 반드시 포함하십시오.
-   - retrieved_coaching의 문구를 그대로 길게 복붙하지 말고, 핵심 근거를 재서술하여 자연스럽게 반영하십시오.
-   - retrieved_coaching가 비어있는 경우에만 일반 코칭 지식으로 작성하십시오.
+   - retrieved_merged_evidence의 문구를 그대로 길게 복붙하지 말고, 핵심 근거를 재서술하여 자연스럽게 반영하십시오.
+   - retrieved_merged_evidence가 비어있는 경우에만 일반 코칭 지식으로 작성하십시오.
 1) 수치는 반드시 `meta.score_stats`에 있는 값만 사용하십시오.
     - 사용 가능 키: 1_Ready_Total, 2_Rotation_Total, 3_Backswing_Total, 4_Impact_Total, 5_FollowSwing_SuccessRate, total_score
     - 각 Total 키(1~4)는 추가로 아래 정보를 포함할 수 있습니다:
@@ -79,7 +79,7 @@ def _system_prompt(lang: str) -> str:
      - worst_sub_current_mean이 90 미만인 경우,
        해당 worst_sub를 1회 이상 언급하여 '세부 보완 필요' 관점으로 포함하십시오.
 6-2) fix는 해당 Stage의 "구체적 교정 방법"만 작성하는 필드입니다.
-     - retrieved_coaching을 근거로 사용자가 바로 적용할 수 있는 구체적 교정 동작을 작성하십시오.
+     - retrieved_merged_evidence을 근거로 사용자가 바로 적용할 수 있는 구체적 교정 동작을 작성하십시오.
      - fix에는 구체적인 교정 방법, 연습 방법, 드릴 지시를 작성하시오.
      - 반드시 신체 부위와 움직임 방향을 포함하십시오.
         - 예: 라켓을 몸 앞쪽에 두고, 손목이 어깨선 아래로 떨어지지 않도록 준비 자세를 유지하는 방식으로 보완할 수 있습니다.
@@ -112,7 +112,7 @@ def _user_prompt(
         "score_stats": meta.get("score_stats", {}),
         "weak_metrics": meta.get("weak_metrics", []),
         "movement_reasoning": meta.get("movement_reasoning", {}),
-        "retrieved_coaching": meta.get("retrieved_coaching", []),
+        "retrieved_merged_evidence": meta.get("retrieved_merged_evidence", []),
     }
 
     schema = {
@@ -136,7 +136,7 @@ def _user_prompt(
     }
 
     return (
-    "다음 INPUT_JSON의 meta.score_stats, meta.trend, meta.weak_metrics, meta.movement_reasoning, meta.retrieved_coaching을 사용해 "
+    "다음 INPUT_JSON의 meta.score_stats, meta.trend, meta.weak_metrics, meta.movement_reasoning, meta.retrieved_merged_evidence을 사용해 "
     "'최근 N회 기준 비교 기반' 점수 리포트를 생성하세요.\n"
     "angles/단일 세션 값은 사용 금지입니다.\n\n"
     f"INPUT_JSON: {json.dumps(payload, ensure_ascii=False)}"
@@ -278,7 +278,7 @@ def generate_report(
 ) -> Dict[str, Any]:
 
     # Upgrade meta with RAG retrieved coaching snippets (optional)
-    if meta is not None and not (meta.get("retrieved_coaching") or []):
+    if meta is not None and not (meta.get("retrieved_merged_evidence") or []):
         try:
             graph = build_report_graph()
 
@@ -292,19 +292,19 @@ def generate_report(
 
             graph_meta = graph_result.get("meta") or meta
             meta.update(graph_meta)
-            meta["retrieved_coaching"] = graph_result.get("retrieved_coaching") or []
+            meta["retrieved_merged_evidence"] = graph_result.get("retrieved_merged_evidence") or []
             meta["retrieval_grader"] = graph_result.get("retrieval_grader") or {}
             meta["retrieval_history"] = graph_result.get("retrieval_history") or []
 
             logger_llm.info(
                 "[LangGraph] Adaptive RAG 최종 누적(주입문서) 개수=%d 검색 회수=%d",
-                len(meta.get("retrieved_coaching") or []),
+                len(meta.get("retrieved_merged_evidence") or []),
                 len(meta.get("retrieval_history") or []),
             )
 
         except Exception as e:
             logger_llm.warning("[LangGraph] Adaptive RAG failed err=%s", str(e))
-            meta["retrieved_coaching"] = []
+            meta["retrieved_merged_evidence"] = []
 
     # 최종 prompt 입력 로그(rag on/off는 enrichment 이후 상태 기준)
     try:
@@ -312,7 +312,7 @@ def generate_report(
             "LLM prompt inputs range=%s [RAG] ON/OFF=%s",
             (meta or {}).get("range"),
             json.dumps(ensure_ascii=False),
-            "ON" if ((meta or {}).get("retrieved_coaching") or []) else "OFF",
+            "ON" if ((meta or {}).get("retrieved_merged_evidence") or []) else "OFF",
         )
     except Exception:
         pass

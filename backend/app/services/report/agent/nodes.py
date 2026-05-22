@@ -259,7 +259,7 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
 
     주피터 Self-RAG 예제 흐름과 동일하게,
     state["retrieved_candidates"]를 평가한 뒤
-    통과 문서만 state["retrieved_coaching"]에 저장합니다.
+    통과 문서만 state["retrieved_merged_evidence"]에 저장합니다.
     """
     meta = state.get("meta") or {}
     retrieval_count = int(state.get("retrieval_count", 0))
@@ -283,7 +283,7 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
     )
 
     # Evidence Merge: retry 과정에서 통과한 evidence를 누적 보존합니다.
-    previous_evidence_docs = state.get("retrieved_coaching") or []
+    previous_evidence_docs = state.get("retrieved_merged_evidence") or []
     merged_evidence_docs = merge_evidence_docs(
         previous_docs=previous_evidence_docs,
         new_docs=filtered_docs,
@@ -311,7 +311,7 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
         **state,
         "meta": meta,
         "retrieval_grader": grader,
-        "retrieved_coaching": merged_evidence_docs,
+        "retrieved_merged_evidence": merged_evidence_docs,
         "retrieval_history": retrieval_history,
         "rag_queries": rag_queries,
         "retrieval_count": retrieval_count,
@@ -327,7 +327,7 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
 
     rewrite_context_docs = (
         state.get("retrieved_candidates")
-        or state.get("retrieved_coaching")
+        or state.get("retrieved_merged_evidence")
         or []
     )
 

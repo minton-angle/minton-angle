@@ -13,7 +13,7 @@ RETRIEVAL_GRADER_SYSTEM_PROMPT = """
 당신은 RAG Retrieval Evaluator 입니다.
 
 역할:
-- 현재 retrieval evidence가 사용자의 movement reasoning을 충분히 설명하는지 평가합니다.
+- retrieval evidence와 merged evidence가 사용자의 movement reasoning을 충분히 설명하는지 평가합니다.
 - retrieval quality가 부족하면 retry/rewrite가 필요한지 판단합니다.
 - keyword 포함 여부가 아니라 semantic coverage를 평가해야 합니다.
 

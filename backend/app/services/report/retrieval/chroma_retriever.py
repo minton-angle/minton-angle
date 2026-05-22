@@ -111,7 +111,7 @@ def retrieve_coaching_evidence(
     - state에서 전달받은 movement_reasoning / rag_queries와 meta의 weak_metrics를 기반으로 RAG 쿼리를 생성
     - execute Chroma similarity search
     - 현재는 rerank 없이 Chroma similarity 결과를 사용
-    - normalize selected documents into retrieved_coaching evidence
+    - normalize selected documents into retrieved_merged_evidence evidence
     """
     log = logger or logger_retrieval
     vectorstore = _get_chroma()
@@ -172,18 +172,18 @@ def retrieve_coaching_evidence(
             metadata = doc_obj.metadata if isinstance(getattr(doc_obj, "metadata", None), dict) else {}
             raw_doc = _safe_str(getattr(doc_obj, "page_content", ""))
             preview = raw_doc.replace("\n", " ").strip()[:300]
-            log.info(
-                "[RAG] candidate rank=%d stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s preview=%s",
-                rank,
-                query_stage,
-                query_metric,
-                _safe_str(metadata.get("source_file")),
-                _safe_str(metadata.get("page")),
-                _safe_str(metadata.get("chunk")),
-                distance,
-                rerank_score,
-                preview,
-            )
+            # log.info(
+            #     "[RAG] candidate rank=%d stage=%s metric=%s source=%s page=%s chunk=%s distance=%s rerank_score=%s preview=%s",
+            #     rank,
+            #     query_stage,
+            #     query_metric,
+            #     _safe_str(metadata.get("source_file")),
+            #     _safe_str(metadata.get("page")),
+            #     _safe_str(metadata.get("chunk")),
+            #     distance,
+            #     rerank_score,
+            #     preview,
+            # )
 
         selected_pairs = reranked_pairs[:per_q]
 
