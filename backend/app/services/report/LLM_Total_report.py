@@ -276,13 +276,12 @@ def generate_report(
     user_prompt_override: Optional[str] = None,
 ) -> Dict[str, Any]:
 
-    # Upgrade meta with RAG retrieved coaching snippets (optional)
-    if meta is not None and not (meta.get("retrieved_merged_evidence") or []):
+    graph_result: Dict[str, Any] = {}
+    # LangGraph가 retrieval, report generation, report grading까지 수행합니다.
+    if meta is not None:
         try:
             graph = build_report_graph()
-
-            # 이제 최종 report generation도 LangGraph 내부에서 수행
-            graph_result = {}
+            # 이제 최종 report generation도 LangGraph 내부에서 수행합니다.
             graph_result = graph.invoke(
                 {
                     "meta": meta,
@@ -292,36 +291,23 @@ def generate_report(
                 }
             )
 
-            graph_meta = graph_result.get("meta") or meta
-            meta.update(graph_meta)
-            meta["retrieved_merged_evidence"] = graph_result.get("retrieved_merged_evidence") or []
-            meta["retrieval_grader"] = graph_result.get("retrieval_grader") or {}
-            meta["retrieval_history"] = graph_result.get("retrieval_history") or []
-            meta["final_report"] = graph_result.get("final_report") or {}
-            meta["report_grader"] = graph_result.get("report_grader") or {}
-
-            logger_llm.info(
-                "[LangGraph] Adaptive RAG 최종 누적(주입문서) 개수=%d 검색 회수=%d",
-                len(meta.get("retrieved_merged_evidence") or []),
-                len(meta.get("retrieval_history") or []),
-            )
-
         except Exception as e:
-            logger_llm.warning("[LangGraph] Adaptive RAG failed err=%s", str(e))
-            meta["retrieved_merged_evidence"] = []
+            logger_llm.warning("[LangGraph] report graph failed err=%s", str(e))
+            graph_result = {}
 
-    # 최종 prompt 입력 로그(rag on/off는 enrichment 이후 상태 기준)
+    # 최종 graph 실행 결과 로그
     try:
         logger_llm.info(
-            "LLM prompt inputs range=%s [RAG] ON/OFF=%s",
+            "[LangGraph] report graph result range=%s evidence_count=%d retrieval_count=%s report_grade=%s",
             (meta or {}).get("range"),
-            json.dumps(ensure_ascii=False),
-            "ON" if ((meta or {}).get("retrieved_merged_evidence") or []) else "OFF",
+            len((graph_result or {}).get("retrieved_merged_evidence") or []),
+            (graph_result or {}).get("retrieval_count", 0),
+            ((graph_result or {}).get("report_grader") or {}).get("grade"),
         )
     except Exception:
         pass
 
-    # 최종 리포트는 LangGraph 내부의 report_generator_node/report_grader_node를 통해 생성됩니다.
+    # 최종 리포트는 LangGraph state의 final_report에서만 가져옵니다.
     report_obj = graph_result.get("final_report") or {}
 
     if not isinstance(report_obj, dict):
@@ -331,6 +317,9 @@ def generate_report(
         report_obj = {
             "raw": str(report_obj),
         }
+
+    if not report_obj:
+        logger_llm.warning("[LangGraph] final_report is empty. normalized empty report will be returned.")
 
     try:
         report_obj = _normalize_report(report_obj)

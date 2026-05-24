@@ -37,6 +37,6 @@ class ReportAgentState(TypedDict, total=False):
     # 최종 보고서 정보
     final_report: Dict[str, Any]
 
-    # 향후 Report Grader 확장용 필드
+    # 최종 보고서 평가 및 재시도 횟수 
     report_grader: Dict[str, Any]
     report_retry_count: int

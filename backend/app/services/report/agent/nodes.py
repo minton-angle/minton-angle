@@ -319,9 +319,10 @@ def retrieval_grader_node(state: ReportAgentState) -> ReportAgentState:
 
 
 def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
-    """retrieval_grader 피드백을 기반으로 다음 검색에 사용할 RAG 쿼리를 재작성합니다."""
+    """Retrieval Grader 또는 Report Grader 피드백을 기반으로 다음 검색에 사용할 RAG 쿼리를 재작성합니다."""
     meta = state.get("meta") or {}
-    grader = state.get("retrieval_grader") or {}
+    retrieval_grader = state.get("retrieval_grader") or {}
+    report_grader = state.get("report_grader") or {}
     current_queries = state.get("rag_queries") or meta.get("rag_queries") or []
     retrieval_count = int(state.get("retrieval_count", 0))
 
@@ -331,15 +332,36 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
         or []
     )
 
+    # Retrieval Grader에서 온 rewrite와 Report Grader에서 온 rewrite를 같은 Query Rewrite 노드에서 처리
+    # - retrieval_grader rewrite: 검색 후보 문서 자체가 부족한 경우
+    # - report_grader rewrite: 최종 리포트 생성 후 evidence 부족이 드러난 경우
+    if report_grader.get("grade") == "rewrite":
+        grader_for_rewrite = {
+            "relevant": False,
+            "needs_retry": True,
+            "coverage": retrieval_grader.get("coverage", 0.0),
+            "reason": report_grader.get("reason") or "Report Grader가 evidence 부족으로 재검색을 요청했습니다.",
+            "missing_concepts": report_grader.get("missing_evidence") or [],
+            "rewrite_guidance": report_grader.get("rewrite_guidance") or [],
+            "source": "report_grader",
+        }
+    else:
+        grader_for_rewrite = {
+            **retrieval_grader,
+            "source": "retrieval_grader",
+        }
+
+    # 기존 movement_reasoning은 유지한 채, 실패한 retrieval/report feedback만 반영해 검색 의도를 다시 설계합니다.
     rewritten_queries = rewrite_rag_queries(
         queries=current_queries,
-        grader_result=grader,
+        grader_result=grader_for_rewrite,
         movement_reasoning=state.get("movement_reasoning") or {},
         retrieved_docs=rewrite_context_docs,
     )
 
     logger_graph_node.info(
-        "[LangGraph] LLM query rewrite after_retrieval_count=%d query_count=%d context_doc_count=%d queries=%s",
+        "[LangGraph] LLM query rewrite source=%s after_retrieval_count=%d query_count=%d context_doc_count=%d queries=%s",
+        grader_for_rewrite.get("source"),
         retrieval_count,
         len(rewritten_queries or []),
         len(rewrite_context_docs or []),
@@ -350,6 +372,9 @@ def query_rewrite_node(state: ReportAgentState) -> ReportAgentState:
         **state,
         "meta": meta,
         "rag_queries": rewritten_queries,
+        "final_report": {},
+        "report_grader": {},
+        "retrieved_candidates": [],
     }
 
 

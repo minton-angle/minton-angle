@@ -92,8 +92,6 @@ def build_report_graph():
         },
     )
 
-    graph.add_conditional_edges()
-
     graph.add_edge(
         "query_rewrite",
         "retrieval_rag",
