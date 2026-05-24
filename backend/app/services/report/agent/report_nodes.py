@@ -132,14 +132,14 @@ def report_generator_node(state: ReportAgentState) -> ReportAgentState:
     # 기존 LLM_Total_report의 최종 리포트 프롬프트를 재사용합니다.
     # 순환 import를 피하기 위해 노드 실행 시점에 import합니다.
     from app.services.report.LLM_Total_report import (  # pylint: disable=import-outside-toplevel
-        _system_prompt,
-        _user_prompt,
+        system_prompt,
+        user_prompt,
     )
 
     lang = _safe_str(meta.get("lang") or "ko") or "ko"
     messages = [
-        {"role": "system", "content": _system_prompt(lang)},
-        {"role": "user", "content": _user_prompt(report_input_payload, lang)},
+        {"role": "system", "content": system_prompt(lang)},
+        {"role": "user", "content": user_prompt(report_input_payload, lang)},
     ]
 
     raw = call_llm(messages, model="")

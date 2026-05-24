@@ -19,7 +19,7 @@ logger_llm = logging.getLogger("app.llm")
 # ------------------------------------------------------------------
 # System Prompt (분석 리포트 톤 고정)
 # ------------------------------------------------------------------
-def _system_prompt(lang: str) -> str:
+def system_prompt(lang: str) -> str:
     # NOTE: lang is kept for future extensibility; current prompt is Korean-first.
     return """
 당신은 배드민턴 동작 개선 AI 코치입니다.
@@ -97,7 +97,7 @@ def _system_prompt(lang: str) -> str:
 # ------------------------------------------------------------------
 # User Prompt
 # ------------------------------------------------------------------
-def _user_prompt(
+def user_prompt(
     meta: Optional[Dict[str, Any]],
     lang: str
 ) -> str:
