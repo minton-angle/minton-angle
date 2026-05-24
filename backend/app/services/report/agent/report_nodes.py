@@ -102,22 +102,32 @@ def _extract_json_object(text: str) -> str:
     return text[start:]
 
 
-def _build_report_meta(state: ReportAgentState) -> Dict[str, Any]:
-    """Report Generator/Grader가 사용할 meta payload를 구성합니다."""
-    meta = dict(state.get("meta") or {})
-    meta["movement_reasoning"] = state.get("movement_reasoning") or {}
-    meta["rag_queries"] = state.get("rag_queries") or []
-    meta["retrieved_candidates"] = state.get("retrieved_candidates") or []
-    meta["retrieved_merged_evidence"] = state.get("retrieved_merged_evidence") or []
-    meta["retrieval_grader"] = state.get("retrieval_grader") or {}
-    meta["retrieval_history"] = state.get("retrieval_history") or []
-    return meta
+def _build_report_input_payload(state: ReportAgentState) -> Dict[str, Any]:
+    """Report Generator/Grader가 사용할 입력 input_payload를 구성합니다.
+
+    meta는 DB 조회 기반 원본 입력값으로 유지하고,
+    LangGraph 중간 산출물은 top-level state에서 읽어 별도 input_payload로 전달합니다.
+    """
+    meta = state.get("meta") or {}
+    return {
+        "score_stats": meta.get("score_stats") or {},
+        "weak_metrics": meta.get("weak_metrics") or [],
+        "trend": meta.get("trend") or {},
+        "range": meta.get("range"),
+        "movement_reasoning": state.get("movement_reasoning") or {},
+        "rag_queries": state.get("rag_queries") or [],
+        "retrieved_candidates": state.get("retrieved_candidates") or [],
+        "retrieved_merged_evidence": state.get("retrieved_merged_evidence") or [],
+        "retrieval_grader": state.get("retrieval_grader") or {},
+        "retrieval_history": state.get("retrieval_history") or [],
+    }
 
 
 def report_generator_node(state: ReportAgentState) -> ReportAgentState:
     """retrieved_merged_evidence를 기반으로 최종 리포트를 생성합니다."""
     report_retry_count = int(state.get("report_retry_count", 0))
-    meta = _build_report_meta(state)
+    meta = state.get("meta") or {}
+    report_input_payload = _build_report_input_payload(state)
 
     # 기존 LLM_Total_report의 최종 리포트 프롬프트를 재사용합니다.
     # 순환 import를 피하기 위해 노드 실행 시점에 import합니다.
@@ -129,7 +139,7 @@ def report_generator_node(state: ReportAgentState) -> ReportAgentState:
     lang = _safe_str(meta.get("lang") or "ko") or "ko"
     messages = [
         {"role": "system", "content": _system_prompt(lang)},
-        {"role": "user", "content": _user_prompt(meta, lang)},
+        {"role": "user", "content": _user_prompt(report_input_payload, lang)},
     ]
 
     raw = call_llm(messages, model="")
@@ -149,13 +159,12 @@ def report_generator_node(state: ReportAgentState) -> ReportAgentState:
     logger_report_node.info(
         "[LangGraph][Report Generator] report_retry_count=%d evidence_count=%d parse_error=%s",
         report_retry_count,
-        len(meta.get("retrieved_merged_evidence") or []),
+        len(report_input_payload.get("retrieved_merged_evidence") or []),
         bool(final_report.get("parse_error")) if isinstance(final_report, dict) else False,
     )
 
     return {
         **state,
-        "meta": meta,
         "final_report": final_report,
         "report_retry_count": report_retry_count,
     }
@@ -163,15 +172,11 @@ def report_generator_node(state: ReportAgentState) -> ReportAgentState:
 
 def report_grader_node(state: ReportAgentState) -> ReportAgentState:
     """최종 리포트가 evidence에 grounded 되었는지 평가합니다."""
-    meta = _build_report_meta(state)
+    report_input_payload = _build_report_input_payload(state)
     final_report = state.get("final_report") or {}
 
     user_payload = {
-        "movement_reasoning": state.get("movement_reasoning") or {},
-        "retrieved_merged_evidence": state.get("retrieved_merged_evidence") or [],
-        "retrieval_grader": state.get("retrieval_grader") or {},
-        "score_stats": meta.get("score_stats") or {},
-        "weak_metrics": meta.get("weak_metrics") or [],
+        **report_input_payload,
         "final_report": final_report,
     }
 
@@ -226,7 +231,6 @@ def report_grader_node(state: ReportAgentState) -> ReportAgentState:
 
     return {
         **state,
-        "meta": meta,
         "report_grader": report_grader,
     }
 
@@ -263,6 +267,8 @@ def decide_after_report_grader(state: ReportAgentState) -> str:
     if grade == "good":
         return "good"
 
+    # graph.py의 conditional edge가 "rewrite" 값을 query_rewrite 노드로 라우팅합니다.
+    # report_grader_node가 query_rewrite_node를 직접 호출하지 않습니다.
     if grade == "rewrite":
         return "rewrite"
 

@@ -103,6 +103,9 @@ def build_report_graph():
     )
 
     # 조건부 엣지 추가: 보고서 평가 후 결정
+    # - regenerate: 같은 movement_reasoning으로 Report 재생성
+    # - rewrite: Query Rewrite 노드로 이동 후 Retrieval 루프 재진입
+    # - good: YouTube Recommendation 후 종료
     graph.add_conditional_edges(
         "report_grader",
         decide_after_report_grader,
