@@ -11,7 +11,6 @@ except Exception:
     recommended_youtube_tool = None
 
 from app.services.report.agent.graph import build_report_graph
-from app.services.report.llm.client import call_llm
 
 
 logger_llm = logging.getLogger("app.llm")
@@ -282,10 +281,13 @@ def generate_report(
         try:
             graph = build_report_graph()
 
+            # 이제 최종 report generation도 LangGraph 내부에서 수행
+            graph_result = {}
             graph_result = graph.invoke(
                 {
                     "meta": meta,
-                    "retry_count": 0,
+                    "retrieval_count": 0,
+                    "report_retry_count": 0,
                     "rag_queries": [],
                 }
             )
@@ -295,6 +297,8 @@ def generate_report(
             meta["retrieved_merged_evidence"] = graph_result.get("retrieved_merged_evidence") or []
             meta["retrieval_grader"] = graph_result.get("retrieval_grader") or {}
             meta["retrieval_history"] = graph_result.get("retrieval_history") or []
+            meta["final_report"] = graph_result.get("final_report") or {}
+            meta["report_grader"] = graph_result.get("report_grader") or {}
 
             logger_llm.info(
                 "[LangGraph] Adaptive RAG 최종 누적(주입문서) 개수=%d 검색 회수=%d",
@@ -317,31 +321,16 @@ def generate_report(
     except Exception:
         pass
 
-    # 오버라이드 허용: 디버깅/실험용으로 system/user prompt를 완전히 교체할 수 있도록 허용
-    system_prompt = system_prompt_override if system_prompt_override is not None else _system_prompt(lang)
-    user_prompt = user_prompt_override if user_prompt_override is not None else _user_prompt(meta, lang)
+    # 최종 리포트는 LangGraph 내부의 report_generator_node/report_grader_node를 통해 생성됩니다.
+    report_obj = graph_result.get("final_report") or {}
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
-    ]
-
-    raw = call_llm(messages, model)
-    logger_llm.info("LLM raw(head)=%s", raw)
-
-    raw_clean = _strip_markdown_code_fences(raw)
-    raw_clean = _extract_first_json_object(raw_clean)
-
-    try:
-        report_obj = json.loads(raw_clean)
-    except Exception as e:
-        logger_llm.exception(
-            "LLM report JSON parse failed err=%s raw_clean=%s raw=%s",
-            str(e),
-            raw_clean,
-            raw,
+    if not isinstance(report_obj, dict):
+        logger_llm.warning(
+            "[LangGraph] final_report is not dict. fallback wrapper used."
         )
-        raise
+        report_obj = {
+            "raw": str(report_obj),
+        }
 
     try:
         report_obj = _normalize_report(report_obj)
@@ -349,16 +338,10 @@ def generate_report(
         logger_llm.exception(
             "LLM report normalize failed err=%s report_obj=%s",
             str(e),
-            json.dumps(report_obj, ensure_ascii=False) if isinstance(report_obj, dict) else str(report_obj),
+            json.dumps(report_obj, ensure_ascii=False)
+            if isinstance(report_obj, dict)
+            else str(report_obj),
         )
         raise
-    try:
-        if recommended_youtube_tool is not None:
-            report_obj["recommended_youtube"] = recommended_youtube_tool(meta or {})
-        else:
-            report_obj.setdefault("recommended_youtube", [])
-    except Exception as e:
-        logger_llm.warning("recommended_youtube_tool failed err=%s", str(e))
-        report_obj.setdefault("recommended_youtube", [])
- 
+
     return report_obj

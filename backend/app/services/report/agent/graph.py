@@ -14,6 +14,13 @@ from app.services.report.agent.nodes import (
     retrieval_grader_node,
     decide_to_generate_self,
 )
+from app.services.report.agent.report_nodes import (
+    report_generator_node,
+    report_grader_node,
+    youtube_recommendation_node,
+    decide_after_report_grader,
+    increment_report_retry_node,
+)
 
 logger_graph = logging.getLogger("app.report.graph")
 
@@ -42,6 +49,26 @@ def build_report_graph():
         query_rewrite_node,
     )
 
+    graph.add_node(
+        "report_generator",
+        report_generator_node,
+    )
+
+    graph.add_node(
+        "report_grader",
+        report_grader_node,
+    )
+
+    graph.add_node(
+        "report_retry",
+        increment_report_retry_node,
+    )
+
+    graph.add_node(
+        "youtube_recommendation",
+        youtube_recommendation_node,
+    )
+
     graph.set_entry_point("movement_reasoning")
 
     # 그래프 구축
@@ -61,13 +88,42 @@ def build_report_graph():
         decide_to_generate_self,
         {
             "rewrite": "query_rewrite",
-            "end": END,
+            "end": "report_generator",
         },
     )
+
+    graph.add_conditional_edges()
 
     graph.add_edge(
         "query_rewrite",
         "retrieval_rag",
+    )
+
+    graph.add_edge(
+        "report_generator",
+        "report_grader",
+    )
+
+    # 조건부 엣지 추가: 보고서 평가 후 결정
+    graph.add_conditional_edges(
+        "report_grader",
+        decide_after_report_grader,
+        {
+            "regenerate": "report_retry",
+            "rewrite": "query_rewrite",
+            "good": "youtube_recommendation",
+        },
+    )
+
+    # Report Retry 노드는 재시도 횟수를 증가시키고 다시 Report Generator 실행
+    graph.add_edge(
+        "report_retry",
+        "report_generator",
+    )
+
+    graph.add_edge(
+        "youtube_recommendation",
+        END,
     )
 
     return graph.compile()
