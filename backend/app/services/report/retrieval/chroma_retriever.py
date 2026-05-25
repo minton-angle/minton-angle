@@ -6,7 +6,7 @@ import os
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
-from app.services.report.retrieval.rag_query_builder import build_rag_queries, metric_query_text
+from app.services.report.retrieval.retrieval_query_builder import build_rag_queries, metric_query_text
 # from app.services.report.retrieval.reranker import rerank_with_cross_encoder
 
 

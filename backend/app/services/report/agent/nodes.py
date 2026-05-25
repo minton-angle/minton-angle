@@ -17,7 +17,7 @@ from app.services.report.retrieval.retrieval_pipeline import (
     run_retrieval_attempt,
 )
 from app.services.report.retrieval.retrieval_grader import grade_retrieval_results
-from app.services.report.retrieval.rag_query_builder import (
+from app.services.report.retrieval.retrieval_query_builder import (
     METRIC_QUERY_MAP,
     STAGE_QUERY_MAP,
     build_rag_queries,
