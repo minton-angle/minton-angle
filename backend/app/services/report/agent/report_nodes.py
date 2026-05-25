@@ -253,14 +253,31 @@ def youtube_recommendation_node(state: ReportAgentState) -> ReportAgentState:
     try:
         from app.services.report.LLM_Total_report import recommended_youtube_tool  # pylint: disable=import-outside-toplevel
 
-        final_report = recommended_youtube_tool(final_report)
+        meta = state.get("meta") or {}
+        recommendations = recommended_youtube_tool(meta)
+
+        # YouTube 추천은 최종 리포트를 대체하는 값이 아니라 보조 자료입니다.
+        # 따라서 final_report 전체를 덮어쓰지 않고 recommended_youtube 필드에만 병합합니다.
+        if isinstance(recommendations, list):
+            final_report["recommended_youtube"] = recommendations
+        else:
+            logger_report_node.warning(
+                "[LangGraph][YouTube Recommendation] unexpected result type=%s. keep existing final_report.",
+                type(recommendations).__name__,
+            )
+            final_report.setdefault("recommended_youtube", [])
     except Exception as exc:
         logger_report_node.warning(
             "[LangGraph][YouTube Recommendation] failed err=%s",
             str(exc),
         )
+        final_report.setdefault("recommended_youtube", [])
 
-    logger_report_node.info("[LangGraph][YouTube Recommendation] completed")
+    logger_report_node.info(
+        "[LangGraph][YouTube Recommendation] completed final_report_empty=%s youtube_count=%d",
+        not bool(final_report),
+        len(final_report.get("recommended_youtube") or []),
+    )
     return {
         **state,
         "final_report": final_report,
