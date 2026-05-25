@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from app.services.report.agent.state import ReportAgentState
 from app.services.report.llm.client import call_llm
@@ -20,8 +20,8 @@ REPORT_GRADER_SYSTEM_PROMPT = """
 역할:
 - 생성된 최종 리포트가 입력 evidence와 movement_reasoning에 근거했는지 평가합니다.
 - 단순 문장 품질이 아니라 grounding, hallucination, usefulness를 평가합니다.
-- evidence가 충분한데 리포트가 잘못 작성된 경우 regenerate로 판단합니다.
-- evidence 자체가 부족해서 좋은 리포트를 만들기 어려운 경우 rewrite로 판단합니다.
+- evidence가 충분한데 리포트의 표현, 구성, 근거 연결 방식만 잘못 작성된 경우 regenerate로 판단합니다.
+- evidence 자체가 부족해서 현재 근거만으로 좋은 리포트를 만들기 어려운 경우 rewrite로 판단합니다.
 
 평가 기준:
 1. final_report가 retrieved_merged_evidence에 없는 내용을 단정적으로 생성했는가?
@@ -30,10 +30,12 @@ REPORT_GRADER_SYSTEM_PROMPT = """
 4. final_report가 score_stats/weak_metrics에 없는 수치나 metric을 만들었는가?
 5. evidence가 충분한데 표현/구성만 문제라면 regenerate로 판단하십시오.
 6. evidence 자체가 부족하거나 missing concept가 남아 있으면 rewrite로 판단하십시오.
+6-1. missing_evidence가 존재하더라도, 이미 retrieved_merged_evidence 안에서 해결 가능한 내용이면 regenerate로 판단하십시오.
+6-2. missing_evidence가 retrieved_merged_evidence로 해결 불가능한 추가 근거 요청이면 rewrite로 판단하십시오.
 7. 충분히 grounded되어 있고 사용자에게 유용하면 good으로 판단하십시오.
 
 출력은 반드시 JSON 객체 하나만 반환하십시오.
-모든 문자열 값은 한국어로 작성하십시오.
+모든 문자열 값은 반드시 한국어로 작성하십시오.
 markdown code block을 사용하지 마십시오.
 
 JSON schema:
@@ -45,7 +47,8 @@ JSON schema:
   "hallucination_risks": ["string"],
   "missing_evidence": ["string"],
   "regenerate_guidance": ["string"],
-  "rewrite_guidance": ["string"]
+  "rewrite_guidance": ["string"],
+  "route_decision_reason": "regenerate와 rewrite 중 무엇을 선택했는지에 대한 판단 근거"
 }
 """.strip()
 
@@ -162,6 +165,10 @@ def report_generator_node(state: ReportAgentState) -> ReportAgentState:
         len(report_input_payload.get("retrieved_merged_evidence") or []),
         bool(final_report.get("parse_error")) if isinstance(final_report, dict) else False,
     )
+    logger_report_llm.info(
+        "[LLM_REPORT_GENERATOR_OUTPUT] %s",
+        json.dumps(final_report, ensure_ascii=False)[:3000],
+    )
 
     return {
         **state,
@@ -171,7 +178,7 @@ def report_generator_node(state: ReportAgentState) -> ReportAgentState:
 
 
 def report_grader_node(state: ReportAgentState) -> ReportAgentState:
-    """최종 리포트가 evidence에 grounded 되었는지 평가합니다."""
+    """최종 리포트가 evidence에 근거 되었는지 평가"""
     report_input_payload = _build_report_input_payload(state)
     final_report = state.get("final_report") or {}
 
@@ -206,6 +213,7 @@ def report_grader_node(state: ReportAgentState) -> ReportAgentState:
             "missing_evidence": parsed.get("missing_evidence") or [],
             "regenerate_guidance": parsed.get("regenerate_guidance") or [],
             "rewrite_guidance": parsed.get("rewrite_guidance") or [],
+            "route_decision_reason": _safe_str(parsed.get("route_decision_reason")),
         }
 
     except Exception as exc:
@@ -222,6 +230,7 @@ def report_grader_node(state: ReportAgentState) -> ReportAgentState:
             "missing_evidence": [],
             "regenerate_guidance": ["최종 리포트를 evidence 중심으로 다시 작성하십시오."],
             "rewrite_guidance": [],
+            "route_decision_reason": "Report Grader 파싱 실패로 인해 같은 evidence 기반 재생성을 우선 수행합니다.",
         }
 
     logger_report_llm.info(
