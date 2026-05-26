@@ -61,12 +61,42 @@ def _safe_str(value: Any) -> str:
 
 
 def _strip_markdown_code_fences(text: str) -> str:
+    """LLM 응답이 ```json ... ``` 형태로 감싸진 경우 code fence를 제거합니다."""
     text = (text or "").strip()
+    if not text:
+        return text
+
+    # inline fenced block: ```json { ... }``` 또는 ``` { ... }```
     if text.startswith("```") and text.endswith("```"):
         inner = text[3:-3].strip()
         if inner.lower().startswith("json"):
             inner = inner[4:].strip()
         return inner
+
+    # multi-line fenced block:
+    # ```json
+    # {...}
+    # ```
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines:
+            first = lines[0].strip()
+            if first.startswith("```") and len(first) > 3:
+                rest = first[3:].strip()
+                if rest.lower().startswith("json"):
+                    rest = rest[4:].strip()
+                if rest:
+                    lines = [rest] + lines[1:]
+                else:
+                    lines = lines[1:]
+            else:
+                lines = lines[1:]
+
+        text = "\n".join(lines).strip()
+        if text.endswith("```"):
+            text = text[:-3].strip()
+        return text
+
     return text
 
 
