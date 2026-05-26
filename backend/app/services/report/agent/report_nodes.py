@@ -251,7 +251,7 @@ def youtube_recommendation_node(state: ReportAgentState) -> ReportAgentState:
         return state
 
     try:
-        from app.services.report.LLM_Total_report import recommended_youtube_tool  # pylint: disable=import-outside-toplevel
+        from app.services.report.youtube_recommendation_service import recommended_youtube_tool  # pylint: disable=import-outside-toplevel
 
         meta = state.get("meta") or {}
         recommendations = recommended_youtube_tool(meta)
