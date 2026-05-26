@@ -149,17 +149,17 @@ def _ensure_list(x: Any) -> list:
     return x if isinstance(x, list) else ([] if x is None else [x])
 
 
-def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
-    if not isinstance(report_obj, dict):
+def _normalize_report(report_output_obj: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(report_output_obj, dict):
         return {}
 
-    report_obj.setdefault(
+    report_output_obj.setdefault(
         "growth",
         {"direction": "flat", "delta_average_score": 0.0, "message": "-"}
     )
 
     # New score-based sections
-    report_obj.setdefault("sections", {})
+    report_output_obj.setdefault("sections", {})
     for key, title in [
         ("ready", "준비"),
         ("rotation", "회전"),
@@ -167,14 +167,14 @@ def _normalize_report(report_obj: Dict[str, Any]) -> Dict[str, Any]:
         ("impact", "임팩트"),
         ("followswing", "팔로스윙"),
     ]:
-        node = report_obj["sections"].setdefault(
+        node = report_output_obj["sections"].setdefault(
             key,
             {"title": title, "analysis": "-", "fix": "-"},
         )
         node.setdefault("analysis", "-")
         node.setdefault("fix", "-")
 
-    return report_obj
+    return report_output_obj
 
 
 def _strip_markdown_code_fences(s: str) -> str:
@@ -308,29 +308,29 @@ def generate_report(
         pass
 
     # 최종 리포트는 LangGraph state의 final_report에서만 가져옵니다.
-    report_obj = graph_result.get("final_report") or {}
+    report_output_obj = graph_result.get("final_report") or {}
 
-    if not isinstance(report_obj, dict):
+    if not isinstance(report_output_obj, dict):
         logger_llm.warning(
             "[LangGraph] final_report is not dict. fallback wrapper used."
         )
-        report_obj = {
-            "raw": str(report_obj),
+        report_output_obj = {
+            "raw": str(report_output_obj),
         }
 
-    if not report_obj:
+    if not report_output_obj:
         logger_llm.warning("[LangGraph] final_report is empty. normalized empty report will be returned.")
 
     try:
-        report_obj = _normalize_report(report_obj)
+        report_output_obj = _normalize_report(report_output_obj)
     except Exception as e:
         logger_llm.exception(
-            "LLM report normalize failed err=%s report_obj=%s",
+            "LLM report normalize failed err=%s report_output_obj=%s",
             str(e),
-            json.dumps(report_obj, ensure_ascii=False)
-            if isinstance(report_obj, dict)
-            else str(report_obj),
+            json.dumps(report_output_obj, ensure_ascii=False)
+            if isinstance(report_output_obj, dict)
+            else str(report_output_obj),
         )
         raise
 
-    return report_obj
+    return report_output_obj
