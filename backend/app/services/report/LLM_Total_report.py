@@ -140,10 +140,6 @@ def user_prompt(
 # ------------------------------------------------------------------
 # Normalize
 # ------------------------------------------------------------------
-def _ensure_list(x: Any) -> list:
-    return x if isinstance(x, list) else ([] if x is None else [x])
-
-
 def _normalize_report(report_output_obj: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(report_output_obj, dict):
         return {}
