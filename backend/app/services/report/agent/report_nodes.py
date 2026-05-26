@@ -256,8 +256,7 @@ def youtube_recommendation_node(state: ReportAgentState) -> ReportAgentState:
         meta = state.get("meta") or {}
         recommendations = recommended_youtube_tool(meta)
 
-        # YouTube 추천은 최종 리포트를 대체하는 값이 아니라 보조 자료입니다.
-        # 따라서 final_report 전체를 덮어쓰지 않고 recommended_youtube 필드에만 병합합니다.
+        # YouTube 추천은 최종 리포트를 대체하는 값이 아니라 보조 자료라서 final_report 전체를 덮어쓰지 않고 recommended_youtube 필드에만 병합
         if isinstance(recommendations, list):
             final_report["recommended_youtube"] = recommendations
         else:
