@@ -5,11 +5,6 @@ import logging
 
 from typing import Any, Dict, Optional
 
-try:
-    from app.services.report.tools.recommended_youtube_tool import recommended_youtube_tool
-except Exception:
-    recommended_youtube_tool = None
-
 from app.services.report.agent.graph import build_report_graph
 
 
